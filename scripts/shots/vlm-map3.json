@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Based on the image provided, here are the answers to your questions:\n\n1. **Green ENTRANCE (MASUK/ENTER) indicator with arrow icon at the right of row A?**\n   **Yes.** There is a green tile on the far right of the top row (Row A) labeled \"ENTER\" with an arrow icon and \"way in\" text below it.\n\n2. **EXIT (KELUAR) tile?**\n   **Yes.** There is a grey/dark tile in Row B (between B-14 and the blue ramp) labeled \"EXIT\" with a door icon.\n\n3. **Blue RAMP tile with down arrow?**\n   **Yes.** There is a vertical blue tile to the right of the EXIT tile, containing a downward-pointing arrow and the text \"RAMP\" (or similar vertical text).\n\n4. **Blue LIFT and violet WC tiles in row B?**\n   **No.** In this view, I see the EXIT tile and the RAMP tile in that section of Row B. I do not see any tiles specifically labeled \"LIFT\" or \"WC\" (and certainly not in violet/purple color). The visible non-parking slots are the grey EXIT tile and the blue RAMP tile.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1789368741,
+  "id": "20260914145209f96cf439cd3443fb",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260914145209f96cf439cd3443fb",
+  "usage": {
+    "completion_tokens": 261,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 602,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 863
+  }
+}
