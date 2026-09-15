@@ -70,3 +70,33 @@ Stage Summary:
 - Key artifacts: src/app/page.tsx, src/app/globals.css, src/lib/{parking-data,store}.ts, src/components/parking/{Landing,HomeView,BookingView,TicketView,HistoryView,WalletView,ProfileView,ScannerView,MapView,ParkingMap,Brand,WindowPickers}.tsx
 - Design tokens: bg #070B16, primary #FFD60A, binus-blue #1E3A8A / bright #3B82F6, glass surfaces, Space Grotesk display font
 - Screenshots: /home/z/my-project/scripts/shots/ (14 captures)
+
+---
+Task ID: 3
+Agent: Super Z (main agent)
+Task: Iteration v6 per user feedback — 3 changes: (1) vehicles should be editable, (2) bottom nav bar became ugly after FAB redesign, (3) remove QR scan for check-in/exit entirely.
+
+Work Log:
+- VLM-analyzed user screenshot (pasted_image_1789440231267.png): confirmed the cutout-ring FAB looked like a "doughnut" and the Scan QR card read like a banner
+- store.ts: removed scanSlot (walk-in/checkin/checkout-by-scan); added checkOut(id) — same fee logic (parking + overtime from wallet); added updateVehicle(id, data)
+- parking-data.ts: removed all 14 scanner i18n keys (ID/EN); updated heroSub + mapNote (no more QR mentions); added passTitle/showPass, checkOutBtn, checkoutConfirmTitle/Desc, estParking/estOvertime/totalDue, editVehicle/Title/Sub, vehicleUpdated keys; checkinOk/checkoutOk retained for TicketView
+- page.tsx: deleted QR FAB + QrGlyph + ScannerView overlay + scanOpen state; bottom nav redesigned — clean 4-tab glass pill (equal flex-1 widths, no protrusion) with framer-motion layoutId sliding active pill + spring physics; main padding pb-40→pb-32
+- HomeView.tsx: removed Scan QR quick-action card + onOpenScanner prop; search section delay renumbered
+- TicketView.tsx: "Scan untuk keluar" → "Keluar & Bayar Parkir" button opening AlertDialog with live fee estimate (estParking + estOvertime + totalDue); confirm → checkOut() → success/error toast; QR pass section reworded to "Pass parkir digital / Tunjukkan pass ini ke petugas" with BadgeCheck icon
+- VehicleModal.tsx: optional vehicle prop → edit mode (Pencil/Plus header icons, prefilled fields, updateVehicle + vehicleUpdated toast)
+- ProfileView.tsx: pencil edit button on each vehicle card → opens modal in edit mode; add button unchanged
+- BookingView.tsx: WALK_IN note "Langsung via scan QR" → "Datang langsung, tanpa booking" (Zap icon replaces QrCode)
+- Deleted ScannerView.tsx
+
+Verification (agent-browser 430x900 + VLM):
+- Landing: hero copy "check-in & keluar langsung dari aplikasi" — no QR mention
+- Nav: 4 tabs (Beranda/Riwayat/Dompet/Profil), VLM: "exceptionally clean and elegant, no visual glitches, awkward cutouts, or protrusions"
+- Check-out flow: History → A-03 active session → "Keluar & Bayar Parkir" → dialog with fee estimate → confirm → toast "Berhasil keluar — sampai jumpa · Rp20.000" + status completed; nav correctly hidden during ticket flow
+- Vehicle edit: Profile → pencil on "Vario Harian" → modal "Edit Kendaraan" prefilled (Vario Harian/B 2143 RWZ/Honda/Vario 160/Hitam) → saved "Vario Kampus"/"Merah" → card updated
+- Tab switching smooth (sliding pill animates); zero console/page errors; lint clean; tsc clean (src/)
+- Dark home VLM 9/10; light mode VLM 8/10
+
+Stage Summary:
+- v6 delivered: QR scanning fully removed (check-in via ticket button, check-out via new payment dialog), bottom nav rebuilt as clean symmetric pill, vehicles now editable
+- Key artifacts modified: page.tsx, store.ts, parking-data.ts, HomeView, TicketView, VehicleModal, ProfileView, BookingView; deleted ScannerView.tsx
+- Screenshots: /home/z/my-project/scripts/shots/v6-*.png (13 captures)

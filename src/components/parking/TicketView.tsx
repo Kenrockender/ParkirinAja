@@ -1,15 +1,16 @@
 "use client";
-/** TicketView — premium boarding-pass parking pass with mock QR. */
+/** TicketView — premium boarding-pass parking pass with check-out flow. */
 import React from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
+  BadgeCheck,
   CalendarDays,
   Car,
   Clock,
   Info,
   LogIn,
-  QrCode,
+  LogOut,
   Ticket as TicketIcon,
   Timer,
   XCircle,
@@ -29,6 +30,8 @@ import { useParkir } from "@/lib/store";
 import {
   LOCATION,
   TARIFF,
+  overtimeFee,
+  parkingFee,
   refundAmount,
   rupiah,
   tr,
@@ -39,20 +42,20 @@ export function TicketView({
   reservation,
   onBack,
   onUpdate,
-  onOpenScanner,
 }: {
   reservation: string;
   onBack: () => void;
   onUpdate: (r: import("@/lib/parking-data").Reservation) => void;
-  onOpenScanner: () => void;
 }) {
   const lang = useParkir((s) => s.lang);
   const res = useParkir((s) => s.reservations.find((r) => r.id === reservation));
   const cancelReservation = useParkir((s) => s.cancelReservation);
   const checkIn = useParkir((s) => s.checkIn);
+  const checkOut = useParkir((s) => s.checkOut);
   const toast = useParkir((s) => s.toast);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [checkoutOpen, setCheckoutOpen] = React.useState(false);
   const [, tickNow] = React.useReducer((x: number) => x + 1, 0);
 
   // live elapsed timer for active sessions
@@ -74,6 +77,13 @@ export function TicketView({
     res.status === "CHECKED_IN" ? now - (res.checkedInAt ?? now) : 0;
   const elapsedH = Math.floor(elapsedMs / 3600_000);
   const elapsedM = Math.floor((elapsedMs % 3600_000) / 60_000);
+
+  // check-out fee estimate (live)
+  const estMinutes = Math.max(1, Math.round(elapsedMs / 60_000));
+  const estParkingFee = parkingFee(estMinutes);
+  const plannedEnd = new Date(`${res.date}T${res.endTime}:00`).getTime();
+  const estLateMin = Math.max(0, Math.round((now - plannedEnd) / 60_000));
+  const estOvertime = overtimeFee(estLateMin);
 
   const dateFmt = new Date(`${res.date}T00:00:00`).toLocaleDateString(
     lang === "id" ? "id-ID" : "en-US",
@@ -207,11 +217,11 @@ export function TicketView({
           <MockQR seed={res.code} size={108} />
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 text-xs font-bold">
-              <QrCode className="h-3.5 w-3.5 text-primary" />
-              {lang === "id" ? "QR permanen di slot" : "Permanent QR at the slot"}
+              <BadgeCheck className="h-3.5 w-3.5 text-primary" />
+              {t("passTitle")}
             </p>
             <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
-              {t("scanAtSlot")}
+              {t("showPass")}
             </p>
             <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/[0.05] px-2 py-0.5 text-[9.5px] font-semibold text-muted-foreground">
               <Info className="h-3 w-3" /> {t("overtimeNote")}
@@ -261,11 +271,11 @@ export function TicketView({
 
         {res.status === "CHECKED_IN" && (
           <button
-            onClick={onOpenScanner}
+            onClick={() => setCheckoutOpen(true)}
             className="glow-primary flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground transition-all hover:scale-[1.01] active:scale-[0.98]"
           >
-            <QrCode className="h-4.5 w-4.5" />
-            {t("scanExit")}
+            <LogOut className="h-4.5 w-4.5" />
+            {t("checkOutBtn")}
           </button>
         )}
 
@@ -314,6 +324,57 @@ export function TicketView({
               className="rounded-xl bg-red-500 text-white hover:bg-red-600"
             >
               {t("cancelBooking")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* check-out dialog */}
+      <AlertDialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
+        <AlertDialogContent className="rounded-3xl border-border bg-popover/95 backdrop-blur-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display tracking-tight">
+              {t("checkoutConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="leading-relaxed">
+              {t("checkoutConfirmDesc")}
+            </AlertDialogDescription>
+            <div className="mt-1 space-y-1.5 rounded-xl bg-primary/[0.08] px-3.5 py-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{t("estParking")}</span>
+                <span className="tnum font-bold">{rupiah(estParkingFee)}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{t("estOvertime")}</span>
+                <span className="tnum font-bold">{rupiah(estOvertime)}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between border-t border-dashed border-border pt-2">
+                <span className="text-xs font-semibold">{t("totalDue")}</span>
+                <span className="tnum font-display text-lg font-bold text-primary">
+                  {rupiah(estParkingFee + estOvertime)}
+                </span>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-xl border-border bg-card/60 hover:bg-accent/60">
+              {t("cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const out = checkOut(res.id);
+                if (!out.ok) {
+                  toast(t("insufficient"), "error");
+                  return;
+                }
+                toast(
+                  `${t("checkoutOk")} · ${rupiah(out.parkingFee + out.overtimeFee)}`,
+                  "success"
+                );
+              }}
+              className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {t("checkOutBtn")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

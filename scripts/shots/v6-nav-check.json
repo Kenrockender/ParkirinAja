@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "The bottom navigation bar features a **rounded, pill-shaped container** with a subtle dark background that contrasts well with the main UI. The **tab layout** is evenly spaced with four clear icons (Location, History, Wallet, Profile) and text labels. The **active tab** (\"Neranda\") is highlighted with a vibrant yellow circular background and bold white icon, making it immediately distinguishable. **Spacing** is generous and balanced, ensuring touch targets are easily tappable. The design is exceptionally **clean and elegant**, with no visual glitches, awkward cutouts, or protrusions. The floating appearance adds depth while maintaining a modern, professional aesthetic suitable for the dark theme.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1789440929,
+  "id": "2026091510552421dc1ec59fdb4241",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "2026091510552421dc1ec59fdb4241",
+  "usage": {
+    "completion_tokens": 137,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 571,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 708
+  }
+}

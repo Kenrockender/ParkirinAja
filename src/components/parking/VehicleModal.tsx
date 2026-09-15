@@ -1,8 +1,8 @@
 "use client";
-/** VehicleModal — add-vehicle dialog with plate validation. */
+/** VehicleModal — add/edit vehicle dialog with plate validation. */
 import React from "react";
 import { motion } from "framer-motion";
-import { Car, Check, X } from "lucide-react";
+import { Check, Pencil, Plus, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,19 +11,24 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useParkir } from "@/lib/store";
-import { tr } from "@/lib/parking-data";
+import { tr, type Vehicle } from "@/lib/parking-data";
 
 export function VehicleModal({
   open,
   onOpenChange,
+  vehicle,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** when provided → edit mode, otherwise add mode */
+  vehicle?: Vehicle | null;
 }) {
   const lang = useParkir((s) => s.lang);
   const addVehicle = useParkir((s) => s.addVehicle);
+  const updateVehicle = useParkir((s) => s.updateVehicle);
   const toast = useParkir((s) => s.toast);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+  const editing = !!vehicle;
 
   const [nickname, setNickname] = React.useState("");
   const [plate, setPlate] = React.useState("");
@@ -34,14 +39,14 @@ export function VehicleModal({
 
   React.useEffect(() => {
     if (open) {
-      setNickname("");
-      setPlate("");
-      setBrand("");
-      setModel("");
-      setColor("");
+      setNickname(vehicle?.nickname ?? "");
+      setPlate(vehicle?.licensePlate ?? "");
+      setBrand(vehicle?.brand ?? "");
+      setModel(vehicle?.model ?? "");
+      setColor(vehicle?.color ?? "");
       setErrors({});
     }
-  }, [open]);
+  }, [open, vehicle]);
 
   function handleSave() {
     const nick = nickname.trim();
@@ -52,14 +57,20 @@ export function VehicleModal({
     setErrors(next);
     if (!nick || !p) return;
 
-    addVehicle({
+    const payload = {
       nickname: nick,
       licensePlate: p,
       brand: brand.trim() || null,
       model: model.trim() || null,
       color: color.trim() || null,
-    });
-    toast(t("vehicleSaved"), "success");
+    };
+    if (editing && vehicle) {
+      updateVehicle(vehicle.id, payload);
+      toast(t("vehicleUpdated"), "success");
+    } else {
+      addVehicle(payload);
+      toast(t("vehicleSaved"), "success");
+    }
     onOpenChange(false);
   }
 
@@ -75,13 +86,17 @@ export function VehicleModal({
       <DialogContent className="max-w-[380px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
         <DialogHeader className="space-y-1.5">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15">
-            <Car className="h-5.5 w-5.5 text-primary" />
+            {editing ? (
+              <Pencil className="h-5.5 w-5.5 text-primary" />
+            ) : (
+              <Plus className="h-5.5 w-5.5 text-primary" />
+            )}
           </div>
           <DialogTitle className="text-center font-display text-lg font-bold tracking-tight">
-            {t("addVehicleTitle")}
+            {editing ? t("editVehicleTitle") : t("addVehicleTitle")}
           </DialogTitle>
           <DialogDescription className="text-center text-xs leading-snug text-muted-foreground">
-            {t("addVehicleSub")}
+            {editing ? t("editVehicleSub") : t("addVehicleSub")}
           </DialogDescription>
         </DialogHeader>
 

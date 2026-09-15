@@ -1,6 +1,6 @@
 "use client";
 /**
- * HomeView — hero availability, scan quick-action, availability search
+ * HomeView — hero availability, availability search
  * (date/time → count + free slot numbers), map preview, ads, heatmap.
  */
 import React from "react";
@@ -9,13 +9,11 @@ import {
   CalendarClock,
   CalendarDays,
   CarFront,
-  ChevronRight,
   Clock,
   Coffee,
   Gauge,
   Maximize2,
   PartyPopper,
-  QrCode,
   Search,
   SearchX,
   Sparkles,
@@ -51,11 +49,9 @@ const AD_ICON: Record<Ad["theme"], React.ComponentType<{ className?: string }>> 
 export function HomeView({
   onSlotPress,
   onOpenMap,
-  onOpenScanner,
 }: {
   onSlotPress: (slotId: string, slotNumber: string) => void;
   onOpenMap: () => void;
-  onOpenScanner: () => void;
 }) {
   const lang = useParkir((s) => s.lang);
   const user = useParkir((s) => s.user);
@@ -189,32 +185,11 @@ export function HomeView({
         </div>
       </motion.section>
 
-      {/* ── scan quick action ── */}
-      <motion.button
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, delay: 0.1 }}
-        onClick={onOpenScanner}
-        className="group relative flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-binus-bright/30 bg-gradient-to-br from-binus-blue/50 to-binus-bright/20 p-4 text-left transition-transform active:scale-[0.98]"
-      >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-binus-bright/15">
-          <QrCode className="h-5 w-5 text-binus-bright" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block font-display text-base font-bold">{t("scanQr")}</span>
-          <span className="block text-[11px] font-medium text-muted-foreground">
-            {lang === "id" ? "check-in / keluar" : "check in / exit"}
-          </span>
-        </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
-        <div aria-hidden className="absolute -bottom-5 -right-5 h-16 w-16 rounded-full bg-binus-bright/10 blur-xl" />
-      </motion.button>
-
       {/* ── availability search ── */}
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, delay: 0.15 }}
+        transition={{ duration: 0.45, delay: 0.1 }}
         className="glass rounded-3xl p-4"
       >
         <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold">
@@ -363,7 +338,7 @@ export function HomeView({
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, delay: 0.2 }}
+        transition={{ duration: 0.45, delay: 0.15 }}
       >
         <div className="mb-2 flex items-center justify-between">
           <h3 className="font-display text-sm font-bold tracking-tight">{t("parkingMap")}</h3>
@@ -389,7 +364,7 @@ export function HomeView({
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, delay: 0.25 }}
+        transition={{ duration: 0.45, delay: 0.2 }}
         className="space-y-2.5"
       >
         <AdCarousel lang={lang} />

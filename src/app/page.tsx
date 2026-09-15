@@ -1,6 +1,6 @@
 "use client";
 /**
- * Parkir Binus — Dark Premium UI Concept v4
+ * Parkir Binus — Dark Premium UI Concept v6
  * Live preview app: full customer journey on simulated data.
  */
 import React from "react";
@@ -25,7 +25,6 @@ import { TicketView } from "@/components/parking/TicketView";
 import { HistoryView } from "@/components/parking/HistoryView";
 import { WalletView } from "@/components/parking/WalletView";
 import { ProfileView } from "@/components/parking/ProfileView";
-import { ScannerView } from "@/components/parking/ScannerView";
 import { MapView } from "@/components/parking/MapView";
 import { OperatorView } from "@/components/parking/OperatorView";
 import { useParkir } from "@/lib/store";
@@ -79,7 +78,6 @@ function Shell() {
   const [tab, setTab] = React.useState<Tab>("home");
   const [view, setView] = React.useState<View>({ name: "tabs" });
   const [mapOpen, setMapOpen] = React.useState(false);
-  const [scanOpen, setScanOpen] = React.useState(false);
 
   const navTabs: { k: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { k: "home", label: t("navHome"), icon: MapPin },
@@ -135,7 +133,7 @@ function Shell() {
       </header>
 
       {/* ── main ── */}
-      <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-40 pt-4">
+      <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-32 pt-4">
         <AnimatePresence mode="wait">
           {view.name === "tabs" && (
             <motion.div
@@ -149,7 +147,6 @@ function Shell() {
                 <HomeView
                   onSlotPress={(slotId, slotNumber) => openBooking(slotId, slotNumber)}
                   onOpenMap={() => setMapOpen(true)}
-                  onOpenScanner={() => setScanOpen(true)}
                 />
               )}
               {tab === "history" && (
@@ -182,7 +179,6 @@ function Shell() {
                 setTab("history");
               }}
               onUpdate={() => {}}
-              onOpenScanner={() => setScanOpen(true)}
             />
           )}
         </AnimatePresence>
@@ -192,47 +188,18 @@ function Shell() {
       {view.name === "tabs" && (
       <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-30 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto w-full max-w-[430px] px-4">
-          <div className="glass glow-soft relative flex items-end justify-around rounded-[1.75rem] px-2 pb-1.5 pt-1.5">
-            {navTabs.slice(0, 2).map(({ k, label, icon: Icon }) => (
+          <div className="glass flex items-stretch justify-around rounded-[1.6rem] px-2.5 py-2 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.55)]">
+            {navTabs.map(({ k, label, icon: Icon }) => (
               <NavBtn
                 key={k}
-                active={view.name === "tabs" && tab === k}
+                active={tab === k}
                 label={label}
                 onClick={() => {
                   setView({ name: "tabs" });
                   setTab(k);
                 }}
               >
-                <Icon className="h-5 w-5" />
-              </NavBtn>
-            ))}
-
-            {/* center scan FAB — elevated high above the bar, ref-style cutout ring */}
-            <div className="relative -mt-[3.25rem] flex w-20 shrink-0 justify-center">
-              <span
-                aria-hidden
-                className="absolute -top-2 h-[84px] w-[84px] rounded-full bg-primary/30 blur-xl"
-              />
-              <button
-                onClick={() => setScanOpen(true)}
-                aria-label={t("scanQr")}
-                className="glow-primary relative flex h-[68px] w-[68px] items-center justify-center rounded-full border-[5px] border-background bg-primary transition-transform hover:scale-105 active:scale-90"
-              >
-                <QrGlyph className="relative h-8 w-8 text-primary-foreground" />
-              </button>
-            </div>
-
-            {navTabs.slice(2, 4).map(({ k, label, icon: Icon }) => (
-              <NavBtn
-                key={k}
-                active={view.name === "tabs" && tab === k}
-                label={label}
-                onClick={() => {
-                  setView({ name: "tabs" });
-                  setTab(k);
-                }}
-              >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-[1.15rem] w-[1.15rem]" />
               </NavBtn>
             ))}
           </div>
@@ -246,34 +213,9 @@ function Shell() {
         onClose={() => setMapOpen(false)}
         onSlotPress={(slotId, slotNumber) => openBooking(slotId, slotNumber)}
       />
-      <ScannerView
-        open={scanOpen}
-        onClose={() => setScanOpen(false)}
-        onResult={(_kind, resId) => {
-          setScanOpen(false);
-          if (resId) setView({ name: "ticket", reservationId: resId });
-        }}
-      />
 
       <Toasts />
     </div>
-  );
-}
-
-/** Custom QR glyph — finder squares + center mark, for the scan FAB. */
-function QrGlyph({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <rect x="2" y="2" width="7.5" height="7.5" rx="1.8" stroke="currentColor" strokeWidth="1.9" />
-      <rect x="14.5" y="2" width="7.5" height="7.5" rx="1.8" stroke="currentColor" strokeWidth="1.9" />
-      <rect x="2" y="14.5" width="7.5" height="7.5" rx="1.8" stroke="currentColor" strokeWidth="1.9" />
-      <circle cx="12" cy="12" r="2.1" fill="currentColor" />
-      <circle cx="17.4" cy="13.4" r="1.15" fill="currentColor" />
-      <circle cx="20.6" cy="16.4" r="1.15" fill="currentColor" />
-      <circle cx="13.6" cy="17.4" r="1.15" fill="currentColor" />
-      <circle cx="17.4" cy="20.4" r="1.15" fill="currentColor" />
-      <circle cx="20.6" cy="20.4" r="1.15" fill="currentColor" />
-    </svg>
   );
 }
 
@@ -339,19 +281,31 @@ function NavBtn({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group flex min-w-[3.25rem] flex-col items-center gap-0.5 rounded-2xl px-2 py-1.5 transition-colors",
+        "group relative flex flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-1.5 transition-colors duration-200",
         active ? "text-primary" : "text-muted-foreground hover:text-foreground"
       )}
     >
+      <span className="relative flex h-7 w-12 items-center justify-center">
+        {/* sliding active pill */}
+        {active && (
+          <motion.span
+            layoutId="nav-active-pill"
+            transition={{ type: "spring", stiffness: 480, damping: 34 }}
+            className="absolute inset-0 rounded-full bg-primary/15"
+          />
+        )}
+        <span className="relative flex items-center justify-center transition-transform duration-200 group-active:scale-90">
+          {children}
+        </span>
+      </span>
       <span
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-xl transition-all",
-          active && "bg-primary/15"
+          "text-[9.5px] font-bold leading-none transition-colors duration-200",
+          active ? "text-primary" : "text-muted-foreground/80"
         )}
       >
-        {children}
+        {label}
       </span>
-      <span className="text-[9.5px] font-bold leading-none">{label}</span>
     </button>
   );
 }

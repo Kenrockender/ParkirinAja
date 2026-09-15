@@ -1,7 +1,7 @@
 "use client";
 /**
  * Parkir Binus preview store — client-side simulation of the full product loop:
- * auth → browse availability → book → check-in (scan) → check-out (scan) → fees/refund.
+ * auth → browse availability → book → check-in → check-out → fees/refund.
  */
 import { create } from "zustand";
 import {
@@ -66,6 +66,7 @@ interface ParkirState {
   signOut: () => void;
 
   addVehicle: (v: { nickname: string; licensePlate: string; brand: string | null; model: string | null; color: string | null }) => void;
+  updateVehicle: (id: string, v: { nickname: string; licensePlate: string; brand: string | null; model: string | null; color: string | null }) => void;
   removeVehicle: (id: string) => void;
 
   /** Operator: toggle a slot between ACTIVE and MAINTENANCE */
@@ -85,10 +86,10 @@ interface ParkirState {
   cancelReservation: (id: string) => void;
   checkIn: (id: string) => void;
 
-  /** Scan a slot QR → walk-in start, check-in, or check-out depending on state */
-  scanSlot: (slotNumber: string) =>
-    | { ok: true; kind: "walkin" | "checkin" | "checkout"; reservation?: Reservation }
-    | { ok: false; reason: "unknown" | "busy" | "maintenance" | "no_reservation" | "insufficient" };
+  /** End an active session — charges parking + overtime fees from wallet */
+  checkOut: (id: string) =>
+    | { ok: true; parkingFee: number; overtimeFee: number }
+    | { ok: false; reason: "not_found" | "insufficient" };
 
   topUp: (amount: number) => void;
 }
@@ -315,6 +316,11 @@ export const useParkir = create<ParkirState>((set, get) => ({
       vehicles: [...s.vehicles, { id: uid(), ...v }],
     })),
 
+  updateVehicle: (id, v) =>
+    set((s) => ({
+      vehicles: s.vehicles.map((veh) => (veh.id === id ? { ...veh, ...v } : veh)),
+    })),
+
   removeVehicle: (id) => set((s) => ({ vehicles: s.vehicles.filter((v) => v.id !== id) })),
 
   setSlotStatus: (slotId, status) =>
@@ -395,110 +401,43 @@ export const useParkir = create<ParkirState>((set, get) => ({
     }));
   },
 
-  scanSlot: (slotNumberRaw) => {
+  checkOut: (id) => {
     const now = Date.now();
-    const { slots, reservations, walletBalance } = get();
-    const code = slotNumberRaw.trim().toUpperCase().replace(/^PB-?/, "");
-    const slot = slots.find(
-      (s) => s.slotNumber === code || s.slotNumber === code.replace("-", "") || `slot-${code.replace("-", "-")}` === s.id
-    );
-    if (!slot) return { ok: false as const, reason: "unknown" as const };
-    if (slot.status === "MAINTENANCE") return { ok: false as const, reason: "maintenance" as const };
+    const { reservations, walletBalance } = get();
+    const active = reservations.find((r) => r.id === id && r.status === "CHECKED_IN");
+    if (!active) return { ok: false as const, reason: "not_found" as const };
 
-    // Own active session on this slot → checkout
-    const active = reservations.find(
-      (r) => r.slotId === slot.id && r.status === "CHECKED_IN"
-    );
-    if (active) {
-      const outAt = now;
-      const inAt = active.checkedInAt ?? now;
-      const minutes = Math.max(1, Math.round((outAt - inAt) / MIN));
-      const pFee = parkingFee(minutes);
-      const plannedEnd = new Date(`${active.date}T${active.endTime}:00`).getTime();
-      const lateMin = Math.max(0, Math.round((outAt - plannedEnd) / MIN));
-      const oFee = overtimeFee(lateMin);
-      const total = pFee + oFee;
-      if (walletBalance < total) return { ok: false as const, reason: "insufficient" as const };
-      set((s) => ({
-        reservations: s.reservations.map((r) =>
-          r.id === active.id
-            ? {
-                ...r,
-                status: "COMPLETED" as ResStatus,
-                checkedOutAt: outAt,
-                parkingFee: pFee,
-                overtimeFee: oFee,
-              }
-            : r
-        ),
-        walletBalance: s.walletBalance - total,
-        transactions: [
-          ...(oFee
-            ? [{ id: uid(), type: "OVERTIME" as TxnType, amount: oFee, createdAt: now, note: active.code }]
-            : []),
-          { id: uid(), type: "PARKING_FEE" as TxnType, amount: pFee, createdAt: now, note: active.code },
-          ...s.transactions,
-        ],
-      }));
-      return { ok: true as const, kind: "checkout" as const };
-    }
+    const inAt = active.checkedInAt ?? now;
+    const minutes = Math.max(1, Math.round((now - inAt) / MIN));
+    const pFee = parkingFee(minutes);
+    const plannedEnd = new Date(`${active.date}T${active.endTime}:00`).getTime();
+    const lateMin = Math.max(0, Math.round((now - plannedEnd) / MIN));
+    const oFee = overtimeFee(lateMin);
+    const total = pFee + oFee;
+    if (walletBalance < total) return { ok: false as const, reason: "insufficient" as const };
 
-    // Own confirmed reservation on this slot starting now-ish → check in
-    const confirmed = reservations.find(
-      (r) => r.slotId === slot.id && r.status === "CONFIRMED"
-    );
-    if (confirmed) {
-      set((s) => ({
-        reservations: s.reservations.map((r) =>
-          r.id === confirmed.id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
-        ),
-      }));
-      return { ok: true as const, kind: "checkin" as const, reservation: confirmed };
-    }
-
-    // Any other active/confirmed overlapping right now → busy
-    const busy = reservations.find(
-      (r) =>
-        r.slotId === slot.id &&
-        ["CONFIRMED", "CHECKED_IN"].includes(r.status) &&
-        r.date === dateStr(new Date(now))
-    );
-    if (busy) return { ok: false as const, reason: "busy" as const };
-
-    // Free slot → walk-in session, charged at walk-in rate
-    if (walletBalance < TARIFF.walkInFee)
-      return { ok: false as const, reason: "insufficient" as const };
-
-    const nowD = new Date(now);
-    const res: Reservation = {
-      id: uid(),
-      code: resCode(),
-      type: "WALK_IN",
-      slotId: slot.id,
-      slotNumber: slot.slotNumber,
-      date: dateStr(nowD),
-      startTime: timeStr(nowD),
-      endTime: addH(timeStr(nowD), 2),
-      status: "CHECKED_IN",
-      serviceFee: TARIFF.walkInFee,
-      parkingFee: 0,
-      overtimeFee: 0,
-      refundAmount: 0,
-      vehiclePlate: get().vehicles[0]?.licensePlate ?? "B 2143 RWZ",
-      vehicleName: get().vehicles[0]?.model ?? "Honda Vario 160",
-      driverName: get().user.name,
-      createdAt: now,
-      checkedInAt: now,
-    };
     set((s) => ({
-      reservations: [res, ...s.reservations],
-      walletBalance: s.walletBalance - TARIFF.walkInFee,
+      reservations: s.reservations.map((r) =>
+        r.id === active.id
+          ? {
+              ...r,
+              status: "COMPLETED" as ResStatus,
+              checkedOutAt: now,
+              parkingFee: pFee,
+              overtimeFee: oFee,
+            }
+          : r
+      ),
+      walletBalance: s.walletBalance - total,
       transactions: [
-        { id: uid(), type: "SERVICE_FEE", amount: TARIFF.walkInFee, createdAt: now, note: res.code },
+        ...(oFee
+          ? [{ id: uid(), type: "OVERTIME" as TxnType, amount: oFee, createdAt: now, note: active.code }]
+          : []),
+        { id: uid(), type: "PARKING_FEE" as TxnType, amount: pFee, createdAt: now, note: active.code },
         ...s.transactions,
       ],
     }));
-    return { ok: true as const, kind: "walkin" as const, reservation: res };
+    return { ok: true as const, parkingFee: pFee, overtimeFee: oFee };
   },
 
   topUp: (amount) => {

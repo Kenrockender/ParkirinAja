@@ -8,6 +8,7 @@ import {
   Languages,
   LogOut,
   Moon,
+  Pencil,
   Plus,
   Sun,
   Trash2,
@@ -16,7 +17,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "next-themes";
 import { useParkir } from "@/lib/store";
-import { rupiah, tr } from "@/lib/parking-data";
+import { rupiah, tr, type Vehicle } from "@/lib/parking-data";
 import { VehicleModal } from "./VehicleModal";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +34,11 @@ export function ProfileView() {
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
-  const [vehicleModal, setVehicleModal] = React.useState(false);
+  /** null vehicle → add mode; vehicle object → edit mode */
+  const [vehicleModal, setVehicleModal] = React.useState<{
+    open: boolean;
+    vehicle?: Vehicle;
+  }>({ open: false });
   const [confirmRemove, setConfirmRemove] = React.useState<string | null>(null);
   React.useEffect(() => setMounted(true), []);
 
@@ -115,7 +120,7 @@ export function ProfileView() {
         <div className="flex items-center justify-between">
           <h3 className="font-display text-sm font-bold tracking-tight">{t("myVehicles")}</h3>
           <button
-            onClick={() => setVehicleModal(true)}
+            onClick={() => setVehicleModal({ open: true })}
             className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary transition hover:bg-primary/20 active:scale-95"
           >
             <Plus className="h-3 w-3" /> {t("addVehicle")}
@@ -141,6 +146,13 @@ export function ProfileView() {
                   {v.licensePlate}
                 </span>
               </span>
+              <button
+                onClick={() => setVehicleModal({ open: true, vehicle: v })}
+                aria-label={t("editVehicle")}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-transparent text-muted-foreground/50 transition hover:border-primary/30 hover:bg-primary/10 hover:text-primary active:scale-90"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
               <button
                 onClick={() => setConfirmRemove(confirmRemove === v.id ? null : v.id)}
                 aria-label={t("removeVehicle")}
@@ -243,7 +255,11 @@ export function ProfileView() {
         {t("appName")} · {t("footerNote")}
       </p>
 
-      <VehicleModal open={vehicleModal} onOpenChange={setVehicleModal} />
+      <VehicleModal
+        open={vehicleModal.open}
+        onOpenChange={(v) => setVehicleModal((m) => ({ ...m, open: v }))}
+        vehicle={vehicleModal.vehicle ?? null}
+      />
     </div>
   );
 }
