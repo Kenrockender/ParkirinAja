@@ -1,8 +1,13 @@
 "use client";
-/** Landing — dark premium hero with glow orbs, feature glass cards, demo sign-in. */
+/** Landing — clean dark premium hero with glow orbs + demo sign-in (user & operator). */
 import React from "react";
 import { motion } from "framer-motion";
-import { GraduationCap, MapPinned, QrCode, Sparkles, Wallet, ChevronRight, CarFront } from "lucide-react";
+import {
+  CarFront,
+  ChevronRight,
+  GraduationCap,
+  ShieldCheck,
+} from "lucide-react";
 import { LogoMark } from "./Brand";
 import { useParkir } from "@/lib/store";
 import { tr } from "@/lib/parking-data";
@@ -11,45 +16,6 @@ export function Landing() {
   const lang = useParkir((s) => s.lang);
   const signIn = useParkir((s) => s.signIn);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
-
-  const features = [
-    {
-      icon: MapPinned,
-      title: lang === "id" ? "Slot persis di site-plan" : "Slots match the site-plan",
-      desc:
-        lang === "id"
-          ? "Pilih nomor slot favoritmu di Gedung Parkir Anggrek"
-          : "Pick your favorite slot number at Anggrek Parking Building",
-      accent: "text-emerald-300 bg-emerald-400/10 border-emerald-400/20",
-    },
-    {
-      icon: QrCode,
-      title: lang === "id" ? "Scan QR dari HP" : "Scan the QR from your phone",
-      desc:
-        lang === "id"
-          ? "Check-in & keluar cukup scan QR permanen di tiap slot"
-          : "Check in & out by scanning the permanent QR at each slot",
-      accent: "text-primary bg-primary/10 border-primary/25",
-    },
-    {
-      icon: Sparkles,
-      title: lang === "id" ? "Heatmap permintaan" : "Demand heatmap",
-      desc:
-        lang === "id"
-          ? "Lihat jam & hari paling padat sebelum berangkat"
-          : "See the busiest hours & days before you leave",
-      accent: "text-sky-300 bg-sky-400/10 border-sky-400/20",
-    },
-    {
-      icon: Wallet,
-      title: lang === "id" ? "Dompet & refund jelas" : "Wallet & fair refunds",
-      desc:
-        lang === "id"
-          ? "Refund 100% dalam 10 menit pertama, otomatis"
-          : "100% refund in the first 10 minutes, automatic",
-      accent: "text-violet-300 bg-violet-400/10 border-violet-400/20",
-    },
-  ];
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden">
@@ -60,7 +26,7 @@ export function Landing() {
         <div className="absolute bottom-[-10%] right-[10%] h-72 w-72 rounded-full bg-binus-blue/40 blur-[100px]" />
       </div>
 
-      <main className="relative mx-auto flex w-full max-w-md flex-1 flex-col px-6 pb-10 pt-14">
+      <main className="relative mx-auto flex w-full max-w-md flex-1 flex-col px-6 pb-10 pt-16">
         {/* Brand */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -69,9 +35,9 @@ export function Landing() {
           className="flex flex-col items-center text-center"
         >
           <div className="relative">
-            <LogoMark size={76} />
+            <LogoMark size={84} />
             <span className="absolute -right-2 -top-1 rounded-full bg-emerald-400/90 px-1.5 py-px text-[8px] font-black tracking-wide text-emerald-950">
-              v4
+              v5
             </span>
           </div>
           <h1 className="mt-5 font-display text-3xl font-bold tracking-tight">
@@ -85,7 +51,7 @@ export function Landing() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-9"
+          className="mt-14"
         >
           <h2 className="font-display text-[2.6rem] font-bold leading-[1.04] tracking-tight">
             {lang === "id" ? (
@@ -103,38 +69,12 @@ export function Landing() {
           </p>
         </motion.div>
 
-        {/* Features */}
-        <motion.div
-          initial={{ opacity: 0, y: 22 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-8 space-y-2.5"
-        >
-          {features.map((f, i) => (
-            <div
-              key={i}
-              className="glass lift group flex items-center gap-3.5 rounded-2xl p-3.5"
-            >
-              <span
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${f.accent}`}
-              >
-                <f.icon className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold leading-tight">{f.title}</p>
-                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{f.desc}</p>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
-            </div>
-          ))}
-        </motion.div>
-
         {/* Sign-in */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-auto pt-10"
+          transition={{ duration: 0.6, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-auto pt-12"
         >
           <div className="glass rounded-3xl p-4">
             <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -162,6 +102,24 @@ export function Landing() {
                 <span className="text-[9px] text-muted-foreground">guest@gmail.com</span>
               </button>
             </div>
+
+            {/* Operator sign-in */}
+            <button
+              onClick={() => signIn("operator")}
+              className="group mt-2.5 flex w-full items-center gap-3 rounded-2xl border border-binus-bright/25 bg-binus-blue/25 px-3.5 py-3 text-left transition-all hover:bg-binus-blue/40 active:scale-[0.98]"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-binus-bright/15">
+                <ShieldCheck className="h-4.5 w-4.5 text-binus-bright" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-bold">{t("signInOperator")}</span>
+                <span className="block truncate text-[9px] text-muted-foreground">
+                  {t("operatorShift")}
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
+            </button>
+
             <button
               onClick={() => signIn("student")}
               className="glow-primary mt-3 flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl bg-primary text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.01] active:scale-[0.98]"

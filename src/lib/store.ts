@@ -36,6 +36,7 @@ export interface User {
   email: string;
   isBinusian: boolean;
   memberSince: string;
+  role: "USER" | "OPERATOR";
 }
 
 interface Toast {
@@ -61,8 +62,14 @@ interface ParkirState {
   toast: (message: string, tone?: Toast["tone"]) => void;
   dismissToast: (id: string) => void;
 
-  signIn: (kind: "student" | "general") => void;
+  signIn: (kind: "student" | "general" | "operator") => void;
   signOut: () => void;
+
+  addVehicle: (v: { nickname: string; licensePlate: string; brand: string | null; model: string | null; color: string | null }) => void;
+  removeVehicle: (id: string) => void;
+
+  /** Operator: toggle a slot between ACTIVE and MAINTENANCE */
+  setSlotStatus: (slotId: string, status: Slot["status"]) => void;
 
   book: (args: {
     slotId: string;
@@ -220,6 +227,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
     email: "rizky.pratama@binus.ac.id",
     isBinusian: true,
     memberSince: "Sep 2024",
+    role: "USER" as const,
   },
   vehicles: [
     {
@@ -260,6 +268,22 @@ export const useParkir = create<ParkirState>((set, get) => ({
 
   signIn: (kind) => {
     const now = Date.now();
+    if (kind === "operator") {
+      set({
+        signedIn: true,
+        user: {
+          name: "Andi Wijaya",
+          email: "operator.anggrek@binus.ac.id",
+          isBinusian: true,
+          memberSince: "Feb 2024",
+          role: "OPERATOR",
+        },
+        reservations: seedReservations(now),
+        transactions: seedTxns(now),
+        walletBalance: 230000,
+      });
+      return;
+    }
     set({
       signedIn: true,
       user:
@@ -269,12 +293,14 @@ export const useParkir = create<ParkirState>((set, get) => ({
               email: "rizky.pratama@binus.ac.id",
               isBinusian: true,
               memberSince: "Sep 2024",
+              role: "USER",
             }
           : {
               name: "Dimas Saputra",
               email: "dimas.saputra@gmail.com",
               isBinusian: false,
               memberSince: "Jan 2026",
+              role: "USER",
             },
       reservations: seedReservations(now),
       transactions: seedTxns(now),
@@ -283,6 +309,18 @@ export const useParkir = create<ParkirState>((set, get) => ({
   },
 
   signOut: () => set({ signedIn: false, reservations: [], transactions: [], walletBalance: 0 }),
+
+  addVehicle: (v) =>
+    set((s) => ({
+      vehicles: [...s.vehicles, { id: uid(), ...v }],
+    })),
+
+  removeVehicle: (id) => set((s) => ({ vehicles: s.vehicles.filter((v) => v.id !== id) })),
+
+  setSlotStatus: (slotId, status) =>
+    set((s) => ({
+      slots: s.slots.map((sl) => (sl.id === slotId ? { ...sl, status } : sl)),
+    })),
 
   book: ({ slotId, slotNumber, type, date, startTime, endTime, vehiclePlate, vehicleName }) => {
     const { walletBalance, lang } = get();

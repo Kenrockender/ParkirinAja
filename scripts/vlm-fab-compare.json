@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "**Yes.** The yellow QR button in Image 2 now sits at a similar height and protrusion level above the bottom navigation bar as the cyan button does in Image 1. Both buttons are centered, circular, and extend significantly upward from the nav bar with comparable elevation.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1789435549,
+  "id": "202609150925475d857594f0be420d",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202609150925475d857594f0be420d",
+  "usage": {
+    "completion_tokens": 57,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 793,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 850
+  }
+}

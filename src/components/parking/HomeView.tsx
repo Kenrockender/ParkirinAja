@@ -1,7 +1,10 @@
 "use client";
-/** HomeView — hero availability, quick actions, window picker, map preview, ads, heatmap. */
+/**
+ * HomeView — hero availability, scan quick-action, availability search
+ * (date/time → count + free slot numbers), map preview, ads, heatmap.
+ */
 import React from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   CalendarClock,
   CalendarDays,
@@ -10,10 +13,11 @@ import {
   Clock,
   Coffee,
   Gauge,
-  Map as MapIcon,
   Maximize2,
   PartyPopper,
   QrCode,
+  Search,
+  SearchX,
   Sparkles,
   TrendingDown,
   TrendingUp,
@@ -25,13 +29,14 @@ import {
   ADS,
   buildHeatmap,
   DAY_LABELS,
-  rupiah,
   slotStatusForWindow,
   TARIFF,
   toMinutes,
   fromMinutes,
   tr,
   type Ad,
+  type Slot,
+  type TimeWindow,
 } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +65,22 @@ export function HomeView({
   const reservations = useParkir((s) => s.reservations);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const { free, total, pct } = useMapCounts();
+
+  /** null = belum mencari; setelah pencarian pertama, hasil mengikuti window aktif */
+  const [searched, setSearched] = React.useState(false);
+  const activeWin: TimeWindow | null = searched ? win : null;
+
+  const results = React.useMemo(() => {
+    if (!activeWin) return null;
+    const freeSlots = slots.filter(
+      (s) => slotStatusForWindow(s, reservations, activeWin) === "AVAILABLE"
+    );
+    return {
+      freeSlots,
+      rowA: freeSlots.filter((s) => s.rowLabel === "A"),
+      rowB: freeSlots.filter((s) => s.rowLabel === "B"),
+    };
+  }, [activeWin, slots, reservations]);
 
   const hour = new Date().getHours();
   const greet =
@@ -94,12 +115,9 @@ export function HomeView({
             {user.name.split(" ")[0]} 👋
           </h2>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold tracking-wider text-emerald-300">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-            <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          </span>
-          {t("liveNow")}
+        <span className="tnum inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+          <Gauge className="h-3 w-3 text-primary" />
+          {free}/{total} {t("slotsFree")}
         </span>
       </motion.div>
 
@@ -169,50 +187,30 @@ export function HomeView({
             className={cn("h-full rounded-full bg-gradient-to-r", barTone[levelKey])}
           />
         </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-            <Gauge className="h-3 w-3 text-primary" /> {t("advance")} {rupiah(TARIFF.advanceFee)}
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-            <QrCode className="h-3 w-3 text-primary" /> {t("walkIn")} {rupiah(TARIFF.walkInFee)}
-          </span>
-        </div>
       </motion.section>
 
-      {/* ── quick actions ── */}
-      <motion.div
+      {/* ── scan quick action ── */}
+      <motion.button
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.1 }}
-        className="grid grid-cols-2 gap-3"
+        onClick={onOpenScanner}
+        className="group relative flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-binus-bright/30 bg-gradient-to-br from-binus-blue/50 to-binus-bright/20 p-4 text-left transition-transform active:scale-[0.98]"
       >
-        <button
-          onClick={onOpenMap}
-          className="glow-primary group relative overflow-hidden rounded-2xl bg-primary p-4 text-left transition-transform active:scale-[0.97]"
-        >
-          <MapIcon className="h-5 w-5 text-primary-foreground/80" />
-          <p className="mt-6 font-display text-base font-bold text-primary-foreground">
-            {t("findSlot")}
-          </p>
-          <p className="text-[11px] font-medium text-primary-foreground/60">
-            {free} {t("slotsFree")}
-          </p>
-          <div aria-hidden className="absolute -bottom-5 -right-5 h-16 w-16 rounded-full bg-white/10 blur-xl" />
-        </button>
-        <button
-          onClick={onOpenScanner}
-          className="group relative overflow-hidden rounded-2xl border border-binus-bright/30 bg-gradient-to-br from-binus-blue/50 to-binus-bright/20 p-4 text-left transition-transform active:scale-[0.97]"
-        >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-binus-bright/15">
           <QrCode className="h-5 w-5 text-binus-bright" />
-          <p className="mt-6 font-display text-base font-bold">{t("scanQr")}</p>
-          <p className="text-[11px] font-medium text-muted-foreground">
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-base font-bold">{t("scanQr")}</span>
+          <span className="block text-[11px] font-medium text-muted-foreground">
             {lang === "id" ? "check-in / keluar" : "check in / exit"}
-          </p>
-        </button>
-      </motion.div>
+          </span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
+        <div aria-hidden className="absolute -bottom-5 -right-5 h-16 w-16 rounded-full bg-binus-bright/10 blur-xl" />
+      </motion.button>
 
-      {/* ── window selector ── */}
+      {/* ── availability search ── */}
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
@@ -232,7 +230,6 @@ export function HomeView({
             {(close) => (
               <DateGrid
                 value={win.date}
-                lang={lang}
                 onPick={(d) => {
                   setWin({ ...win, date: d });
                   close();
@@ -276,6 +273,90 @@ export function HomeView({
             )}
           </WindowPicker>
         </div>
+
+        {/* Cari Slot button — moved here */}
+        <button
+          onClick={() => setSearched(true)}
+          className="glow-primary mt-3 flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl bg-primary text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.01] active:scale-[0.98]"
+        >
+          <Search className="h-4.5 w-4.5" />
+          {t("searchSlots")}
+          <span className="tnum rounded-full bg-black/15 px-2 py-0.5 text-[10px] font-black">
+            {free} {t("slotsFree")}
+          </span>
+        </button>
+
+        {/* results */}
+        <AnimatePresence initial={false}>
+          {results && (
+            <motion.div
+              key="results"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="mt-3 rounded-2xl border border-primary/20 bg-primary/[0.04] p-3.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {t("searchResults")}
+                  </p>
+                  <span className="tnum rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">
+                    {fmtDateLabel(activeWin!.date, lang)} · {activeWin!.startTime}–{activeWin!.endTime}
+                  </span>
+                </div>
+
+                {results.freeSlots.length > 0 ? (
+                  <>
+                    <div className="mt-2.5 flex items-baseline gap-1.5">
+                      <span className="tnum font-display text-3xl font-bold leading-none text-gradient-gold">
+                        {results.freeSlots.length}
+                      </span>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {t("slotsFound")} · {total} {t("slotWord")}
+                      </span>
+                    </div>
+                    {([
+                      ["A", results.rowA] as const,
+                      ["B", results.rowB] as const,
+                    ]).map(([row, list]) =>
+                      list.length > 0 ? (
+                        <div key={row} className="mt-2.5">
+                          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground/70">
+                            {lang === "id" ? `Baris ${row}` : `Row ${row}`} · {list.length}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {list.map((s: Slot) => (
+                              <button
+                                key={s.id}
+                                onClick={() => onSlotPress(s.id, s.slotNumber)}
+                                className="tnum rounded-lg border border-emerald-400/25 bg-emerald-400/[0.08] px-2.5 py-1.5 text-[11px] font-bold text-emerald-300 transition hover:bg-emerald-400/20 hover:border-emerald-400/50 active:scale-90"
+                              >
+                                {s.slotNumber}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null
+                    )}
+                    <p className="mt-3 text-center text-[9.5px] text-muted-foreground/70">
+                      {t("tapChipToBook")}
+                    </p>
+                  </>
+                ) : (
+                  <div className="mt-2 flex items-center gap-3 rounded-xl bg-red-400/[0.07] px-3 py-3">
+                    <SearchX className="h-5 w-5 shrink-0 text-red-400" />
+                    <div>
+                      <p className="text-[13px] font-bold">{t("noSlotsFound")}</p>
+                      <p className="text-[10.5px] text-muted-foreground">{t("noSlotsFoundSub")}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.section>
 
       {/* ── map preview ── */}

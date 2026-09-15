@@ -1,6 +1,35 @@
 # Worklog — Parkir Binus UI Remake
 
 ---
+Task ID: 2
+Agent: Super Z (main agent)
+Task: Iteration v5 per user feedback — 7 UI changes: remove 4-feature list on landing, remove green LIVE badge, remove Advance/Walk-in chips, move Cari Slot button into "Lihat ketersediaan untuk" section with search results (count + free slot numbers), fix non-functional Tambah kendaraan button (working modal), raise QR scan FAB higher per reference image, and add Operator section (was missing entirely).
+
+Work Log:
+- Analyzed 3 reference screenshots with VLM (gym app with elevated cyan FAB as the QR button reference)
+- store.ts: added user.role USER/OPERATOR, signIn("operator") seeds officer account (Andi Wijaya), addVehicle/removeVehicle actions, setSlotStatus for maintenance control
+- parking-data.ts: +70 i18n keys (vehicle form fields, search results, operator dashboard) in both ID/EN; fixed duplicate keys caused by non-atomic MultiEdit during editing
+- Landing.tsx: removed 4-feature cards entirely → clean hero (brand + headline + sign-in), added "Masuk sebagai Operator" demo button with ShieldCheck icon
+- HomeView.tsx: removed LIVE badge (replaced with subtle free-count chip), removed Advance/Walk-in price chips, removed yellow Cari Slot quick-action card (Scan QR kept as full-width navy card); availability section now contains date/time pickers + "Cari Slot" button + animated results card (free count grouped by row A/B, tappable slot chips → booking, empty state when full); results auto-refresh when window changes after first search
+- VehicleModal.tsx (new): Dialog with nickname/plate/brand/model/color fields, required-field validation, plate auto-uppercase; ProfileView: wired add button + per-vehicle delete with inline confirm row
+- OperatorView.tsx (new): officer console — identity card with OPERATOR badge + shift, 4 stat tiles (in-building/booked/free/maintenance), revenue today + txn count, live slot monitor grid (32 tiles, tap → detail dialog with occupant/vehicle/duration or booking info, maintenance toggle), active sessions list with live duration + overdue highlight
+- page.tsx: QrGlyph custom SVG (3 finder squares + center dot) replaces lucide QrCode in FAB; FAB raised to -mt-[3.25rem] with 68px circle + 5px border-background cutout ring + glow (VLM-verified matches reference elevation); OperatorShell (header + dashboard, no customer nav) routes by role; main padding pb-32→pb-40 for FAB clearance
+
+Verification (agent-browser 430x900 + VLM):
+- Landing: clean, no feature cards, operator button present
+- Search: Cari Slot → 29 slots listed as chips (A-03 occupied & A-14/B-11 maintenance correctly excluded); chip tap → booking; window change 01:21→08:00 auto-updated results 29→30 with A-03 back to free
+- Full flow: search → chip → booking A-02 → pay Rp20k → ticket with Check-in button ✓
+- Vehicle modal: filled & saved "Beat Kuliah / b 6789 xyz" → normalized to "B 6789 XYZ" + toast; delete with confirm row works
+- Operator: sign-in → dashboard (stats, monitor, A-03 session 50m live duration, revenue Rp90k/4 txns); slot detail shows PENGHUNI Rizky Pratama + vehicle + duration; maintenance toggle works both ways (A-03 toggled & restored)
+- FAB: VLM compare with reference confirms similar elevation/protrusion + ring cutout
+- Light mode VLM 9/10; dark home VLM 8/10; zero console/page errors; lint clean; tsc clean (src/)
+
+Stage Summary:
+- v5 delivered: all 7 user requests implemented; operator role is a full separate console (entry: Landing → "Masuk sebagai Operator")
+- Key artifacts: modified Landing/HomeView/ProfileView/page.tsx/store.ts/parking-data.ts; new OperatorView.tsx, VehicleModal.tsx
+- Screenshots: /home/z/my-project/scripts/shots/v5-*.png (16 captures)
+
+---
 Task ID: 1
 Agent: Super Z (main agent)
 Task: Full UI remake of Parkir Binus (BINUS Anggrek self-parking app) per user requirements: dark premium style, navy + BINUS yellow palette, full app scope, free layout restructuring, modern minimal seat-map, premium & sleek vibe, dark default with toggle, delivered as live preview app.

@@ -1,5 +1,5 @@
 "use client";
-/** ProfileView — identity, garage, preferences. */
+/** ProfileView — identity, garage (add/remove vehicles), preferences. */
 import React from "react";
 import { motion } from "framer-motion";
 import {
@@ -10,12 +10,14 @@ import {
   Moon,
   Plus,
   Sun,
+  Trash2,
   Wallet as WalletIcon,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "next-themes";
 import { useParkir } from "@/lib/store";
 import { rupiah, tr } from "@/lib/parking-data";
+import { VehicleModal } from "./VehicleModal";
 import { cn } from "@/lib/utils";
 
 export function ProfileView() {
@@ -26,9 +28,13 @@ export function ProfileView() {
   const walletBalance = useParkir((s) => s.walletBalance);
   const reservations = useParkir((s) => s.reservations);
   const signOut = useParkir((s) => s.signOut);
+  const removeVehicle = useParkir((s) => s.removeVehicle);
+  const toast = useParkir((s) => s.toast);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
+  const [vehicleModal, setVehicleModal] = React.useState(false);
+  const [confirmRemove, setConfirmRemove] = React.useState<string | null>(null);
   React.useEffect(() => setMounted(true), []);
 
   const initials = user.name
@@ -108,7 +114,10 @@ export function ProfileView() {
       <section className="space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="font-display text-sm font-bold tracking-tight">{t("myVehicles")}</h3>
-          <button className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary transition hover:bg-primary/20">
+          <button
+            onClick={() => setVehicleModal(true)}
+            className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary transition hover:bg-primary/20 active:scale-95"
+          >
             <Plus className="h-3 w-3" /> {t("addVehicle")}
           </button>
         </div>
@@ -132,8 +141,46 @@ export function ProfileView() {
                   {v.licensePlate}
                 </span>
               </span>
+              <button
+                onClick={() => setConfirmRemove(confirmRemove === v.id ? null : v.id)}
+                aria-label={t("removeVehicle")}
+                className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition active:scale-90",
+                  confirmRemove === v.id
+                    ? "border-red-400/40 bg-red-400/15 text-red-400"
+                    : "border-transparent text-muted-foreground/50 hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-400"
+                )}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
             </div>
           ))}
+          {confirmRemove && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-2.5 rounded-2xl border border-red-400/25 bg-red-400/[0.06] p-3"
+            >
+              <Trash2 className="h-4 w-4 shrink-0 text-red-400" />
+              <p className="flex-1 text-xs font-semibold">{t("removeConfirm")}</p>
+              <button
+                onClick={() => setConfirmRemove(null)}
+                className="rounded-full border border-border px-3 py-1 text-[11px] font-bold text-muted-foreground transition hover:bg-white/[0.04]"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                onClick={() => {
+                  removeVehicle(confirmRemove);
+                  setConfirmRemove(null);
+                  toast(t("vehicleRemoved"), "info");
+                }}
+                className="rounded-full bg-red-400 px-3 py-1 text-[11px] font-bold text-red-950 transition hover:bg-red-300 active:scale-95"
+              >
+                {t("remove")}
+              </button>
+            </motion.div>
+          )}
         </div>
       </section>
 
@@ -195,6 +242,8 @@ export function ProfileView() {
       <p className="pb-2 text-center text-[10px] text-muted-foreground/60">
         {t("appName")} · {t("footerNote")}
       </p>
+
+      <VehicleModal open={vehicleModal} onOpenChange={setVehicleModal} />
     </div>
   );
 }

@@ -12,7 +12,6 @@ import {
   Info,
   MapPin,
   Moon,
-  QrCode,
   Sun,
   UserRound,
   Wallet as WalletIcon,
@@ -28,6 +27,7 @@ import { WalletView } from "@/components/parking/WalletView";
 import { ProfileView } from "@/components/parking/ProfileView";
 import { ScannerView } from "@/components/parking/ScannerView";
 import { MapView } from "@/components/parking/MapView";
+import { OperatorView } from "@/components/parking/OperatorView";
 import { useParkir } from "@/lib/store";
 import { rupiah, tr } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
@@ -63,7 +63,9 @@ function Splash() {
 
 function App() {
   const signedIn = useParkir((s) => s.signedIn);
+  const role = useParkir((s) => s.user.role);
   if (!signedIn) return <Landing />;
+  if (role === "OPERATOR") return <OperatorShell />;
   return <Shell />;
 }
 
@@ -133,7 +135,7 @@ function Shell() {
       </header>
 
       {/* ── main ── */}
-      <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-32 pt-4">
+      <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-40 pt-4">
         <AnimatePresence mode="wait">
           {view.name === "tabs" && (
             <motion.div
@@ -205,15 +207,18 @@ function Shell() {
               </NavBtn>
             ))}
 
-            {/* center scan FAB */}
-            <div className="relative flex w-16 justify-center">
+            {/* center scan FAB — elevated high above the bar, ref-style cutout ring */}
+            <div className="relative -mt-[3.25rem] flex w-20 shrink-0 justify-center">
+              <span
+                aria-hidden
+                className="absolute -top-2 h-[84px] w-[84px] rounded-full bg-primary/30 blur-xl"
+              />
               <button
                 onClick={() => setScanOpen(true)}
                 aria-label={t("scanQr")}
-                className="glow-primary -mt-7 flex h-14 w-14 items-center justify-center rounded-full bg-primary transition-transform hover:scale-105 active:scale-90"
+                className="glow-primary relative flex h-[68px] w-[68px] items-center justify-center rounded-full border-[5px] border-background bg-primary transition-transform hover:scale-105 active:scale-90"
               >
-                <span className="absolute inset-0 rounded-full bg-primary/40 blur-lg" aria-hidden />
-                <QrCode className="relative h-6 w-6 text-primary-foreground" />
+                <QrGlyph className="relative h-8 w-8 text-primary-foreground" />
               </button>
             </div>
 
@@ -249,6 +254,69 @@ function Shell() {
           if (resId) setView({ name: "ticket", reservationId: resId });
         }}
       />
+
+      <Toasts />
+    </div>
+  );
+}
+
+/** Custom QR glyph — finder squares + center mark, for the scan FAB. */
+function QrGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <rect x="2" y="2" width="7.5" height="7.5" rx="1.8" stroke="currentColor" strokeWidth="1.9" />
+      <rect x="14.5" y="2" width="7.5" height="7.5" rx="1.8" stroke="currentColor" strokeWidth="1.9" />
+      <rect x="2" y="14.5" width="7.5" height="7.5" rx="1.8" stroke="currentColor" strokeWidth="1.9" />
+      <circle cx="12" cy="12" r="2.1" fill="currentColor" />
+      <circle cx="17.4" cy="13.4" r="1.15" fill="currentColor" />
+      <circle cx="20.6" cy="16.4" r="1.15" fill="currentColor" />
+      <circle cx="13.6" cy="17.4" r="1.15" fill="currentColor" />
+      <circle cx="17.4" cy="20.4" r="1.15" fill="currentColor" />
+      <circle cx="20.6" cy="20.4" r="1.15" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Operator shell — officer console header + dashboard, no customer nav. */
+function OperatorShell() {
+  const lang = useParkir((s) => s.lang);
+  const setLang = useParkir((s) => s.setLang);
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <div className="ambient flex min-h-dvh flex-col">
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/70 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 w-full max-w-[430px] items-center gap-2.5 px-4">
+          <LogoMark size={34} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-[13.5px] font-bold leading-tight tracking-tight">
+              {t("appName")}
+            </p>
+            <p className="truncate text-[9px] font-semibold uppercase tracking-[0.14em] text-binus-bright">
+              {t("operatorBadge")} · {t("floorLabel").split("—")[0].trim()}
+            </p>
+          </div>
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            aria-label={t("appearance")}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card/50 text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
+          >
+            {theme === "dark" ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            onClick={() => setLang(lang === "id" ? "en" : "id")}
+            aria-label={t("language")}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card/50 text-[10px] font-black text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
+          >
+            {lang.toUpperCase()}
+          </button>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-10 pt-4">
+        <OperatorView />
+      </main>
 
       <Toasts />
     </div>
