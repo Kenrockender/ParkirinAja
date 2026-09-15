@@ -1,6 +1,6 @@
 "use client";
 /**
- * Parkir Binus — Dark Premium UI Concept v7
+ * Parkir Binus — Dark Premium UI Concept v8
  * Live preview app: full customer journey on simulated data.
  */
 import React from "react";

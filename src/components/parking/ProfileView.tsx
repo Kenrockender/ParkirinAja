@@ -12,7 +12,7 @@ import {
   Plus,
   Sun,
   Trash2,
-  Wallet as WalletIcon,
+  UserRound,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "next-themes";
@@ -73,17 +73,30 @@ export function ProfileView() {
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-binus-blue to-binus-bright font-display text-xl font-bold text-white">
               {initials}
             </div>
-            <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-primary">
-              <BadgeCheck className="h-3.5 w-3.5 text-primary-foreground" />
+            <span
+              className={cn(
+                "absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card",
+                user.isBinusian ? "bg-primary" : "bg-muted"
+              )}
+            >
+              {user.isBinusian ? (
+                <BadgeCheck className="h-3.5 w-3.5 text-primary-foreground" />
+              ) : (
+                <UserRound className="h-3 w-3 text-muted-foreground" />
+              )}
             </span>
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-lg font-bold leading-tight">{user.name}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {user.isBinusian && (
+              {user.isBinusian ? (
                 <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-black tracking-wider text-primary">
                   {t("binusian")}
+                </span>
+              ) : (
+                <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[9px] font-black tracking-wider text-muted-foreground">
+                  {t("nonBinusian")}
                 </span>
               )}
               <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[9px] font-bold text-muted-foreground">
@@ -220,7 +233,7 @@ export function ProfileView() {
             </div>
           </div>
           {/* theme */}
-          <div className="flex items-center gap-3 border-b border-border/60 px-4 py-3.5">
+          <div className="flex items-center gap-3 px-4 py-3.5">
             {mounted && theme === "dark" ? (
               <Moon className="h-4.5 w-4.5 shrink-0 text-muted-foreground" />
             ) : (
@@ -232,12 +245,6 @@ export function ProfileView() {
               onCheckedChange={(v) => setTheme(v ? "dark" : "light")}
               aria-label={t("darkMode")}
             />
-          </div>
-          {/* wallet shortcut */}
-          <div className="flex items-center gap-3 px-4 py-3.5">
-            <WalletIcon className="h-4.5 w-4.5 shrink-0 text-muted-foreground" />
-            <span className="flex-1 text-[13px] font-semibold">{t("walletTitle")}</span>
-            <span className="tnum text-[13px] font-bold text-primary">{rupiah(walletBalance)}</span>
           </div>
         </div>
       </section>

@@ -20,7 +20,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { ParkingMap, useMapCounts } from "./ParkingMap";
+import { ParkingMap, MapLegend, useMapCounts } from "./ParkingMap";
 import { DateGrid, TimeGrid, WindowPicker, fmtDateLabel } from "./WindowPickers";
 import { useParkir } from "@/lib/store";
 import {
@@ -33,7 +33,6 @@ import {
   fromMinutes,
   tr,
   type Ad,
-  type Slot,
   type TimeWindow,
 } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
@@ -71,16 +70,15 @@ export function HomeView({
     const freeSlots = slots.filter(
       (s) => slotStatusForWindow(s, reservations, activeWin) === "AVAILABLE"
     );
-    return {
-      freeSlots,
-      rowA: freeSlots.filter((s) => s.rowLabel === "A"),
-      rowB: freeSlots.filter((s) => s.rowLabel === "B"),
-    };
+    return { freeSlots };
   }, [activeWin, slots, reservations]);
 
   const hour = new Date().getHours();
   const greet =
     hour < 11 ? t("goodMorning") : hour < 18 ? t("goodAfternoon") : t("goodEvening");
+
+  /** Sedang parkir (max 2) — live counter */
+  const activeCount = reservations.filter((r) => r.status === "CHECKED_IN").length;
 
   const levelKey = pct > 66 ? "high" : pct > 33 ? "medium" : "low";
   const levelTone: Record<string, string> = {
@@ -111,10 +109,18 @@ export function HomeView({
             {user.name.split(" ")[0]} 👋
           </h2>
         </div>
-        <span className="tnum inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
-          <Gauge className="h-3 w-3 text-primary" />
-          {free}/{total} {t("slotsFree")}
-        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {activeCount > 0 && (
+            <span className="tnum inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary">
+              <CarFront className="h-3 w-3" />
+              {activeCount}/2 {t("activeSessions")}
+            </span>
+          )}
+          <span className="tnum inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+            <Gauge className="h-3 w-3 text-primary" />
+            {free}/{total} {t("slotsFree")}
+          </span>
+        </div>
       </motion.div>
 
       {/* ── hero availability ── */}
@@ -261,7 +267,7 @@ export function HomeView({
           </span>
         </button>
 
-        {/* results */}
+        {/* results — parking map as the result (no text lists) */}
         <AnimatePresence initial={false}>
           {results && (
             <motion.div
@@ -272,55 +278,33 @@ export function HomeView({
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               className="overflow-hidden"
             >
-              <div className="mt-3 rounded-2xl border border-primary/20 bg-primary/[0.04] p-3.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                    {t("searchResults")}
-                  </p>
-                  <span className="tnum rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">
-                    {fmtDateLabel(activeWin!.date, lang)} · {activeWin!.startTime}–{activeWin!.endTime}
-                  </span>
-                </div>
-
-                {results.freeSlots.length > 0 ? (
-                  <>
-                    <div className="mt-2.5 flex items-baseline gap-1.5">
-                      <span className="tnum font-display text-3xl font-bold leading-none text-gradient-gold">
+              <div className="mt-3 space-y-2.5">
+                {/* summary strip */}
+                <div className="flex items-center justify-between gap-2 rounded-2xl border border-primary/20 bg-primary/[0.04] px-3.5 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                      {t("searchResults")}
+                    </p>
+                    <div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
+                      <span className="tnum font-display text-2xl font-bold leading-none text-gradient-gold">
                         {results.freeSlots.length}
                       </span>
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {t("slotsFound")} · {total} {t("slotWord")}
+                      <span className="tnum text-[11px] font-medium text-muted-foreground">
+                        {t("slotsFound")} · {fmtDateLabel(activeWin!.date, lang)} {activeWin!.startTime}–{activeWin!.endTime}
                       </span>
                     </div>
-                    {([
-                      ["A", results.rowA] as const,
-                      ["B", results.rowB] as const,
-                    ]).map(([row, list]) =>
-                      list.length > 0 ? (
-                        <div key={row} className="mt-2.5">
-                          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground/70">
-                            {lang === "id" ? `Baris ${row}` : `Row ${row}`} · {list.length}
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {list.map((s: Slot) => (
-                              <button
-                                key={s.id}
-                                onClick={() => onSlotPress(s.id, s.slotNumber)}
-                                className="tnum rounded-lg border border-emerald-400/25 bg-emerald-400/[0.08] px-2.5 py-1.5 text-[11px] font-bold text-emerald-300 transition hover:bg-emerald-400/20 hover:border-emerald-400/50 active:scale-90"
-                              >
-                                {s.slotNumber}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null
-                    )}
-                    <p className="mt-3 text-center text-[9.5px] text-muted-foreground/70">
-                      {t("tapChipToBook")}
-                    </p>
-                  </>
-                ) : (
-                  <div className="mt-2 flex items-center gap-3 rounded-xl bg-red-400/[0.07] px-3 py-3">
+                  </div>
+                  <button
+                    onClick={onOpenMap}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary/20 active:scale-95"
+                  >
+                    <Maximize2 className="h-3 w-3" />
+                    {t("fullMap")}
+                  </button>
+                </div>
+
+                {results.freeSlots.length === 0 && (
+                  <div className="flex items-center gap-3 rounded-xl bg-red-400/[0.07] px-3 py-3">
                     <SearchX className="h-5 w-5 shrink-0 text-red-400" />
                     <div>
                       <p className="text-[13px] font-bold">{t("noSlotsFound")}</p>
@@ -328,36 +312,20 @@ export function HomeView({
                     </div>
                   </div>
                 )}
+
+                {/* the parking map IS the result */}
+                <ParkingMap
+                  compact
+                  onSlotPress={(s) => onSlotPress(s.id, s.slotNumber)}
+                />
+                <MapLegend />
+                <p className="text-center text-[10px] text-muted-foreground/70">
+                  {t("tapSlotHint")}
+                </p>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.section>
-
-      {/* ── map preview ── */}
-      <motion.section
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, delay: 0.15 }}
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="font-display text-sm font-bold tracking-tight">{t("parkingMap")}</h3>
-          <button
-            onClick={onOpenMap}
-            className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary transition hover:bg-primary/20"
-          >
-            <Maximize2 className="h-3 w-3" />
-            {t("fullMap")}
-          </button>
-        </div>
-        <ParkingMap
-          compact
-          onSlotPress={(s) => {
-            const st = slotStatusForWindow(s, reservations, win);
-            if (st === "AVAILABLE") onSlotPress(s.id, s.slotNumber);
-          }}
-        />
-        <p className="mt-2 text-center text-[10px] text-muted-foreground/70">{t("tapSlotHint")}</p>
       </motion.section>
 
       {/* ── ads carousel ── */}

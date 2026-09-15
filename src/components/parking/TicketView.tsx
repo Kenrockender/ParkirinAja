@@ -237,9 +237,13 @@ export function TicketView({
             <button
               onClick={() => {
                 if (canCheckIn) {
-                  checkIn(res.id);
-                  onUpdate(useParkir.getState().reservations.find((r) => r.id === res.id)!);
-                  toast(t("checkinOk"), "success");
+                  const ok = checkIn(res.id);
+                  if (ok) {
+                    onUpdate(useParkir.getState().reservations.find((r) => r.id === res.id)!);
+                    toast(t("checkinOk"), "success");
+                  } else {
+                    toast(t("maxActiveToast"), "error");
+                  }
                 } else {
                   toast(
                     lang === "id"

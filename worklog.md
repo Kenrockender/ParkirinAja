@@ -128,3 +128,33 @@ Stage Summary:
 - v6 delivered: QR scanning fully removed (check-in via ticket button, check-out via new payment dialog), bottom nav rebuilt as clean symmetric pill, vehicles now editable
 - Key artifacts modified: page.tsx, store.ts, parking-data.ts, HomeView, TicketView, VehicleModal, ProfileView, BookingView; deleted ScannerView.tsx
 - Screenshots: /home/z/my-project/scripts/shots/v6-*.png (13 captures)
+
+---
+Task ID: 5
+Agent: Super Z (main agent)
+Task: Iteration v8 per user feedback — 5 changes: (1) remove wallet row from Profile preferences, (2) implement BINUSIAN vs non-BINUSIAN differences, (3) availability results use the parking MAP only (no text lists), (4) max 2 concurrent "sedang parkir" sessions, (5) Microsoft login for BINUSIAN.
+
+Work Log:
+- ProfileView.tsx: removed wallet shortcut row from preferences (card now Bahasa + Mode gelap only); identity badge differentiates — BINUSIAN: yellow BadgeCheck bubble + "BINUSIAN" chip; non-BINUSIAN: muted UserRound bubble + "NON-BINUSIAN" chip
+- parking-data.ts: +17 i18n keys × ID/EN (msSignIn/msOrDemo/msModalTitle/msModalFor/msModalSub/msContinue/msWorking/msDemoNote/msVerified, nonBinusian, binusianOnly, guestBookingNote, maxActiveToast, activeSessions); signInNote rewritten (Microsoft @binus.ac.id = BINUSIAN · other email = non-BINUSIAN); signIn key repurposed
+- store.ts: MAX_ACTIVE_PARKING=2; checkIn(id) now returns boolean (false when 2 sessions already CHECKED_IN); scanSlot returns new reason "max_active" in checkin + walkin branches; signIn accepts "microsoft" kind → Alya Ramadhani (alya.ramadhani@binus.ac.id, BINUSIAN, Feb 2025) via profiles lookup
+- Landing.tsx: replaced Google button with white "Masuk dengan Microsoft" button (4-square MS logo) + "atau pilih akun demo" divider; new MicrosoftModal — Microsoft-style white card (MS logo, "Masuk untuk melanjutkan ke Parkir Binus", AR avatar account row, #0067b8 Continue button, 950ms verify spinner, demo note), backdrop-close, AnimatePresence; version badge v5→v8
+- HomeView.tsx: search results now render the compact ParkingMap as THE result (summary strip with count + window + "Peta lengkap" button, red note when 0 free, MapLegend, tap hint); removed the text row-A/B chip lists AND the standalone map-preview section below (map lives in results now); greeting row adds "x/2 sedang parkir" chip (yellow, only when ≥1 active)
+- BookingView.tsx: non-BINUSIAN → ADVANCE card locked (opacity-45, Lock icon, "Khusus BINUSIAN" note, click → info toast, selection blocked) + blue guest banner "Non-BINUSIAN tetap bisa parkir — scan QR…"; type state falls back WALK_IN when guest opens an ADVANCE booking
+- TicketView.tsx: checkIn() false → error toast maxActiveToast instead of false success
+- ScannerView.tsx: handles "max_active" reason → maxActiveToast error toast
+- page.tsx: version comment v7→v8
+
+Verification (agent-browser 430x900 + DOM eval + VLM):
+- Landing: MS button + divider + demo cards render; MS modal opens (VLM: polished, credible MS-style card, no glitches)
+- MS SSO: Lanjutkan → 950ms spinner → signed in as Alya (BINUSIAN); home shows "1/2 sedang parkir" chip
+- Availability: Cari Slot → map IS the result (VLM 8/10: "information presented exclusively through the visual map", no text lists); legend + Peta lengkap button present; slot A-01 tap → booking view opens
+- Max-2 rule: walk-in B-01 OK (2/2 chip on home); 3rd walk-in B-06/B-10 → toast "Batas tercapai — maksimal 2 kendaraan sedang parkir" (DOM-verified + VLM: "clearly visible and readable"); ticket check-out B-01 works after
+- Non-BINUSIAN (Dimas): NON-BINUSIAN badge on profile; preferences = Bahasa + Mode gelap only (no wallet row — DOM + VLM 9/10 confirmed); booking via map → WALK_IN auto-selected, ADVANCE locked (VLM 9/10), locked click → toast, selection stays Walk-in; guest banner present
+- EN toggle: "Sign in with Microsoft", "parked now", "BINUSIAN only", "BINUSIAN-only" banner, "NON-BINUSIAN" all present
+- Zero console/page errors; eslint clean; tsc clean (src/); app 200
+
+Stage Summary:
+- v8 delivered: wallet removed from preferences; BINUSIAN (Microsoft SSO, advance booking, verified badge) vs non-BINUSIAN (guest, walk-in only, locked advance) fully differentiated; availability results are map-only; max 2 active parking sessions enforced at checkIn/scanSlot with UI counter chip; Microsoft login added as primary auth with simulated SSO modal
+- Key artifacts modified: ProfileView, Landing, HomeView, BookingView, TicketView, ScannerView, page.tsx, store.ts, parking-data.ts
+- Screenshots: /home/z/my-project/scripts/shots/v8-*.png (15 captures)

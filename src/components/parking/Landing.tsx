@@ -1,21 +1,36 @@
 "use client";
-/** Landing — clean dark premium hero with glow orbs + demo sign-in (user & operator). */
+/** Landing — clean dark premium hero with glow orbs + Microsoft SSO (BINUSIAN) & demo sign-in. */
 import React from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
+  BadgeCheck,
   CarFront,
   ChevronRight,
   GraduationCap,
   ShieldCheck,
+  X,
 } from "lucide-react";
 import { LogoMark } from "./Brand";
 import { useParkir } from "@/lib/store";
 import { tr } from "@/lib/parking-data";
 
+/** Microsoft 4-square logo */
+function MsLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 23 23" className={className} aria-hidden>
+      <rect x="1" y="1" width="10" height="10" fill="#f25022" />
+      <rect x="12" y="1" width="10" height="10" fill="#7fba00" />
+      <rect x="1" y="12" width="10" height="10" fill="#00a4ef" />
+      <rect x="12" y="12" width="10" height="10" fill="#ffb900" />
+    </svg>
+  );
+}
+
 export function Landing() {
   const lang = useParkir((s) => s.lang);
   const signIn = useParkir((s) => s.signIn);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+  const [msOpen, setMsOpen] = React.useState(false);
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden">
@@ -37,7 +52,7 @@ export function Landing() {
           <div className="relative">
             <LogoMark size={84} />
             <span className="absolute -right-2 -top-1 rounded-full bg-emerald-400/90 px-1.5 py-px text-[8px] font-black tracking-wide text-emerald-950">
-              v5
+              v8
             </span>
           </div>
           <h1 className="mt-5 font-display text-3xl font-bold tracking-tight">
@@ -77,9 +92,23 @@ export function Landing() {
           className="mt-auto pt-12"
         >
           <div className="glass rounded-3xl p-4">
-            <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              {t("demoAccounts")}
-            </p>
+            {/* Microsoft SSO — primary sign-in for BINUSIAN */}
+            <button
+              onClick={() => setMsOpen(true)}
+              className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-white text-sm font-bold text-[#1b1b1b] shadow-[0_10px_30px_-12px_rgba(255,255,255,0.35)] transition-transform hover:scale-[1.01] active:scale-[0.98]"
+            >
+              <MsLogo className="h-4.5 w-4.5" />
+              {t("msSignIn")}
+            </button>
+
+            <div className="my-3.5 flex items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                {t("msOrDemo")}
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={() => signIn("student")}
@@ -120,24 +149,6 @@ export function Landing() {
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
             </button>
 
-            <button
-              onClick={() => signIn("student")}
-              className="glow-primary mt-3 flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl bg-primary text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.01] active:scale-[0.98]"
-            >
-              <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" aria-hidden>
-                <path
-                  fill="#EA4335"
-                  d="M12 5.04c1.62 0 3.06.56 4.2 1.64l3.12-3.12C17.46 1.8 14.96.75 12 .75 7.9.75 4.26 3.1 2.5 6.56l3.66 2.84C6.99 6.87 9.23 5.04 12 5.04z"
-                />
-                <path
-                  fill="#4285F4"
-                  d="M23.25 12.26c0-.92-.08-1.6-.26-2.31H12v4.19h6.44c-.13 1.08-.83 2.7-2.39 3.79l3.57 2.77c2.14-1.98 3.63-4.89 3.63-8.44z"
-                />
-                <path fill="#FBBC05" d="M6.16 14.6c-.25-.74-.39-1.53-.39-2.35s.14-1.61.38-2.35L2.5 7.06C1.7 8.66 1.25 10.3 1.25 12.25s.45 3.59 1.25 5.19l3.66-2.84z" />
-                <path fill="#34A853" d="M12 23.75c3.04 0 5.6-1 7.46-2.73l-3.57-2.77c-.95.66-2.23 1.12-3.89 1.12-2.77 0-5.01-1.83-5.84-4.36l-3.66 2.84c1.76 3.46 5.4 5.9 9.5 5.9z" />
-              </svg>
-              {t("signIn")}
-            </button>
             <p className="mt-2.5 text-center text-[10px] leading-snug text-muted-foreground">
               {t("signInNote")}
             </p>
@@ -147,6 +158,112 @@ export function Landing() {
           </p>
         </motion.div>
       </main>
+
+      {/* Microsoft SSO simulated modal */}
+      <AnimatePresence>
+        {msOpen && (
+          <MicrosoftModal
+            open={msOpen}
+            onClose={() => setMsOpen(false)}
+            lang={lang}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+/** Simulated Microsoft SSO sheet — white MS-style card, campus account pick. */
+function MicrosoftModal({
+  lang,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+  lang: "id" | "en";
+}) {
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+  const signIn = useParkir((s) => s.signIn);
+  const [busy, setBusy] = React.useState(false);
+
+  function go() {
+    if (busy) return;
+    setBusy(true);
+    window.setTimeout(() => {
+      signIn("microsoft");
+      onClose();
+    }, 950);
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm"
+      onClick={busy ? undefined : onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 18, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 10, scale: 0.98 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("msModalTitle")}
+        className="relative w-full max-w-sm rounded-2xl bg-white p-6 text-[#1b1b1b] shadow-[0_32px_80px_-16px_rgba(0,0,0,0.7)]"
+      >
+        {!busy && (
+          <button
+            onClick={onClose}
+            aria-label={t("close")}
+            className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-[#616161] transition hover:bg-[#f3f2f1]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+
+        <MsLogo className="h-7 w-7" />
+        <h3 className="mt-4 text-xl font-semibold tracking-tight">{t("msModalTitle")}</h3>
+        <p className="mt-1 text-[13px] text-[#616161]">{t("msModalFor")}</p>
+
+        {/* campus account (demo) */}
+        <button
+          onClick={go}
+          disabled={busy}
+          className="mt-5 flex w-full items-center gap-3 rounded-xl border border-[#d1d1d1] bg-white p-3 text-left transition hover:bg-[#f3f2f1] disabled:cursor-default"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0067b8] text-xs font-bold text-white">
+            AR
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold">Alya Ramadhani</span>
+            <span className="block truncate text-[11px] text-[#616161]">
+              alya.ramadhani@binus.ac.id
+            </span>
+          </span>
+          {busy ? (
+            <span className="h-4.5 w-4.5 shrink-0 animate-spin rounded-full border-2 border-[#0067b8]/30 border-t-[#0067b8]" />
+          ) : (
+            <ChevronRight className="h-4 w-4 shrink-0 text-[#a19f9d]" />
+          )}
+        </button>
+
+        <button
+          onClick={go}
+          disabled={busy}
+          className="mt-3 flex h-11 w-full items-center justify-center rounded-lg bg-[#0067b8] text-sm font-semibold text-white transition hover:bg-[#005da6] active:scale-[0.98] disabled:opacity-60"
+        >
+          {busy ? t("msWorking") : t("msContinue")}
+        </button>
+
+        <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[10px] font-medium text-[#a19f9d]">
+          <BadgeCheck className="h-3 w-3 text-emerald-600" />
+          {t("msDemoNote")}
+        </p>
+      </motion.div>
+    </motion.div>
   );
 }

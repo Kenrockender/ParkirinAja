@@ -31,6 +31,9 @@ const HOUR = 3600_000;
 const MIN = 60_000;
 const DAY = 24 * HOUR;
 
+/** Max concurrent CHECKED_IN sessions per user ("sedang parkir"). */
+const MAX_ACTIVE_PARKING = 2;
+
 export interface User {
   name: string;
   email: string;
@@ -62,7 +65,7 @@ interface ParkirState {
   toast: (message: string, tone?: Toast["tone"]) => void;
   dismissToast: (id: string) => void;
 
-  signIn: (kind: "student" | "general" | "operator") => void;
+  signIn: (kind: "student" | "general" | "operator" | "microsoft") => void;
   signOut: () => void;
 
   addVehicle: (v: { nickname: string; licensePlate: string; brand: string | null; model: string | null; color: string | null }) => void;
@@ -84,7 +87,8 @@ interface ParkirState {
   }) => Reservation | null;
 
   cancelReservation: (id: string) => void;
-  checkIn: (id: string) => void;
+  /** CONFIRMED → CHECKED_IN. Returns false when blocked (already 2 active sessions). */
+  checkIn: (id: string) => boolean;
 
   /** End an active session — charges parking + overtime fees from wallet */
   checkOut: (id: string) =>
@@ -94,7 +98,7 @@ interface ParkirState {
   /** Scan a slot QR → walk-in start, check-in, or check-out depending on state */
   scanSlot: (slotNumber: string) =>
     | { ok: true; kind: "walkin" | "checkin" | "checkout"; reservation?: Reservation }
-    | { ok: false; reason: "unknown" | "busy" | "maintenance" | "no_reservation" | "insufficient" };
+    | { ok: false; reason: "unknown" | "busy" | "maintenance" | "no_reservation" | "insufficient" | "max_active" };
 
   topUp: (amount: number) => void;
 }
@@ -290,24 +294,29 @@ export const useParkir = create<ParkirState>((set, get) => ({
       });
       return;
     }
+    const profiles: Record<"student" | "general" | "microsoft", Omit<User, "role">> = {
+      student: {
+        name: "Rizky Pratama",
+        email: "rizky.pratama@binus.ac.id",
+        isBinusian: true,
+        memberSince: "Sep 2024",
+      },
+      microsoft: {
+        name: "Alya Ramadhani",
+        email: "alya.ramadhani@binus.ac.id",
+        isBinusian: true,
+        memberSince: "Feb 2025",
+      },
+      general: {
+        name: "Dimas Saputra",
+        email: "dimas.saputra@gmail.com",
+        isBinusian: false,
+        memberSince: "Jan 2026",
+      },
+    };
     set({
       signedIn: true,
-      user:
-        kind === "student"
-          ? {
-              name: "Rizky Pratama",
-              email: "rizky.pratama@binus.ac.id",
-              isBinusian: true,
-              memberSince: "Sep 2024",
-              role: "USER",
-            }
-          : {
-              name: "Dimas Saputra",
-              email: "dimas.saputra@gmail.com",
-              isBinusian: false,
-              memberSince: "Jan 2026",
-              role: "USER",
-            },
+      user: { ...profiles[kind], role: "USER" },
       reservations: seedReservations(now),
       transactions: seedTxns(now),
       walletBalance: 230000,
@@ -397,13 +406,17 @@ export const useParkir = create<ParkirState>((set, get) => ({
 
   checkIn: (id) => {
     const now = Date.now();
+    const { reservations } = get();
+    const target = reservations.find((r) => r.id === id && r.status === "CONFIRMED");
+    if (!target) return false;
+    const activeNow = reservations.filter((r) => r.status === "CHECKED_IN").length;
+    if (activeNow >= MAX_ACTIVE_PARKING) return false;
     set((s) => ({
       reservations: s.reservations.map((r) =>
-        r.id === id && r.status === "CONFIRMED"
-          ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now }
-          : r
+        r.id === id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
       ),
     }));
+    return true;
   },
 
   checkOut: (id) => {
@@ -455,6 +468,8 @@ export const useParkir = create<ParkirState>((set, get) => ({
     if (!slot) return { ok: false as const, reason: "unknown" as const };
     if (slot.status === "MAINTENANCE") return { ok: false as const, reason: "maintenance" as const };
 
+    const activeNow = reservations.filter((r) => r.status === "CHECKED_IN").length;
+
     // Own active session on this slot → checkout (reuse checkOut for identical fee logic)
     const active = reservations.find(
       (r) => r.slotId === slot.id && r.status === "CHECKED_IN"
@@ -471,6 +486,8 @@ export const useParkir = create<ParkirState>((set, get) => ({
       (r) => r.slotId === slot.id && r.status === "CONFIRMED"
     );
     if (confirmed) {
+      if (activeNow >= MAX_ACTIVE_PARKING)
+        return { ok: false as const, reason: "max_active" as const };
       set((s) => ({
         reservations: s.reservations.map((r) =>
           r.id === confirmed.id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
@@ -489,6 +506,8 @@ export const useParkir = create<ParkirState>((set, get) => ({
     if (busy) return { ok: false as const, reason: "busy" as const };
 
     // Free slot → walk-in session, charged at walk-in rate
+    if (activeNow >= MAX_ACTIVE_PARKING)
+      return { ok: false as const, reason: "max_active" as const };
     if (walletBalance < TARIFF.walkInFee)
       return { ok: false as const, reason: "insufficient" as const };
 

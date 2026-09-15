@@ -49,7 +49,9 @@ export function ScannerView({
             ? t("slotBusy")
             : res.reason === "insufficient"
               ? t("insufficient")
-              : t("scanDenied");
+              : res.reason === "max_active"
+                ? t("maxActiveToast")
+                : t("scanDenied");
       toast(msg, "error");
     }
   }

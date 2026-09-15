@@ -9,6 +9,7 @@ import {
   Car,
   Clock,
   Gauge,
+  Lock,
   QrCode,
   ShieldCheck,
   Wallet,
@@ -43,11 +44,15 @@ export function BookingView({
   const vehicles = useParkir((s) => s.vehicles);
   const walletBalance = useParkir((s) => s.walletBalance);
   const globalWin = useParkir((s) => s.viewWindow);
+  const isBinusian = useParkir((s) => s.user.isBinusian);
   const book = useParkir((s) => s.book);
   const toast = useParkir((s) => s.toast);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
 
-  const [type, setType] = React.useState<ResType>(defaultType);
+  /** Non-BINUSIAN (guest): advance booking locked — walk-in only. */
+  const [type, setType] = React.useState<ResType>(
+    defaultType === "ADVANCE" && !isBinusian ? "WALK_IN" : defaultType
+  );
   const [vehIdx, setVehIdx] = React.useState(0);
   const [win, setWin] = React.useState({ ...globalWin });
   const [busy, setBusy] = React.useState(false);
@@ -143,27 +148,49 @@ export function BookingView({
               { k: "ADVANCE", icon: Gauge, label: t("advance"), fee: TARIFF.advanceFee, note: lang === "id" ? "Pilih slot lebih dulu" : "Pick your slot early" },
               { k: "WALK_IN", icon: QrCode, label: t("walkIn"), fee: TARIFF.walkInFee, note: lang === "id" ? "Langsung via scan QR di slot" : "Instant via slot QR scan" },
             ] as const
-          ).map((o) => (
-            <button
-              key={o.k}
-              onClick={() => setType(o.k)}
-              className={cn(
-                "relative rounded-2xl border p-3.5 text-left transition-all",
-                type === o.k
-                  ? "border-primary/60 bg-primary/10 shadow-[0_0_24px_-8px_rgba(255,214,10,0.4)]"
-                  : "border-border bg-card/50 hover:border-primary/25"
-              )}
-            >
-              <o.icon className={cn("h-4.5 w-4.5", type === o.k ? "text-primary" : "text-muted-foreground")} />
-              <p className="mt-2.5 text-sm font-bold">{o.label}</p>
-              <p className="tnum mt-0.5 text-xs font-semibold text-primary">{rupiah(o.fee)}</p>
-              <p className="mt-1 text-[10px] leading-snug text-muted-foreground">{o.note}</p>
-              {type === o.k && (
-                <ShieldCheck className="absolute right-3 top-3 h-4 w-4 text-primary" />
-              )}
-            </button>
-          ))}
+          ).map((o) => {
+            const locked = !isBinusian && o.k === "ADVANCE";
+            return (
+              <button
+                key={o.k}
+                onClick={() => {
+                  if (locked) {
+                    toast(t("binusianOnly"), "info");
+                    return;
+                  }
+                  setType(o.k);
+                }}
+                aria-disabled={locked || undefined}
+                className={cn(
+                  "relative rounded-2xl border p-3.5 text-left transition-all",
+                  locked && "cursor-not-allowed opacity-45 hover:border-border",
+                  type === o.k && !locked
+                    ? "border-primary/60 bg-primary/10 shadow-[0_0_24px_-8px_rgba(255,214,10,0.4)]"
+                    : "border-border bg-card/50 hover:border-primary/25"
+                )}
+              >
+                <o.icon className={cn("h-4.5 w-4.5", type === o.k && !locked ? "text-primary" : "text-muted-foreground")} />
+                <p className="mt-2.5 flex items-center gap-1.5 text-sm font-bold">
+                  {o.label}
+                  {locked && <Lock className="h-3 w-3 text-muted-foreground" />}
+                </p>
+                <p className="tnum mt-0.5 text-xs font-semibold text-primary">{rupiah(o.fee)}</p>
+                <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
+                  {locked ? t("binusianOnly") : o.note}
+                </p>
+                {type === o.k && !locked && (
+                  <ShieldCheck className="absolute right-3 top-3 h-4 w-4 text-primary" />
+                )}
+              </button>
+            );
+          })}
         </div>
+        {!isBinusian && (
+          <p className="flex items-start gap-2 rounded-xl border border-binus-bright/25 bg-binus-blue/25 px-3 py-2.5 text-[11px] leading-snug text-binus-bright">
+            <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            {t("guestBookingNote")}
+          </p>
+        )}
       </section>
 
       {/* vehicle */}
