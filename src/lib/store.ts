@@ -1,7 +1,7 @@
 "use client";
 /**
  * Parkir Binus preview store — client-side simulation of the full product loop:
- * auth → browse availability → book → check-in → check-out → fees/refund.
+ * auth → browse availability → book → check-in (scan) → check-out (scan or ticket) → fees/refund.
  */
 import { create } from "zustand";
 import {
@@ -90,6 +90,11 @@ interface ParkirState {
   checkOut: (id: string) =>
     | { ok: true; parkingFee: number; overtimeFee: number }
     | { ok: false; reason: "not_found" | "insufficient" };
+
+  /** Scan a slot QR → walk-in start, check-in, or check-out depending on state */
+  scanSlot: (slotNumber: string) =>
+    | { ok: true; kind: "walkin" | "checkin" | "checkout"; reservation?: Reservation }
+    | { ok: false; reason: "unknown" | "busy" | "maintenance" | "no_reservation" | "insufficient" };
 
   topUp: (amount: number) => void;
 }
@@ -438,6 +443,85 @@ export const useParkir = create<ParkirState>((set, get) => ({
       ],
     }));
     return { ok: true as const, parkingFee: pFee, overtimeFee: oFee };
+  },
+
+  scanSlot: (slotNumberRaw) => {
+    const now = Date.now();
+    const { slots, reservations, walletBalance } = get();
+    const code = slotNumberRaw.trim().toUpperCase().replace(/^PB-?/, "");
+    const slot = slots.find(
+      (s) => s.slotNumber === code || s.slotNumber === code.replace("-", "") || `slot-${code.replace("-", "-")}` === s.id
+    );
+    if (!slot) return { ok: false as const, reason: "unknown" as const };
+    if (slot.status === "MAINTENANCE") return { ok: false as const, reason: "maintenance" as const };
+
+    // Own active session on this slot → checkout (reuse checkOut for identical fee logic)
+    const active = reservations.find(
+      (r) => r.slotId === slot.id && r.status === "CHECKED_IN"
+    );
+    if (active) {
+      const out = get().checkOut(active.id);
+      return out.ok
+        ? { ok: true as const, kind: "checkout" as const, reservation: active }
+        : { ok: false as const, reason: "insufficient" as const };
+    }
+
+    // Own confirmed reservation on this slot → check in
+    const confirmed = reservations.find(
+      (r) => r.slotId === slot.id && r.status === "CONFIRMED"
+    );
+    if (confirmed) {
+      set((s) => ({
+        reservations: s.reservations.map((r) =>
+          r.id === confirmed.id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
+        ),
+      }));
+      return { ok: true as const, kind: "checkin" as const, reservation: confirmed };
+    }
+
+    // Any other active/confirmed overlapping right now → busy
+    const busy = reservations.find(
+      (r) =>
+        r.slotId === slot.id &&
+        ["CONFIRMED", "CHECKED_IN"].includes(r.status) &&
+        r.date === dateStr(new Date(now))
+    );
+    if (busy) return { ok: false as const, reason: "busy" as const };
+
+    // Free slot → walk-in session, charged at walk-in rate
+    if (walletBalance < TARIFF.walkInFee)
+      return { ok: false as const, reason: "insufficient" as const };
+
+    const nowD = new Date(now);
+    const res: Reservation = {
+      id: uid(),
+      code: resCode(),
+      type: "WALK_IN",
+      slotId: slot.id,
+      slotNumber: slot.slotNumber,
+      date: dateStr(nowD),
+      startTime: timeStr(nowD),
+      endTime: addH(timeStr(nowD), 2),
+      status: "CHECKED_IN",
+      serviceFee: TARIFF.walkInFee,
+      parkingFee: 0,
+      overtimeFee: 0,
+      refundAmount: 0,
+      vehiclePlate: get().vehicles[0]?.licensePlate ?? "B 2143 RWZ",
+      vehicleName: get().vehicles[0]?.model ?? "Honda Vario 160",
+      driverName: get().user.name,
+      createdAt: now,
+      checkedInAt: now,
+    };
+    set((s) => ({
+      reservations: [res, ...s.reservations],
+      walletBalance: s.walletBalance - TARIFF.walkInFee,
+      transactions: [
+        { id: uid(), type: "SERVICE_FEE", amount: TARIFF.walkInFee, createdAt: now, note: res.code },
+        ...s.transactions,
+      ],
+    }));
+    return { ok: true as const, kind: "walkin" as const, reservation: res };
   },
 
   topUp: (amount) => {

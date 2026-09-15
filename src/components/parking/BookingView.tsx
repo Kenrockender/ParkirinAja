@@ -9,9 +9,9 @@ import {
   Car,
   Clock,
   Gauge,
+  QrCode,
   ShieldCheck,
   Wallet,
-  Zap,
 } from "lucide-react";
 import { DateGrid, TimeGrid, WindowPicker, fmtDateLabel } from "./WindowPickers";
 import { useParkir } from "@/lib/store";
@@ -141,7 +141,7 @@ export function BookingView({
           {(
             [
               { k: "ADVANCE", icon: Gauge, label: t("advance"), fee: TARIFF.advanceFee, note: lang === "id" ? "Pilih slot lebih dulu" : "Pick your slot early" },
-              { k: "WALK_IN", icon: Zap, label: t("walkIn"), fee: TARIFF.walkInFee, note: lang === "id" ? "Datang langsung, tanpa booking" : "Arrive & park instantly" },
+              { k: "WALK_IN", icon: QrCode, label: t("walkIn"), fee: TARIFF.walkInFee, note: lang === "id" ? "Langsung via scan QR di slot" : "Instant via slot QR scan" },
             ] as const
           ).map((o) => (
             <button

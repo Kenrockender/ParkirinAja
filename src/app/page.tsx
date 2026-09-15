@@ -1,6 +1,6 @@
 "use client";
 /**
- * Parkir Binus — Dark Premium UI Concept v6
+ * Parkir Binus — Dark Premium UI Concept v7
  * Live preview app: full customer journey on simulated data.
  */
 import React from "react";
@@ -25,6 +25,7 @@ import { TicketView } from "@/components/parking/TicketView";
 import { HistoryView } from "@/components/parking/HistoryView";
 import { WalletView } from "@/components/parking/WalletView";
 import { ProfileView } from "@/components/parking/ProfileView";
+import { ScannerView } from "@/components/parking/ScannerView";
 import { MapView } from "@/components/parking/MapView";
 import { OperatorView } from "@/components/parking/OperatorView";
 import { useParkir } from "@/lib/store";
@@ -78,6 +79,8 @@ function Shell() {
   const [tab, setTab] = React.useState<Tab>("home");
   const [view, setView] = React.useState<View>({ name: "tabs" });
   const [mapOpen, setMapOpen] = React.useState(false);
+  const [scanOpen, setScanOpen] = React.useState(false);
+  const toast = useParkir((s) => s.toast);
 
   const navTabs: { k: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { k: "home", label: t("navHome"), icon: MapPin },
@@ -188,20 +191,54 @@ function Shell() {
       {view.name === "tabs" && (
       <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-30 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto w-full max-w-[430px] px-4">
-          <div className="glass flex items-stretch justify-around rounded-[1.6rem] px-2.5 py-2 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.55)]">
-            {navTabs.map(({ k, label, icon: Icon }) => (
-              <NavBtn
-                key={k}
-                active={tab === k}
-                label={label}
-                onClick={() => {
-                  setView({ name: "tabs" });
-                  setTab(k);
-                }}
+          <div className="relative">
+            {/* center scan button — elevated above the pill, solid (no ring) */}
+            <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-[55%]">
+              <button
+                onClick={() => setScanOpen(true)}
+                aria-label={t("scanQr")}
+                className="flex h-[58px] w-[58px] items-center justify-center rounded-full bg-primary shadow-[0_16px_32px_-10px_rgba(255,214,10,0.55),0_6px_16px_rgba(0,0,0,0.45)] transition-transform duration-200 hover:scale-105 active:scale-90"
               >
-                <Icon className="h-[1.15rem] w-[1.15rem]" />
-              </NavBtn>
-            ))}
+                <QrGlyph className="h-7 w-7 text-primary-foreground" />
+              </button>
+            </div>
+
+            <div className="glass flex items-stretch justify-around rounded-[1.6rem] px-2.5 py-2 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.55)]">
+              {navTabs.slice(0, 2).map(({ k, label, icon: Icon }) => (
+                <NavBtn
+                  key={k}
+                  active={tab === k}
+                  label={label}
+                  onClick={() => {
+                    setView({ name: "tabs" });
+                    setTab(k);
+                  }}
+                >
+                  <Icon className="h-[1.15rem] w-[1.15rem]" />
+                </NavBtn>
+              ))}
+
+              {/* spacer under the elevated scan button */}
+              <div aria-hidden className="flex w-16 shrink-0 flex-col items-center justify-end pb-1.5">
+                <span className="text-[9.5px] font-bold leading-none text-muted-foreground/70">
+                  {t("scanQr")}
+                </span>
+              </div>
+
+              {navTabs.slice(2, 4).map(({ k, label, icon: Icon }) => (
+                <NavBtn
+                  key={k}
+                  active={tab === k}
+                  label={label}
+                  onClick={() => {
+                    setView({ name: "tabs" });
+                    setTab(k);
+                  }}
+                >
+                  <Icon className="h-[1.15rem] w-[1.15rem]" />
+                </NavBtn>
+              ))}
+            </div>
           </div>
         </div>
       </nav>
@@ -212,6 +249,19 @@ function Shell() {
         open={mapOpen}
         onClose={() => setMapOpen(false)}
         onSlotPress={(slotId, slotNumber) => openBooking(slotId, slotNumber)}
+      />
+
+      <ScannerView
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onResult={(kind, resId) => {
+          setScanOpen(false);
+          toast(
+            kind === "checkout" ? t("checkoutOk") : kind === "walkin" ? t("walkinOk") : t("checkinOk"),
+            "success"
+          );
+          if (resId) setView({ name: "ticket", reservationId: resId });
+        }}
       />
 
       <Toasts />
@@ -307,6 +357,23 @@ function NavBtn({
         {label}
       </span>
     </button>
+  );
+}
+
+/** QR glyph — 3 finder squares + alignment dots, tuned for small sizes. */
+function QrGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <rect x="2" y="2" width="7.5" height="7.5" rx="1.8" stroke="currentColor" strokeWidth="1.9" />
+      <rect x="14.5" y="2" width="7.5" height="7.5" rx="1.8" stroke="currentColor" strokeWidth="1.9" />
+      <rect x="2" y="14.5" width="7.5" height="7.5" rx="1.8" stroke="currentColor" strokeWidth="1.9" />
+      <circle cx="12" cy="12" r="2.1" fill="currentColor" />
+      <circle cx="17.4" cy="13.4" r="1.15" fill="currentColor" />
+      <circle cx="20.6" cy="16.4" r="1.15" fill="currentColor" />
+      <circle cx="13.6" cy="17.4" r="1.15" fill="currentColor" />
+      <circle cx="17.4" cy="20.4" r="1.15" fill="currentColor" />
+      <circle cx="20.6" cy="20.4" r="1.15" fill="currentColor" />
+    </svg>
   );
 }
 

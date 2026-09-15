@@ -1,6 +1,34 @@
 # Worklog — Parkir Binus UI Remake
 
 ---
+Task ID: 4
+Agent: Super Z (main agent)
+Task: Iteration v7 per user feedback — "scan qr yang di navbar bawah masih ada jangan diilangin dong": restore the QR scan button in the bottom navbar (v6 had removed it entirely) while keeping the clean v6 pill design, and bring back the full scanning flow.
+
+Work Log:
+- Recovered deleted ScannerView.tsx (218 lines) from git commit 42ee06c; analyzed v5→v6 diffs of page.tsx/store.ts/parking-data.ts to restore exactly what was removed without losing v6 improvements (checkOut dialog, vehicle editing, clean pill)
+- parking-data.ts: re-added 13 scanner i18n keys × ID/EN (scanQr, scannerTitle/Hint, orEnterCode, codePlaceholder, scanGo, scanPick, walkinOk, scanDenied, badCode, slotBusy, scanExit); reverted heroSub + mapNote to QR-mentioning copy; kept v6's passTitle/showPass + checkout-dialog + editVehicle keys
+- store.ts: re-added scanSlot (walk-in/check-in/checkout by slot QR); checkout branch now delegates to checkOut() to avoid duplicated fee logic; all branches return the reservation so the UI can navigate to the ticket
+- page.tsx: ScannerView import + scanOpen state + overlay render with success toasts (checkinOk/walkinOk/checkoutOk) + ticket navigation on resId; restored QrGlyph SVG; navbar = clean v6 glass pill (4 tabs, sliding active pill) + NEW center QR button: 58px solid bg-primary circle, -translate-y-[55%] (protrudes 32px above pill), layered yellow-glow + dark drop shadow, NO border ring (v5's 5px background ring was the "doughnut" problem); "Scan QR" micro-label in w-16 center spacer aligned with tab labels (pb-1.5)
+- globals.css: light-mode .glass opacity 62% → 80% card mix (VLM found background text bleeding through nav labels in light mode)
+- BookingView.tsx: walk-in note "Datang langsung, tanpa booking" (Zap) → "Langsung via scan QR di slot" (QrCode icon)
+
+Verification (agent-browser 430x900 + DOM geometry + VLM):
+- Nav geometry (eval): all 5 labels bottom-aligned at exactly y=869; FAB centered x=215 (= pill center), 58px, protrusion 31.9px above pill top — mathematically symmetric
+- Dark nav VLM (2x zoom crop): solid-filled yellow circle, visible soft drop shadow, protrudes cleanly, "no doughnut-ring artifacts, clipping, or misalignments" (first full-page VLM run hallucinated a nonexistent banner — crop check + DOM geometry trusted instead)
+- Walk-in: scanner → manual code B-01 → flash → toast "Sesi walk-in dimulai" → ticket CHECKED_IN with "Keluar & Bayar Parkir" button
+- Check-in: booked A-02 (PB-APD7020, Rp20k) → scan A-02 → toast "Check-in berhasil" → ticket CHECKED_IN
+- Check-out: scan B-01 (active session) → toast "Berhasil keluar — sampai jumpa" → completed ticket: layanan Rp30k + parkir Rp20k + lembur Rp0 = Rp50k
+- Light mode nav VLM after glass fix: 9/10 — labels legible, no bleed-through, clean button
+- EN toggle: "Scan Slot QR / Point the camera at the permanent QR mounted on each slot" ✓; Landing hero shows "scan QR untuk masuk & keluar" ✓
+- Zero console/page errors; lint clean; tsc clean (src/); app 200
+
+Stage Summary:
+- v7 delivered: QR scan is back in the bottom navbar as an elevated solid yellow center button (clean execution, no doughnut ring), full scanner flow restored (walk-in / check-in / check-out by scanning slot QR or typing code), TicketView's "Keluar & Bayar Parkir" dialog kept as a second exit path, vehicle editing + operator console from v5/v6 intact
+- Key artifacts modified: page.tsx, store.ts, parking-data.ts, globals.css, BookingView; restored ScannerView.tsx
+- Screenshots: /home/z/my-project/scripts/shots/v7-*.png (11 captures)
+
+---
 Task ID: 2
 Agent: Super Z (main agent)
 Task: Iteration v5 per user feedback — 7 UI changes: remove 4-feature list on landing, remove green LIVE badge, remove Advance/Walk-in chips, move Cari Slot button into "Lihat ketersediaan untuk" section with search results (count + free slot numbers), fix non-functional Tambah kendaraan button (working modal), raise QR scan FAB higher per reference image, and add Operator section (was missing entirely).
