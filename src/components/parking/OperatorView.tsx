@@ -1,19 +1,23 @@
 "use client";
 /**
- * OperatorView — parking officer console: live slot monitor, active sessions,
- * today's revenue, per-slot maintenance control.
+ * OperatorView — parking officer console: live slot monitor, slot QR codes,
+ * active sessions, today's revenue, per-slot maintenance control.
  */
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 import {
   Activity,
   BadgeCheck,
   Banknote,
   CarFront,
   Clock3,
+  Download,
   LogIn,
   LogOut,
   Monitor,
+  Printer,
+  QrCode,
   ShieldCheck,
   Wrench,
   X,
@@ -48,6 +52,11 @@ function nowWindow() {
     startTime: timeStr(start),
     endTime: timeStr(end),
   };
+}
+
+/** Payload encoded in every physical slot QR — parseable by the customer scanner. */
+export function slotQrPayload(slot: Slot): string {
+  return `PB-${slot.slotNumber}`;
 }
 
 const TILE: Record<SlotStatus, { box: string; num: string }> = {
@@ -97,6 +106,7 @@ export function OperatorView() {
   const toast = useParkir((s) => s.toast);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const [detail, setDetail] = React.useState<Slot | null>(null);
+  const [qrSlot, setQrSlot] = React.useState<Slot | null>(null);
 
   useTicker(true); // refresh durations every 30s
   const win = nowWindow();
@@ -314,6 +324,56 @@ export function OperatorView() {
         </p>
       </motion.section>
 
+      {/* ── slot QR codes (32 unique, one per slot) ── */}
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.13 }}
+        className="glass rounded-3xl p-4"
+      >
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h3 className="flex items-center gap-1.5 font-display text-sm font-bold tracking-tight">
+            <QrCode className="h-4 w-4 text-primary" />
+            {t("qrSlotsTitle")}
+          </h3>
+          <span className="tnum rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">
+            {slots.length}
+          </span>
+        </div>
+        <p className="mb-3 text-[10.5px] leading-relaxed text-muted-foreground">{t("qrSlotsSub")}</p>
+
+        <button
+          onClick={() => window.print()}
+          className="glow-primary flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-primary-foreground transition active:scale-[0.98]"
+        >
+          <Printer className="h-4 w-4" />
+          {t("qrPrintAll")}
+          <span className="font-semibold opacity-70">· {t("qrPrintHint")}</span>
+        </button>
+
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {slots.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setQrSlot(s)}
+              className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card/40 p-2 transition hover:bg-card/70 active:scale-95"
+            >
+              <span className="rounded-lg bg-white p-1.5 shadow-sm">
+                <QRCodeSVG
+                  value={slotQrPayload(s)}
+                  size={62}
+                  bgColor="#ffffff"
+                  fgColor="#0b1226"
+                  level="M"
+                  marginSize={0}
+                />
+              </span>
+              <span className="tnum font-display text-[11px] font-bold">{s.slotNumber}</span>
+            </button>
+          ))}
+        </div>
+      </motion.section>
+
       {/* ── active sessions ── */}
       <motion.section
         initial={{ opacity: 0, y: 12 }}
@@ -401,6 +461,48 @@ export function OperatorView() {
           {detail && <SlotDetail slot={detail} onClose={() => setDetail(null)} />}
         </DialogContent>
       </Dialog>
+
+      {/* ── slot QR dialog ── */}
+      <Dialog open={!!qrSlot} onOpenChange={(v) => !v && setQrSlot(null)}>
+        <DialogContent className="max-w-[380px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
+          {qrSlot && <QrSlotDetail slot={qrSlot} onClose={() => setQrSlot(null)} />}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── print-only sheet: 32 QR cards · A4 · 8 cards/page (2×4) ── */}
+      <div id="qr-print-sheet" className="hidden">
+        <div className="mb-[4mm] flex items-end justify-between border-b-[0.3mm] border-slate-300 pb-[2mm]">
+          <div>
+            <p className="text-[13pt] font-black leading-tight text-[#070B16]">
+              {t("appName")} — {t("qrSlotsTitle")}
+            </p>
+            <p className="text-[8pt] text-slate-600">
+              {t("qrPrintBrand")} · {t("qrLocation")} ·{" "}
+              {new Date().toLocaleDateString(lang === "id" ? "id-ID" : "en-US", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </p>
+          </div>
+          <p className="tnum shrink-0 text-[8pt] font-bold text-slate-500">
+            {slots.length} QR · PB-A-01 … PB-B-14
+          </p>
+        </div>
+        {Array.from({ length: Math.ceil(slots.length / 8) }, (_, p) => (
+          <div
+            key={p}
+            className={cn(
+              "grid grid-cols-2 gap-[4mm]",
+              p < Math.ceil(slots.length / 8) - 1 && "break-after-page"
+            )}
+          >
+            {slots.slice(p * 8, p * 8 + 8).map((s) => (
+              <QrPrintCard key={s.id} slot={s} />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 
@@ -503,6 +605,113 @@ export function OperatorView() {
       </>
     );
   }
+
+  /** Slot QR detail — big QR, code & hi-res PNG download */
+  function QrSlotDetail({ slot, onClose }: { slot: Slot; onClose: () => void }) {
+    const wrap = React.useRef<HTMLDivElement>(null);
+    const payload = slotQrPayload(slot);
+
+    function downloadPng() {
+      const canvas = wrap.current?.querySelector("canvas");
+      if (!canvas) return;
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `QR-ParkirBinus-${slot.slotNumber}.png`;
+      a.click();
+      toast(t("qrSaved"), "success");
+    }
+
+    return (
+      <>
+        <DialogHeader className="space-y-1.5">
+          <span className="mx-auto rounded-2xl bg-white p-3 shadow-lg">
+            <QRCodeSVG
+              value={payload}
+              size={150}
+              bgColor="#ffffff"
+              fgColor="#0b1226"
+              level="M"
+              marginSize={2}
+            />
+          </span>
+          <DialogTitle className="text-center font-display text-lg font-bold tracking-tight">
+            {slot.slotNumber}
+          </DialogTitle>
+          <DialogDescription className="text-center text-xs text-muted-foreground">
+            {t("qrLocation")}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="mt-3 space-y-2">
+          <DetailRow label={t("qrCodeLabel")} value={payload} />
+          <div className="flex items-center gap-2.5 rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-3">
+            <QrCode className="h-4 w-4 shrink-0 text-primary" />
+            <p className="text-xs font-semibold text-primary/90">{t("qrCardHint")}</p>
+          </div>
+        </div>
+
+        <button
+          onClick={downloadPng}
+          className="glow-primary mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground transition active:scale-[0.98]"
+        >
+          <Download className="h-4 w-4" />
+          {t("qrDownload")}
+        </button>
+
+        <button
+          onClick={onClose}
+          className="mx-auto mt-2.5 flex items-center gap-1 text-[11px] font-semibold text-muted-foreground transition hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+          {t("close")}
+        </button>
+
+        {/* offscreen hi-res canvas for the PNG export */}
+        <div ref={wrap} aria-hidden className="pointer-events-none absolute -left-[9999px] top-0">
+          <QRCodeCanvas
+            value={payload}
+            size={1024}
+            bgColor="#ffffff"
+            fgColor="#0b1226"
+            level="M"
+            marginSize={4}
+          />
+        </div>
+      </>
+    );
+  }
+}
+
+/** Print card — one physical slot sign: QR + slot number + mounting info. */
+function QrPrintCard({ slot }: { slot: Slot }) {
+  const lang = useParkir((s) => s.lang);
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+  return (
+    <div className="flex h-[60mm] items-center gap-[4mm] break-inside-avoid rounded-[3mm] border-[0.4mm] border-dashed border-slate-400 bg-white p-[4mm] text-black">
+      <QRCodeSVG
+        value={slotQrPayload(slot)}
+        size={512}
+        style={{ width: "46mm", height: "46mm" }}
+        bgColor="#ffffff"
+        fgColor="#000000"
+        level="M"
+        marginSize={0}
+      />
+      <div className="min-w-0 flex-1">
+        <p className="text-[7pt] font-black uppercase tracking-[0.22em] text-[#1E3A8A]">
+          {t("appName")}
+        </p>
+        <p className="tnum text-[28pt] font-black leading-[1.05] text-[#070B16]">{slot.slotNumber}</p>
+        <p className="tnum mt-[1.5mm] text-[9pt] font-bold text-slate-700">
+          {lang === "id" ? "Kode" : "Code"}: {slotQrPayload(slot)}
+        </p>
+        <p className="text-[7.5pt] leading-snug text-slate-600">{t("qrLocation")}</p>
+        <p className="mt-[2mm] inline-block rounded-[1.5mm] bg-[#FFD60A] px-[2mm] py-[0.8mm] text-[7pt] font-black uppercase tracking-wide text-[#070B16]">
+          {t("qrCardHint")}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {

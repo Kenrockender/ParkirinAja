@@ -1,160 +1,29 @@
 # Worklog — Parkir Binus UI Remake
 
 ---
-Task ID: 4
+Task ID: 6
 Agent: Super Z (main agent)
-Task: Iteration v7 per user feedback — "scan qr yang di navbar bawah masih ada jangan diilangin dong": restore the QR scan button in the bottom navbar (v6 had removed it entirely) while keeping the clean v6 pill design, and bring back the full scanning flow.
+Task: Iteration v9 per user feedback — "tolong buatkan qr untuk setiap parkiran. jadi total ada 32 qr": create one QR code per parking slot (32 total: A-01..A-18, B-01..B-14), delivered both as printable physical assets and as an in-app operator QR manager.
 
 Work Log:
-- Recovered deleted ScannerView.tsx (218 lines) from git commit 42ee06c; analyzed v5→v6 diffs of page.tsx/store.ts/parking-data.ts to restore exactly what was removed without losing v6 improvements (checkOut dialog, vehicle editing, clean pill)
-- parking-data.ts: re-added 13 scanner i18n keys × ID/EN (scanQr, scannerTitle/Hint, orEnterCode, codePlaceholder, scanGo, scanPick, walkinOk, scanDenied, badCode, slotBusy, scanExit); reverted heroSub + mapNote to QR-mentioning copy; kept v6's passTitle/showPass + checkout-dialog + editVehicle keys
-- store.ts: re-added scanSlot (walk-in/check-in/checkout by slot QR); checkout branch now delegates to checkOut() to avoid duplicated fee logic; all branches return the reservation so the UI can navigate to the ticket
-- page.tsx: ScannerView import + scanOpen state + overlay render with success toasts (checkinOk/walkinOk/checkoutOk) + ticket navigation on resId; restored QrGlyph SVG; navbar = clean v6 glass pill (4 tabs, sliding active pill) + NEW center QR button: 58px solid bg-primary circle, -translate-y-[55%] (protrudes 32px above pill), layered yellow-glow + dark drop shadow, NO border ring (v5's 5px background ring was the "doughnut" problem); "Scan QR" micro-label in w-16 center spacer aligned with tab labels (pb-1.5)
-- globals.css: light-mode .glass opacity 62% → 80% card mix (VLM found background text bleeding through nav labels in light mode)
-- BookingView.tsx: walk-in note "Datang langsung, tanpa booking" (Zap) → "Langsung via scan QR di slot" (QrCode icon)
+- Payload design: every slot QR encodes "PB-<slotNumber>" (e.g. PB-A-07) — already parseable by store.scanSlot (strips PB- prefix), so the printed QRs work with the existing customer scanner unchanged
+- bun add qrcode.react@4.2.0 (QRCodeSVG for display/print, QRCodeCanvas for hi-res PNG export)
+- parking-data.ts: +10 i18n keys × ID/EN (qrSlotsTitle, qrSlotsSub, qrPrintAll, qrPrintHint, qrDownload, qrCardHint, qrCodeLabel, qrLocation, qrPrintBrand, qrSaved)
+- OperatorView.tsx: new "QR Slot Parkir" section (QrCode icon header + "32" chip + subtitle + yellow "Cetak Semua · A4 · 4 halaman · 8 kartu per halaman" window.print() button + 3-col grid of 32 white QR cards, tap → QrSlotDetail dialog: big QR on white card, slot title, Kode slot row, yellow scan-hint note, "Unduh PNG" via offscreen 1024px QRCodeCanvas → toDataURL → anchor download + toast); slotQrPayload(slot) helper exported
+- Print sheet (hidden div #qr-print-sheet inside OperatorView): page header (brand · qrPrintBrand · location · date) + 4 page-grids of 8 QrPrintCard (2×4, 60mm cards, dashed cut border, QR 46mm + slot number 28pt + Kode + location + yellow badge, bilingual via t(), break-after-page per grid, break-inside-avoid cards)
+- globals.css: @media print block — @page A4 8mm; body * visibility hidden, #qr-print-sheet visibility visible + display:block + absolute top-left 194mm + print-color-adjust exact; verified hidden (offsetHeight 0) on screen
+- TicketView.tsx: replaced fake MockQR grid with real QRCodeSVG encoding res.code (reservation pass is now genuinely scannable)
+- scripts/gen_qr_slots.py (Python qrcode + PIL + reportlab): generated 32 print-friendly card PNGs (1140×800 ≈ 95×66mm @300DPI, navy #070B16 / blue #1E3A8A / yellow #FFD60A, dashed cut guides, Carlito-Bold w/ DejaVu fallback, fit_text auto-shrink) + A4 PDF (4 pages, 8 cards/page 2×4, per-page footer w/ page numbers) + ZIP of all PNGs → download/qr-slot/ (+ README.md usage guide)
 
-Verification (agent-browser 430x900 + DOM geometry + VLM):
-- Nav geometry (eval): all 5 labels bottom-aligned at exactly y=869; FAB centered x=215 (= pill center), 58px, protrusion 31.9px above pill top — mathematically symmetric
-- Dark nav VLM (2x zoom crop): solid-filled yellow circle, visible soft drop shadow, protrudes cleanly, "no doughnut-ring artifacts, clipping, or misalignments" (first full-page VLM run hallucinated a nonexistent banner — crop check + DOM geometry trusted instead)
-- Walk-in: scanner → manual code B-01 → flash → toast "Sesi walk-in dimulai" → ticket CHECKED_IN with "Keluar & Bayar Parkir" button
-- Check-in: booked A-02 (PB-APD7020, Rp20k) → scan A-02 → toast "Check-in berhasil" → ticket CHECKED_IN
-- Check-out: scan B-01 (active session) → toast "Berhasil keluar — sampai jumpa" → completed ticket: layanan Rp30k + parkir Rp20k + lembur Rp0 = Rp50k
-- Light mode nav VLM after glass fix: 9/10 — labels legible, no bleed-through, clean button
-- EN toggle: "Scan Slot QR / Point the camera at the permanent QR mounted on each slot" ✓; Landing hero shows "scan QR untuk masuk & keluar" ✓
-- Zero console/page errors; lint clean; tsc clean (src/); app 200
-
-Stage Summary:
-- v7 delivered: QR scan is back in the bottom navbar as an elevated solid yellow center button (clean execution, no doughnut ring), full scanner flow restored (walk-in / check-in / check-out by scanning slot QR or typing code), TicketView's "Keluar & Bayar Parkir" dialog kept as a second exit path, vehicle editing + operator console from v5/v6 intact
-- Key artifacts modified: page.tsx, store.ts, parking-data.ts, globals.css, BookingView; restored ScannerView.tsx
-- Screenshots: /home/z/my-project/scripts/shots/v7-*.png (11 captures)
-
----
-Task ID: 2
-Agent: Super Z (main agent)
-Task: Iteration v5 per user feedback — 7 UI changes: remove 4-feature list on landing, remove green LIVE badge, remove Advance/Walk-in chips, move Cari Slot button into "Lihat ketersediaan untuk" section with search results (count + free slot numbers), fix non-functional Tambah kendaraan button (working modal), raise QR scan FAB higher per reference image, and add Operator section (was missing entirely).
-
-Work Log:
-- Analyzed 3 reference screenshots with VLM (gym app with elevated cyan FAB as the QR button reference)
-- store.ts: added user.role USER/OPERATOR, signIn("operator") seeds officer account (Andi Wijaya), addVehicle/removeVehicle actions, setSlotStatus for maintenance control
-- parking-data.ts: +70 i18n keys (vehicle form fields, search results, operator dashboard) in both ID/EN; fixed duplicate keys caused by non-atomic MultiEdit during editing
-- Landing.tsx: removed 4-feature cards entirely → clean hero (brand + headline + sign-in), added "Masuk sebagai Operator" demo button with ShieldCheck icon
-- HomeView.tsx: removed LIVE badge (replaced with subtle free-count chip), removed Advance/Walk-in price chips, removed yellow Cari Slot quick-action card (Scan QR kept as full-width navy card); availability section now contains date/time pickers + "Cari Slot" button + animated results card (free count grouped by row A/B, tappable slot chips → booking, empty state when full); results auto-refresh when window changes after first search
-- VehicleModal.tsx (new): Dialog with nickname/plate/brand/model/color fields, required-field validation, plate auto-uppercase; ProfileView: wired add button + per-vehicle delete with inline confirm row
-- OperatorView.tsx (new): officer console — identity card with OPERATOR badge + shift, 4 stat tiles (in-building/booked/free/maintenance), revenue today + txn count, live slot monitor grid (32 tiles, tap → detail dialog with occupant/vehicle/duration or booking info, maintenance toggle), active sessions list with live duration + overdue highlight
-- page.tsx: QrGlyph custom SVG (3 finder squares + center dot) replaces lucide QrCode in FAB; FAB raised to -mt-[3.25rem] with 68px circle + 5px border-background cutout ring + glow (VLM-verified matches reference elevation); OperatorShell (header + dashboard, no customer nav) routes by role; main padding pb-32→pb-40 for FAB clearance
-
-Verification (agent-browser 430x900 + VLM):
-- Landing: clean, no feature cards, operator button present
-- Search: Cari Slot → 29 slots listed as chips (A-03 occupied & A-14/B-11 maintenance correctly excluded); chip tap → booking; window change 01:21→08:00 auto-updated results 29→30 with A-03 back to free
-- Full flow: search → chip → booking A-02 → pay Rp20k → ticket with Check-in button ✓
-- Vehicle modal: filled & saved "Beat Kuliah / b 6789 xyz" → normalized to "B 6789 XYZ" + toast; delete with confirm row works
-- Operator: sign-in → dashboard (stats, monitor, A-03 session 50m live duration, revenue Rp90k/4 txns); slot detail shows PENGHUNI Rizky Pratama + vehicle + duration; maintenance toggle works both ways (A-03 toggled & restored)
-- FAB: VLM compare with reference confirms similar elevation/protrusion + ring cutout
-- Light mode VLM 9/10; dark home VLM 8/10; zero console/page errors; lint clean; tsc clean (src/)
+Verification (agent-browser 430x900 + DOM eval + pyzbar + VLM):
+- Operator console: QR section renders 32 QR cards (DOM count 32 SVGs) + print sheet holds 32 QRs in 4 page grids (5 sheet children incl. header), sheet hidden on screen
+- A-01 dialog: code PB-A-01 shown, 1024×1024 export canvas present, QR SVG rendered
+- End-to-end: signed out → student sign-in → scanner FAB → manual code "PB-A-01" → toast "Sesi walk-in dimulai" → ticket CHECKED_IN with REAL QR (code PB-YGC1704) — printed QR payload works in the live app flow
+- pyzbar decode: QR-A-01→"PB-A-01", QR-B-07→"PB-B-07", QR-B-14→"PB-B-14" ✓ (physically scannable)
+- VLM: PNG card 8/10 (no overflow/clipping, good contrast); QR section 9/10 (header + 32 chip + print button + grid all confirmed); QR dialog 8.5/10 (polished, scannable)
+- Zero console/page errors; eslint clean; tsc clean (src/); PDF valid 1.41 MB
 
 Stage Summary:
-- v5 delivered: all 7 user requests implemented; operator role is a full separate console (entry: Landing → "Masuk sebagai Operator")
-- Key artifacts: modified Landing/HomeView/ProfileView/page.tsx/store.ts/parking-data.ts; new OperatorView.tsx, VehicleModal.tsx
-- Screenshots: /home/z/my-project/scripts/shots/v5-*.png (16 captures)
-
----
-Task ID: 1
-Agent: Super Z (main agent)
-Task: Full UI remake of Parkir Binus (BINUS Anggrek self-parking app) per user requirements: dark premium style, navy + BINUS yellow palette, full app scope, free layout restructuring, modern minimal seat-map, premium & sleek vibe, dark default with toggle, delivered as live preview app.
-
-Work Log:
-- Extracted and analyzed uploaded zip (12 files: HomeView, ParkingMap, HistoryView, page, map-page, AdminAds, scan-route, ads-route, i18n, parking.ts, schema.prisma, README)
-- Asked 8 clarifying questions via AskUserQuestion; user picked: Dark premium / Blue+yellow / Full app / Restructure freely / Modern minimal map / Premium sleek / Dark default / Live preview app
-- Initialized fullstack env, verified Next.js 16 + Tailwind 4 + shadcn stack
-- Built design system in globals.css: navy #070B16 bg, BINUS yellow #FFD60A primary, glass surfaces, ambient glow, gradient gold text, ticket perforation, scanline/pulse/float animations, light theme variant
-- layout.tsx: Space Grotesk (display) + Geist fonts, next-themes dark default, metadata
-- lib/parking-data.ts: types, TARIFF (advance 20k/walk-in 30k/overtime 5k), refund policy (100% ≤10min, 50% else), slot status logic, bilingual ID/EN dict (~140 keys), mock seeds (slots A01-A18/B01-B14, heatmap, ads)
-- lib/store.ts: zustand store — signIn/signOut, book (wallet deduction), cancel (refund calc), checkIn, scanSlot (walk-in/check-in/checkout with parking+overtime fees), topUp, viewWindow, custom toasts
-- Components: Landing (glow orbs, feature cards, demo accounts), ParkingMap (seat-map style, pillars every 3 bays, entrance/exit/ramp/lift/WC, scroll fades), HomeView (hero availability + capacity dial, quick actions, window pickers, compact map, ads carousel, heatmap with busiest/quietest), BookingView (type toggle, vehicle cards w/ Indonesian plate styling, summary), TicketView (boarding-pass with perforation, mock QR, live session timer, cancel dialog with refund estimate), HistoryView (filters, 10-min refund countdown), WalletView (gradient balance card, top-ups, txn feed), ProfileView (identity, garage, prefs with theme/lang toggles), ScannerView (camera sim with scanline, manual code, my-sessions quick scan), MapView (full-screen overlay)
-- page.tsx: app shell, splash gate (hydration-safe), sticky glass header, floating pill bottom nav with yellow scan FAB (hidden during booking/ticket flows), AnimatePresence transitions, premium toast system
-
-Fixes during verification:
-- Removed covering overlay on compact map (slots now directly tappable)
-- Hidden bottom nav during booking/ticket (FAB was covering pay button)
-- Added --color-binus-blue token, light-mode gradient-gold override, dial track contrast fix
-- Extracted PRNG to module-level function (react-hooks/immutability lint error)
-- next.config allowedDevOrigins for preview domain
-
-Verification (agent-browser, 430x900 mobile + 1440x900 desktop):
-- Landing renders, sign-in works (both accounts)
-- Home: live stats, slot statuses correct vs seeded reservations, window picker popovers, ads carousel, heatmap
-- Booking A-07 → pay Rp20k → ticket PB-SLW5153 → check-in → active session timer
-- Scanner: scan A-07 to exit → parking fee Rp20k charged → COMPLETED ticket with fee breakdown, wallet 230k→210k→190k
-- Walk-in scan B-01 → instant CHECKED_IN session with live timer
-- History: 7 reservations, filters, B-05 live refund countdown ticking
-- Wallet: top-up +100k → balance 290k, txn feed grouped today/earlier
-- Profile: theme toggle (dark↔light, both VLM-rated 9/10), language toggle ID↔EN, sign out
-- Map overlay: all infrastructure indicators verified (entrance/exit/ramp right, lift/WC mid-row), horizontal scroll + fades
-- Desktop: 430px column perfectly centered, header/nav centered
-- Zero console/page errors; lint clean; dev log clean
-
-Stage Summary:
-- Deliverable: fully interactive dark-premium UI remake at / (preview link), all 9 customer screens with working simulated product loop
-- Key artifacts: src/app/page.tsx, src/app/globals.css, src/lib/{parking-data,store}.ts, src/components/parking/{Landing,HomeView,BookingView,TicketView,HistoryView,WalletView,ProfileView,ScannerView,MapView,ParkingMap,Brand,WindowPickers}.tsx
-- Design tokens: bg #070B16, primary #FFD60A, binus-blue #1E3A8A / bright #3B82F6, glass surfaces, Space Grotesk display font
-- Screenshots: /home/z/my-project/scripts/shots/ (14 captures)
-
----
-Task ID: 3
-Agent: Super Z (main agent)
-Task: Iteration v6 per user feedback — 3 changes: (1) vehicles should be editable, (2) bottom nav bar became ugly after FAB redesign, (3) remove QR scan for check-in/exit entirely.
-
-Work Log:
-- VLM-analyzed user screenshot (pasted_image_1789440231267.png): confirmed the cutout-ring FAB looked like a "doughnut" and the Scan QR card read like a banner
-- store.ts: removed scanSlot (walk-in/checkin/checkout-by-scan); added checkOut(id) — same fee logic (parking + overtime from wallet); added updateVehicle(id, data)
-- parking-data.ts: removed all 14 scanner i18n keys (ID/EN); updated heroSub + mapNote (no more QR mentions); added passTitle/showPass, checkOutBtn, checkoutConfirmTitle/Desc, estParking/estOvertime/totalDue, editVehicle/Title/Sub, vehicleUpdated keys; checkinOk/checkoutOk retained for TicketView
-- page.tsx: deleted QR FAB + QrGlyph + ScannerView overlay + scanOpen state; bottom nav redesigned — clean 4-tab glass pill (equal flex-1 widths, no protrusion) with framer-motion layoutId sliding active pill + spring physics; main padding pb-40→pb-32
-- HomeView.tsx: removed Scan QR quick-action card + onOpenScanner prop; search section delay renumbered
-- TicketView.tsx: "Scan untuk keluar" → "Keluar & Bayar Parkir" button opening AlertDialog with live fee estimate (estParking + estOvertime + totalDue); confirm → checkOut() → success/error toast; QR pass section reworded to "Pass parkir digital / Tunjukkan pass ini ke petugas" with BadgeCheck icon
-- VehicleModal.tsx: optional vehicle prop → edit mode (Pencil/Plus header icons, prefilled fields, updateVehicle + vehicleUpdated toast)
-- ProfileView.tsx: pencil edit button on each vehicle card → opens modal in edit mode; add button unchanged
-- BookingView.tsx: WALK_IN note "Langsung via scan QR" → "Datang langsung, tanpa booking" (Zap icon replaces QrCode)
-- Deleted ScannerView.tsx
-
-Verification (agent-browser 430x900 + VLM):
-- Landing: hero copy "check-in & keluar langsung dari aplikasi" — no QR mention
-- Nav: 4 tabs (Beranda/Riwayat/Dompet/Profil), VLM: "exceptionally clean and elegant, no visual glitches, awkward cutouts, or protrusions"
-- Check-out flow: History → A-03 active session → "Keluar & Bayar Parkir" → dialog with fee estimate → confirm → toast "Berhasil keluar — sampai jumpa · Rp20.000" + status completed; nav correctly hidden during ticket flow
-- Vehicle edit: Profile → pencil on "Vario Harian" → modal "Edit Kendaraan" prefilled (Vario Harian/B 2143 RWZ/Honda/Vario 160/Hitam) → saved "Vario Kampus"/"Merah" → card updated
-- Tab switching smooth (sliding pill animates); zero console/page errors; lint clean; tsc clean (src/)
-- Dark home VLM 9/10; light mode VLM 8/10
-
-Stage Summary:
-- v6 delivered: QR scanning fully removed (check-in via ticket button, check-out via new payment dialog), bottom nav rebuilt as clean symmetric pill, vehicles now editable
-- Key artifacts modified: page.tsx, store.ts, parking-data.ts, HomeView, TicketView, VehicleModal, ProfileView, BookingView; deleted ScannerView.tsx
-- Screenshots: /home/z/my-project/scripts/shots/v6-*.png (13 captures)
-
----
-Task ID: 5
-Agent: Super Z (main agent)
-Task: Iteration v8 per user feedback — 5 changes: (1) remove wallet row from Profile preferences, (2) implement BINUSIAN vs non-BINUSIAN differences, (3) availability results use the parking MAP only (no text lists), (4) max 2 concurrent "sedang parkir" sessions, (5) Microsoft login for BINUSIAN.
-
-Work Log:
-- ProfileView.tsx: removed wallet shortcut row from preferences (card now Bahasa + Mode gelap only); identity badge differentiates — BINUSIAN: yellow BadgeCheck bubble + "BINUSIAN" chip; non-BINUSIAN: muted UserRound bubble + "NON-BINUSIAN" chip
-- parking-data.ts: +17 i18n keys × ID/EN (msSignIn/msOrDemo/msModalTitle/msModalFor/msModalSub/msContinue/msWorking/msDemoNote/msVerified, nonBinusian, binusianOnly, guestBookingNote, maxActiveToast, activeSessions); signInNote rewritten (Microsoft @binus.ac.id = BINUSIAN · other email = non-BINUSIAN); signIn key repurposed
-- store.ts: MAX_ACTIVE_PARKING=2; checkIn(id) now returns boolean (false when 2 sessions already CHECKED_IN); scanSlot returns new reason "max_active" in checkin + walkin branches; signIn accepts "microsoft" kind → Alya Ramadhani (alya.ramadhani@binus.ac.id, BINUSIAN, Feb 2025) via profiles lookup
-- Landing.tsx: replaced Google button with white "Masuk dengan Microsoft" button (4-square MS logo) + "atau pilih akun demo" divider; new MicrosoftModal — Microsoft-style white card (MS logo, "Masuk untuk melanjutkan ke Parkir Binus", AR avatar account row, #0067b8 Continue button, 950ms verify spinner, demo note), backdrop-close, AnimatePresence; version badge v5→v8
-- HomeView.tsx: search results now render the compact ParkingMap as THE result (summary strip with count + window + "Peta lengkap" button, red note when 0 free, MapLegend, tap hint); removed the text row-A/B chip lists AND the standalone map-preview section below (map lives in results now); greeting row adds "x/2 sedang parkir" chip (yellow, only when ≥1 active)
-- BookingView.tsx: non-BINUSIAN → ADVANCE card locked (opacity-45, Lock icon, "Khusus BINUSIAN" note, click → info toast, selection blocked) + blue guest banner "Non-BINUSIAN tetap bisa parkir — scan QR…"; type state falls back WALK_IN when guest opens an ADVANCE booking
-- TicketView.tsx: checkIn() false → error toast maxActiveToast instead of false success
-- ScannerView.tsx: handles "max_active" reason → maxActiveToast error toast
-- page.tsx: version comment v7→v8
-
-Verification (agent-browser 430x900 + DOM eval + VLM):
-- Landing: MS button + divider + demo cards render; MS modal opens (VLM: polished, credible MS-style card, no glitches)
-- MS SSO: Lanjutkan → 950ms spinner → signed in as Alya (BINUSIAN); home shows "1/2 sedang parkir" chip
-- Availability: Cari Slot → map IS the result (VLM 8/10: "information presented exclusively through the visual map", no text lists); legend + Peta lengkap button present; slot A-01 tap → booking view opens
-- Max-2 rule: walk-in B-01 OK (2/2 chip on home); 3rd walk-in B-06/B-10 → toast "Batas tercapai — maksimal 2 kendaraan sedang parkir" (DOM-verified + VLM: "clearly visible and readable"); ticket check-out B-01 works after
-- Non-BINUSIAN (Dimas): NON-BINUSIAN badge on profile; preferences = Bahasa + Mode gelap only (no wallet row — DOM + VLM 9/10 confirmed); booking via map → WALK_IN auto-selected, ADVANCE locked (VLM 9/10), locked click → toast, selection stays Walk-in; guest banner present
-- EN toggle: "Sign in with Microsoft", "parked now", "BINUSIAN only", "BINUSIAN-only" banner, "NON-BINUSIAN" all present
-- Zero console/page errors; eslint clean; tsc clean (src/); app 200
-
-Stage Summary:
-- v8 delivered: wallet removed from preferences; BINUSIAN (Microsoft SSO, advance booking, verified badge) vs non-BINUSIAN (guest, walk-in only, locked advance) fully differentiated; availability results are map-only; max 2 active parking sessions enforced at checkIn/scanSlot with UI counter chip; Microsoft login added as primary auth with simulated SSO modal
-- Key artifacts modified: ProfileView, Landing, HomeView, BookingView, TicketView, ScannerView, page.tsx, store.ts, parking-data.ts
-- Screenshots: /home/z/my-project/scripts/shots/v8-*.png (15 captures)
+- v9 delivered: 32 unique slot QRs as (1) printable files — download/qr-slot/{ParkirBinus-QR-Slot-A4-Print.pdf (A4×4), PNG/ (32 cards), ZIP} and (2) in-app operator QR manager (view grid, per-slot detail + hi-res PNG download, Print All via print-optimized sheet); ticket pass QR upgraded from mock to real scannable QR
+- Key artifacts modified: OperatorView.tsx, TicketView.tsx, parking-data.ts, globals.css, package.json (+qrcode.react); new scripts/gen_qr_slots.py, download/qr-slot/* (35 files)
+- Screenshots: /home/z/my-project/scripts/shots/v9-*.png (4 captures)

@@ -25,7 +25,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MockQR, ResStatusPill } from "./Brand";
+import { QRCodeSVG } from "qrcode.react";
+import { ResStatusPill } from "./Brand";
 import { useParkir } from "@/lib/store";
 import {
   LOCATION,
@@ -212,9 +213,18 @@ export function TicketView({
           <div className="ticket-perf border-t-2 border-dashed border-white/12" />
         </div>
 
-        {/* QR section */}
+        {/* QR section — real QR encoding the reservation code */}
         <div className="flex items-center gap-4 px-5 py-5">
-          <MockQR seed={res.code} size={108} />
+          <span className="shrink-0 rounded-lg bg-white p-2.5 shadow-lg">
+            <QRCodeSVG
+              value={res.code}
+              size={108}
+              bgColor="#ffffff"
+              fgColor="#0b1226"
+              level="M"
+              marginSize={2}
+            />
+          </span>
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 text-xs font-bold">
               <BadgeCheck className="h-3.5 w-3.5 text-primary" />

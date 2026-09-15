@@ -366,3 +366,34 @@
 .tnum {
   font-variant-numeric: tabular-nums;
 }
+
+/* ─────────────────── Slot QR print sheet (A4, 8 cards/page) ─────────────────── */
+@media print {
+  @page {
+    size: A4;
+    margin: 8mm;
+  }
+  /* hide the whole app UI, show only the print sheet */
+  body * {
+    visibility: hidden !important;
+  }
+  #qr-print-sheet,
+  #qr-print-sheet * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  #qr-print-sheet {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 194mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  /* keep each QR card whole on one page */
+  #qr-print-sheet * {
+    break-inside: avoid;
+  }
+}
