@@ -153,11 +153,21 @@ export function slotStatusForWindow(
   window: TimeWindow
 ): SlotStatus {
   if (slot.status === "MAINTENANCE") return "MAINTENANCE";
+  const wStart = new Date(`${window.date}T${window.startTime}:00`).getTime();
+  const wEnd = new Date(`${window.date}T${window.endTime}:00`).getTime();
+  const now = Date.now();
   for (const r of reservations) {
     if (r.slotId !== slot.id) continue;
-    if (!["CONFIRMED", "CHECKED_IN"].includes(r.status)) continue;
-    if (overlaps({ date: r.date, startTime: r.startTime, endTime: r.endTime }, window)) {
-      return r.status === "CHECKED_IN" ? "OCCUPIED" : "RESERVED";
+    if (r.status === "CHECKED_IN") {
+      // A parked car physically occupies its slot until it checks out —
+      // even when it has overstayed its booked window (overdue case).
+      const rStart = r.checkedInAt ?? new Date(`${r.date}T${r.startTime}:00`).getTime();
+      const rEnd = Math.max(new Date(`${r.date}T${r.endTime}:00`).getTime(), now);
+      if (wStart <= rEnd && wEnd >= rStart) return "OCCUPIED";
+      continue;
+    }
+    if (r.status === "CONFIRMED" && overlaps({ date: r.date, startTime: r.startTime, endTime: r.endTime }, window)) {
+      return "RESERVED";
     }
   }
   return "AVAILABLE";
@@ -429,6 +439,46 @@ const dict = {
     operatorName: "Andi Wijaya",
     operatorShift: "Petugas Parkir Anggrek · Shift Pagi",
     reservedBy: "Dibooking",
+    // operator command center
+    opTabMonitor: "Monitor",
+    opTabQr: "QR Slot",
+    opTabHistory: "Riwayat",
+    opSearchPh: "Cari plat, nama, slot, atau kode…",
+    opSearchResults: "Hasil pencarian",
+    opSearchNone: "Tidak ada yang cocok",
+    occupancyTitle: "Okupansi Live",
+    occupancyFilled: "terisi",
+    shiftStatsTitle: "Statistik Shift",
+    shiftCheckins: "Masuk",
+    shiftCheckouts: "Keluar",
+    shiftAvgStay: "Rata-rata",
+    revenueHourTitle: "Pendapatan per Jam",
+    revenueHourSub: "Hari ini · layanan, parkir & lembur",
+    peakChip: "Puncak",
+    busyTitle: "Jam Sibuk",
+    busySub: "Check-in · 7 hari terakhir",
+    feedTitle: "Aktivitas Live",
+    feedEmpty: "Belum ada aktivitas",
+    evCheckin: "check-in",
+    evCheckout: "check-out",
+    evBooking: "reservasi baru",
+    evTopup: "top-up saldo",
+    upcomingTitle: "Reservasi Hari Ini",
+    upcomingEmpty: "Tidak ada reservasi hari ini",
+    btnManualIn: "Check-in",
+    btnExtend: "+1 Jam",
+    btnForce: "Akhiri",
+    extendOk: "Window parkir diperpanjang 1 jam",
+    extendFail: "Sudah jam tutup — tidak bisa diperpanjang",
+    forceOk: "Sesi diakhiri — biaya dicatat",
+    manualInOk: "Check-in manual berhasil",
+    recapTitle: "Ringkasan Hari Ini",
+    recapVehicles: "Kendaraan dilayani",
+    recapPeak: "Okupansi puncak",
+    recapLongest: "Parkir terlama",
+    completedTodayTitle: "Sesi Selesai Hari Ini",
+    completedEmpty: "Belum ada sesi selesai",
+    txnLogTitle: "Log Transaksi",
     // slot QR (operator)
     qrSlotsTitle: "QR Slot Parkir",
     qrSlotsSub: "32 QR unik — satu untuk tiap slot, dipasang permanen",
@@ -655,6 +705,46 @@ const dict = {
     operatorName: "Andi Wijaya",
     operatorShift: "Anggrek Parking Officer · Morning Shift",
     reservedBy: "Booked",
+    // operator command center
+    opTabMonitor: "Monitor",
+    opTabQr: "Slot QR",
+    opTabHistory: "History",
+    opSearchPh: "Search plate, name, slot, or code…",
+    opSearchResults: "Search results",
+    opSearchNone: "No matches",
+    occupancyTitle: "Live Occupancy",
+    occupancyFilled: "filled",
+    shiftStatsTitle: "Shift Statistics",
+    shiftCheckins: "Check-ins",
+    shiftCheckouts: "Check-outs",
+    shiftAvgStay: "Avg stay",
+    revenueHourTitle: "Revenue by Hour",
+    revenueHourSub: "Today · service, parking & overtime",
+    peakChip: "Peak",
+    busyTitle: "Peak Hours",
+    busySub: "Check-ins · last 7 days",
+    feedTitle: "Live Activity",
+    feedEmpty: "No activity yet",
+    evCheckin: "checked in",
+    evCheckout: "checked out",
+    evBooking: "new booking",
+    evTopup: "wallet top-up",
+    upcomingTitle: "Today's Reservations",
+    upcomingEmpty: "No reservations today",
+    btnManualIn: "Check in",
+    btnExtend: "+1 Hour",
+    btnForce: "End",
+    extendOk: "Parking window extended by 1 hour",
+    extendFail: "At closing time — cannot extend",
+    forceOk: "Session ended — fees recorded",
+    manualInOk: "Manual check-in successful",
+    recapTitle: "Today's Recap",
+    recapVehicles: "Vehicles served",
+    recapPeak: "Peak occupancy",
+    recapLongest: "Longest stay",
+    completedTodayTitle: "Completed Today",
+    completedEmpty: "No completed sessions yet",
+    txnLogTitle: "Transaction Log",
     // slot QR (operator)
     qrSlotsTitle: "Slot QR Codes",
     qrSlotsSub: "32 unique QRs — one per slot, mounted permanently",

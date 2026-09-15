@@ -279,11 +279,11 @@ function OperatorShell() {
   return (
     <div className="ambient flex min-h-dvh flex-col">
       <header className="sticky top-0 z-30 border-b border-border/50 bg-background/70 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 w-full max-w-[430px] items-center gap-2.5 px-4">
+        <div className="mx-auto flex h-14 w-full max-w-[430px] items-center gap-2.5 px-4 md:max-w-[900px] lg:max-w-[1100px]">
           <LogoMark size={34} />
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-[13.5px] font-bold leading-tight tracking-tight">
-              {t("appName")}
+              {t("appName")} <span className="hidden text-muted-foreground/60 sm:inline">· Command Center</span>
             </p>
             <p className="truncate text-[9px] font-semibold uppercase tracking-[0.14em] text-binus-bright">
               {t("operatorBadge")} · {t("floorLabel").split("—")[0].trim()}
@@ -306,7 +306,7 @@ function OperatorShell() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-10 pt-4">
+      <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-10 pt-4 md:max-w-[900px] lg:max-w-[1100px]">
         <OperatorView />
       </main>
 

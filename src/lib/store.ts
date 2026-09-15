@@ -100,6 +100,17 @@ interface ParkirState {
     | { ok: true; kind: "walkin" | "checkin" | "checkout"; reservation?: Reservation }
     | { ok: false; reason: "unknown" | "busy" | "maintenance" | "no_reservation" | "insufficient" | "max_active" };
 
+  /** Operator: end any active session on the spot — fees recorded as on-site payment */
+  forceCheckOut: (id: string) =>
+    | { ok: true; parkingFee: number; overtimeFee: number }
+    | { ok: false; reason: "not_found" };
+
+  /** Operator: extend a session/booking window by N hours (capped at closing time) */
+  extendSession: (id: string, hours: number) => boolean;
+
+  /** Operator: manual check-in for a confirmed reservation (bypasses customer limits) */
+  manualCheckIn: (id: string) => boolean;
+
   topUp: (amount: number) => void;
 }
 
@@ -229,6 +240,226 @@ function seedTxns(now: number): Txn[] {
   ];
 }
 
+// ─────────────────── Operator console demo world ───────────────────
+
+/** Deterministic PRNG — module level so the seeded world stays stable per session. */
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Drivers that "fill" the parking building while the operator is on shift. */
+const OP_PEOPLE: { name: string; plate: string; vehicle: string }[] = [
+  { name: "Alya Ramadhani", plate: "B 2741 AKL", vehicle: "Honda Beat" },
+  { name: "Bagus Prasetyo", plate: "B 1877 TRK", vehicle: "Yamaha NMAX" },
+  { name: "Citra Dewi", plate: "B 5512 MNH", vehicle: "Toyota Calya" },
+  { name: "Daffa Hakim", plate: "B 1680 PQW", vehicle: "Honda Vario 125" },
+  { name: "Elang Satria", plate: "B 8625 JKT", vehicle: "Suzuki Ertiga" },
+  { name: "Farah Nabila", plate: "B 3908 KLM", vehicle: "Honda Scoopy" },
+  { name: "Gilang Ramadhan", plate: "B 6634 BVN", vehicle: "Toyota Avanza" },
+  { name: "Hana Salsabila", plate: "B 4419 QWE", vehicle: "Yamaha Mio" },
+  { name: "Iqbal Maulana", plate: "B 7230 RTY", vehicle: "Honda CB150" },
+  { name: "Jihan Aprilia", plate: "B 9023 UIO", vehicle: "Honda Brio" },
+  { name: "Kevin Wijaya", plate: "B 1123 PAS", vehicle: "Yamaha Lexi" },
+  { name: "Luna Maharani", plate: "B 7856 GHD", vehicle: "Daihatsu Ayla" },
+];
+
+/** slotNumber → {slotId, slotNumber} pair matching buildSlots() id format. */
+function opSlot(slotNumber: string): { slotId: string; slotNumber: string } {
+  const [row, num] = slotNumber.split("-");
+  return { slotId: `slot-${row}-${Number(num)}`, slotNumber };
+}
+
+/** Weighted check-in hours for the 7-day peak-hours histogram (campus rhythm). */
+const OP_HIST_HOURS = [7, 8, 8, 9, 9, 9, 10, 11, 12, 12, 13, 13, 14, 15, 16, 16, 17, 17, 18];
+const OP_HIST_SLOTS = ["A-03", "A-04", "A-08", "A-11", "A-16", "A-18", "B-04", "B-07", "B-10", "B-14"];
+
+/**
+ * Rich operator world: live sessions, today's completed visits, upcoming bookings,
+ * a week of historical check-ins (feeds the peak-hours chart) and hourly revenue.
+ */
+function seedOperatorWorld(now: number): { reservations: Reservation[]; transactions: Txn[] } {
+  const rnd = mulberry32(20260916);
+  const nowD = new Date(now);
+  const today = dateStr(nowD);
+  const dayOpen = new Date(`${today}T06:00:00`).getTime();
+  let t0 = Math.max(dayOpen, now - 6 * HOUR); // earliest believable event today
+  if (t0 > now - 10 * MIN) t0 = now - 10 * MIN; // late-night / early-morning safety clamp
+
+  const res: Reservation[] = [];
+  const txns: Txn[] = [];
+  const addTxn = (type: TxnType, amount: number, at: number, code: string) =>
+    txns.push({ id: uid(), type, amount, createdAt: at, note: code });
+
+  const mk = (
+    r: Partial<Reservation> &
+      Pick<Reservation, "slotId" | "slotNumber" | "date" | "startTime" | "endTime" | "status" | "driverName" | "vehiclePlate" | "vehicleName">
+  ): Reservation => ({
+    id: uid(),
+    code: resCode(),
+    type: "WALK_IN",
+    serviceFee: TARIFF.walkInFee,
+    parkingFee: 0,
+    overtimeFee: 0,
+    refundAmount: 0,
+    createdAt: now,
+    ...r,
+  });
+
+  // ── 9 active sessions (one overdue) ──
+  const actives: { off: number; hrs: number; p: number; slot: string }[] = [
+    { off: 295, hrs: 2, p: 0, slot: "B-03" }, // overdue ~1h55m
+    { off: 233, hrs: 3, p: 1, slot: "A-05" },
+    { off: 172, hrs: 2, p: 3, slot: "A-09" },
+    { off: 138, hrs: 3, p: 5, slot: "B-06" },
+    { off: 95, hrs: 2, p: 6, slot: "A-12" },
+    { off: 71, hrs: 2, p: 8, slot: "B-09" },
+    { off: 47, hrs: 3, p: 9, slot: "A-17" },
+    { off: 26, hrs: 2, p: 10, slot: "B-13" },
+    { off: 9, hrs: 2, p: 11, slot: "A-01" },
+  ];
+  for (const a of actives) {
+    const inAt = Math.max(t0, now - a.off * MIN);
+    const inD = new Date(inAt);
+    const person = OP_PEOPLE[a.p];
+    const r = mk({
+      ...opSlot(a.slot),
+      date: today,
+      startTime: timeStr(inD),
+      endTime: addH(timeStr(inD), a.hrs),
+      status: "CHECKED_IN",
+      driverName: person.name,
+      vehiclePlate: person.plate,
+      vehicleName: person.vehicle,
+      createdAt: inAt,
+      checkedInAt: inAt,
+    });
+    res.push(r);
+    addTxn("SERVICE_FEE", TARIFF.walkInFee, inAt, r.code);
+  }
+
+  // ── 7 completed visits earlier today (one with overtime) ──
+  const done: { off: number; dur: number; planned: number; p: number; slot: string; advance: boolean }[] = [
+    { off: 390, dur: 95, planned: 2, p: 2, slot: "B-02", advance: false },
+    { off: 330, dur: 55, planned: 2, p: 4, slot: "A-06", advance: true },
+    { off: 300, dur: 185, planned: 2, p: 7, slot: "B-08", advance: false }, // overtime
+    { off: 268, dur: 140, planned: 3, p: 1, slot: "A-10", advance: false },
+    { off: 205, dur: 45, planned: 1, p: 5, slot: "B-05", advance: false },
+    { off: 115, dur: 70, planned: 2, p: 10, slot: "A-13", advance: true },
+    { off: 62, dur: 35, planned: 1, p: 3, slot: "B-12", advance: false },
+  ];
+  for (const d of done) {
+    const inAt = Math.max(t0, now - d.off * MIN);
+    const outAt = inAt + d.dur * MIN;
+    const inD = new Date(inAt);
+    const person = OP_PEOPLE[d.p];
+    const lateMin = Math.max(0, d.dur - d.planned * 60);
+    const r = mk({
+      ...opSlot(d.slot),
+      type: d.advance ? "ADVANCE" : "WALK_IN",
+      serviceFee: d.advance ? TARIFF.advanceFee : TARIFF.walkInFee,
+      date: today,
+      startTime: timeStr(inD),
+      endTime: addH(timeStr(inD), d.planned),
+      status: "COMPLETED",
+      driverName: person.name,
+      vehiclePlate: person.plate,
+      vehicleName: person.vehicle,
+      parkingFee: parkingFee(d.dur),
+      overtimeFee: overtimeFee(lateMin),
+      createdAt: d.advance ? Math.max(t0, inAt - 40 * MIN) : inAt,
+      checkedInAt: inAt,
+      checkedOutAt: outAt,
+    });
+    res.push(r);
+    addTxn("SERVICE_FEE", r.serviceFee, r.createdAt, r.code);
+    addTxn("PARKING_FEE", r.parkingFee, outAt, r.code);
+    if (r.overtimeFee > 0) addTxn("OVERTIME", r.overtimeFee, outAt, r.code);
+  }
+
+  // ── today's bookings: 1 in-window (late check-in) + 2 upcoming ──
+  const upcoming: { startOff: number; hrs: number; p: number; slot: string; createdOff: number }[] = [
+    { startOff: -20, hrs: 2, p: 4, slot: "A-07", createdOff: 190 },
+    { startOff: 55, hrs: 2, p: 6, slot: "B-01", createdOff: 120 },
+    { startOff: 180, hrs: 2, p: 11, slot: "A-15", createdOff: 65 },
+  ];
+  for (const u of upcoming) {
+    let startAt = now + u.startOff * MIN;
+    let date = today;
+    // snap bookings into operating hours (early-morning / late-night demos)
+    const h = new Date(startAt).getHours();
+    if (h >= 20 || h < 6) {
+      const tm = new Date(startAt + DAY);
+      date = dateStr(tm);
+      startAt = new Date(`${date}T09:00:00`).getTime();
+    }
+    const person = OP_PEOPLE[u.p];
+    const r = mk({
+      ...opSlot(u.slot),
+      type: "ADVANCE",
+      serviceFee: TARIFF.advanceFee,
+      date,
+      startTime: timeStr(new Date(startAt)),
+      endTime: addH(timeStr(new Date(startAt)), u.hrs),
+      status: "CONFIRMED",
+      driverName: person.name,
+      vehiclePlate: person.plate,
+      vehicleName: person.vehicle,
+      createdAt: Math.max(t0, now - u.createdOff * MIN),
+    });
+    res.push(r);
+    addTxn("SERVICE_FEE", TARIFF.advanceFee, r.createdAt, r.code);
+  }
+
+  // ── a few wallet top-ups today (activity feed flavour) ──
+  const tops: { off: number; amount: number }[] = [
+    { off: 35, amount: 100000 },
+    { off: 130, amount: 50000 },
+    { off: 260, amount: 150000 },
+  ];
+  for (const tp of tops) addTxn("TOP_UP", tp.amount, Math.max(t0, now - tp.off * MIN), "");
+
+  // ── 7 days × 8 historical check-ins → peak-hours chart ──
+  for (let d = 1; d <= 7; d++) {
+    for (let k = 0; k < 8; k++) {
+      const ds = dateStr(new Date(now - d * DAY));
+      const hour = OP_HIST_HOURS[Math.floor(rnd() * OP_HIST_HOURS.length)];
+      const minute = Math.floor(rnd() * 55);
+      const inAt = new Date(`${ds}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`).getTime();
+      const closeAt = new Date(`${ds}T22:00:00`).getTime();
+      const outAt = Math.min(inAt + (35 + Math.floor(rnd() * 230)) * MIN, closeAt);
+      const durMin = Math.max(15, Math.round((outAt - inAt) / MIN));
+      const person = OP_PEOPLE[Math.floor(rnd() * OP_PEOPLE.length)];
+      const slot = OP_HIST_SLOTS[Math.floor(rnd() * OP_HIST_SLOTS.length)];
+      res.push(
+        mk({
+          ...opSlot(slot),
+          date: ds,
+          startTime: timeStr(new Date(inAt)),
+          endTime: timeStr(new Date(outAt)),
+          status: "COMPLETED",
+          driverName: person.name,
+          vehiclePlate: person.plate,
+          vehicleName: person.vehicle,
+          parkingFee: parkingFee(durMin),
+          createdAt: inAt,
+          checkedInAt: inAt,
+          checkedOutAt: outAt,
+        })
+      );
+    }
+  }
+
+  txns.sort((a, b) => b.createdAt - a.createdAt);
+  return { reservations: res, transactions: txns };
+}
+
 export const useParkir = create<ParkirState>((set, get) => ({
   lang: "id",
   signedIn: false,
@@ -279,6 +510,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
   signIn: (kind) => {
     const now = Date.now();
     if (kind === "operator") {
+      const world = seedOperatorWorld(now);
       set({
         signedIn: true,
         user: {
@@ -288,8 +520,8 @@ export const useParkir = create<ParkirState>((set, get) => ({
           memberSince: "Feb 2024",
           role: "OPERATOR",
         },
-        reservations: seedReservations(now),
-        transactions: seedTxns(now),
+        reservations: world.reservations,
+        transactions: world.transactions,
         walletBalance: 230000,
       });
       return;
@@ -541,6 +773,61 @@ export const useParkir = create<ParkirState>((set, get) => ({
       ],
     }));
     return { ok: true as const, kind: "walkin" as const, reservation: res };
+  },
+
+  forceCheckOut: (id) => {
+    const now = Date.now();
+    const active = get().reservations.find((r) => r.id === id && r.status === "CHECKED_IN");
+    if (!active) return { ok: false as const, reason: "not_found" as const };
+
+    const inAt = active.checkedInAt ?? now;
+    const minutes = Math.max(1, Math.round((now - inAt) / MIN));
+    const pFee = parkingFee(minutes);
+    const plannedEnd = new Date(`${active.date}T${active.endTime}:00`).getTime();
+    const lateMin = Math.max(0, Math.round((now - plannedEnd) / MIN));
+    const oFee = overtimeFee(lateMin);
+
+    set((s) => ({
+      reservations: s.reservations.map((r) =>
+        r.id === id
+          ? { ...r, status: "COMPLETED" as ResStatus, checkedOutAt: now, parkingFee: pFee, overtimeFee: oFee }
+          : r
+      ),
+      transactions: [
+        ...(oFee
+          ? [{ id: uid(), type: "OVERTIME" as TxnType, amount: oFee, createdAt: now, note: active.code }]
+          : []),
+        { id: uid(), type: "PARKING_FEE" as TxnType, amount: pFee, createdAt: now, note: active.code },
+        ...s.transactions,
+      ],
+    }));
+    return { ok: true as const, parkingFee: pFee, overtimeFee: oFee };
+  },
+
+  extendSession: (id, hours) => {
+    const target = get().reservations.find(
+      (r) => r.id === id && ["CHECKED_IN", "CONFIRMED"].includes(r.status)
+    );
+    if (!target) return false;
+    const endMin = toMinutes(target.endTime);
+    const next = Math.min(endMin + hours * 60, TARIFF.closeHour * 60);
+    if (next <= endMin) return false;
+    set((s) => ({
+      reservations: s.reservations.map((r) => (r.id === id ? { ...r, endTime: fromMinutes(next) } : r)),
+    }));
+    return true;
+  },
+
+  manualCheckIn: (id) => {
+    const target = get().reservations.find((r) => r.id === id && r.status === "CONFIRMED");
+    if (!target) return false;
+    const now = Date.now();
+    set((s) => ({
+      reservations: s.reservations.map((r) =>
+        r.id === id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
+      ),
+    }));
+    return true;
   },
 
   topUp: (amount) => {
