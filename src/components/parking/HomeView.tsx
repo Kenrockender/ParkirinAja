@@ -6,12 +6,16 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  Building2,
   CalendarClock,
   CalendarDays,
   CarFront,
+  Check,
+  ChevronDown,
   Clock,
   Coffee,
   Gauge,
+  MapPin,
   Maximize2,
   PartyPopper,
   Search,
@@ -20,12 +24,22 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ParkingMap, MapLegend, useMapCounts } from "./ParkingMap";
 import { DateGrid, TimeGrid, WindowPicker, fmtDateLabel } from "./WindowPickers";
 import { useParkir } from "@/lib/store";
 import {
   ADS,
   buildHeatmap,
+  CAMPUSES,
+  campusById,
+  campusLabel,
   DAY_LABELS,
   slotStatusForWindow,
   TARIFF,
@@ -33,6 +47,8 @@ import {
   fromMinutes,
   tr,
   type Ad,
+  type Campus,
+  type Lang,
   type TimeWindow,
 } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
@@ -58,8 +74,10 @@ export function HomeView({
   const setWin = useParkir((s) => s.setViewWindow);
   const slots = useParkir((s) => s.slots);
   const reservations = useParkir((s) => s.reservations);
+  const campus = campusById(useParkir((s) => s.campusId));
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const { free, total, pct } = useMapCounts();
+  const [pickerOpen, setPickerOpen] = React.useState(false);
 
   /** null = belum mencari; setelah pencarian pertama, hasil mengikuti window aktif */
   const [searched, setSearched] = React.useState(false);
@@ -116,14 +134,20 @@ export function HomeView({
               {activeCount}/2 {t("activeSessions")}
             </span>
           )}
-          <span className="tnum inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
-            <Gauge className="h-3 w-3 text-primary" />
-            {free}/{total} {t("slotsFree")}
-          </span>
+          {campus.available && (
+            <span className="tnum inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+              <Gauge className="h-3 w-3 text-primary" />
+              {free}/{total} {t("slotsFree")}
+            </span>
+          )}
         </div>
       </motion.div>
 
-      {/* ── hero availability ── */}
+      {/* ── campus bar ── */}
+      <CampusBar campus={campus} lang={lang} onOpen={() => setPickerOpen(true)} />
+
+      {/* ── hero availability / coming soon ── */}
+      {campus.available ? (
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
@@ -190,8 +214,12 @@ export function HomeView({
           />
         </div>
       </motion.section>
+      ) : (
+        <ComingSoonHero campus={campus} lang={lang} onSeeOthers={() => setPickerOpen(true)} />
+      )}
 
-      {/* ── availability search ── */}
+      {/* ── availability search (active campuses only) ── */}
+      {campus.available && (
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
@@ -327,6 +355,7 @@ export function HomeView({
           )}
         </AnimatePresence>
       </motion.section>
+      )}
 
       {/* ── ads carousel ── */}
       <motion.section
@@ -338,9 +367,177 @@ export function HomeView({
         <AdCarousel lang={lang} />
       </motion.section>
 
-      {/* ── heatmap ── */}
-      <HeatmapCard lang={lang} />
+      {/* ── heatmap (Anggrek data — active campuses only) ── */}
+      {campus.available && <HeatmapCard lang={lang} />}
+
+      {/* ── campus picker ── */}
+      <CampusPickerDialog open={pickerOpen} onClose={() => setPickerOpen(false)} />
     </div>
+  );
+}
+
+// ─────────────────────────── campus ───────────────────────────
+
+/** Active-campus chip under the greeting — tap to switch campus. */
+function CampusBar({ campus, lang, onOpen }: { campus: Campus; lang: Lang; onOpen: () => void }) {
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.03 }}
+      onClick={onOpen}
+      aria-label={t("campusPick")}
+      className="glass flex w-full items-center gap-2.5 rounded-2xl px-3.5 py-2.5 text-left transition hover:border-primary/30 active:scale-[0.99]"
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+        <MapPin className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[12.5px] font-bold leading-tight">
+          {campusLabel(campus)}
+        </span>
+        <span className="block truncate text-[10px] text-muted-foreground">
+          {campus.city} · {t("campusCurrent")}
+        </span>
+      </span>
+      <span
+        className={cn(
+          "shrink-0 rounded-full border px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider",
+          campus.available
+            ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+            : "border-primary/30 bg-primary/10 text-primary"
+        )}
+      >
+        {campus.available ? t("campusActive") : t("campusSoon")}
+      </span>
+      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </motion.button>
+  );
+}
+
+/** Dialog listing every campus — Coming Soon campuses stay selectable. */
+function CampusPickerDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const lang = useParkir((s) => s.lang);
+  const campusId = useParkir((s) => s.campusId);
+  const selectCampus = useParkir((s) => s.selectCampus);
+  const toast = useParkir((s) => s.toast);
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-[400px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
+        <DialogHeader>
+          <DialogTitle className="font-display text-base font-bold tracking-tight">
+            {t("campusPick")}
+          </DialogTitle>
+          <DialogDescription className="text-[11px]">
+            {t("campusPickSub")}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          {CAMPUSES.map((c) => {
+            const selected = c.id === campusId;
+            return (
+              <button
+                key={c.id}
+                onClick={() => {
+                  selectCampus(c.id);
+                  toast(`${t("campusSwitched")} · ${c.building ?? c.name}`, "success");
+                  onClose();
+                }}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition active:scale-[0.99]",
+                  selected
+                    ? "border-primary/60 bg-primary/[0.08]"
+                    : "border-border bg-card/40 hover:border-primary/25"
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
+                    selected
+                      ? "border-primary/40 bg-primary/15 text-primary"
+                      : "border-border bg-white/[0.03] text-muted-foreground"
+                  )}
+                >
+                  <Building2 className="h-4.5 w-4.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold leading-tight">{c.name}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">
+                    {[c.building, c.city].filter(Boolean).join(" · ")}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full border px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider",
+                    c.available
+                      ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                      : "border-primary/30 bg-primary/10 text-primary"
+                  )}
+                >
+                  {c.available ? t("campusActive") : t("campusSoon")}
+                </span>
+                {selected && <Check className="h-4 w-4 shrink-0 text-primary" />}
+              </button>
+            );
+          })}
+        </div>
+        <p className="pt-1 text-center text-[10px] leading-relaxed text-muted-foreground/70">
+          {t("campusPickNote")}
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Hero replacement for Coming Soon campuses. */
+function ComingSoonHero({
+  campus,
+  lang,
+  onSeeOthers,
+}: {
+  campus: Campus;
+  lang: Lang;
+  onSeeOthers: () => void;
+}) {
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay: 0.05 }}
+      className="glass glow-soft relative overflow-hidden rounded-3xl p-6 text-center"
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-16 left-1/2 h-44 w-44 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"
+      />
+      <div className="relative flex flex-col items-center">
+        <span className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/25 bg-primary/[0.08]">
+          <Building2 className="h-7 w-7 text-primary" />
+          <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <Clock className="h-3 w-3" />
+          </span>
+        </span>
+        <h3 className="mt-3.5 font-display text-lg font-bold tracking-tight">{campus.name}</h3>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{campus.city}</p>
+        <span className="mt-3 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+          {t("campusSoon")}
+        </span>
+        <p className="mt-3.5 max-w-[300px] text-[12px] leading-relaxed text-muted-foreground">
+          {t("campusSoonHeroSub")}
+        </p>
+        <button
+          onClick={onSeeOthers}
+          className="glow-primary mt-4 inline-flex h-11 items-center gap-2 rounded-2xl bg-primary px-5 text-[12.5px] font-bold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <MapPin className="h-4 w-4" />
+          {t("campusSeeOthers")}
+        </button>
+      </div>
+    </motion.section>
   );
 }
 

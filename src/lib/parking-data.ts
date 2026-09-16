@@ -33,6 +33,8 @@ export interface Reservation {
   id: string;
   code: string;
   type: ResType;
+  /** Demand tier the service fee was priced at (dynamic pricing). */
+  demandTier?: DemandTier;
   slotId: string;
   slotNumber: string;
   date: string; // YYYY-MM-DD
@@ -100,6 +102,94 @@ export const LOCATION = {
   address: "Jl. K.H. Syahdan No.9, Kemanggisan, Palmerah",
   operatingHours: "06:00 – 22:00",
 } as const;
+
+// ─────────────────────────── Campuses ───────────────────────────
+
+export type CampusId = "anggrek" | "alamsutera" | "malang";
+
+export interface Campus {
+  id: CampusId;
+  /** Campus brand name, e.g. "BINUS @ Kemanggisan" */
+  name: string;
+  /** Landmark building shown alongside the campus name (Anggrek keeps its identity). */
+  building: string | null;
+  city: string;
+  /** false → selectable, but the parking layout is still being prepared (Coming Soon). */
+  available: boolean;
+}
+
+export const CAMPUSES: Campus[] = [
+  { id: "anggrek", name: "BINUS @ Kemanggisan", building: "The Anggrek", city: "Jakarta Barat", available: true },
+  { id: "alamsutera", name: "BINUS @ Alam Sutera", building: null, city: "Tangerang", available: false },
+  { id: "malang", name: "BINUS @ Malang", building: null, city: "Malang", available: false },
+];
+
+export function campusById(id: CampusId): Campus {
+  return CAMPUSES.find((c) => c.id === id) ?? CAMPUSES[0];
+}
+
+/** One-line label for headers & chips: "BINUS @ Kemanggisan · The Anggrek" */
+export function campusLabel(c: Campus): string {
+  return c.building ? `${c.name} · ${c.building}` : c.name;
+}
+
+// ─────────────────────── Dynamic pricing ───────────────────────
+//
+// The demand tier is derived from real-time occupancy — the share of active
+// (non-maintenance) slots that are occupied or reserved right now:
+//   < 40%  → LOW    (Reserve 15K  / Walk-in 25K)
+//   40–75% → NORMAL (Reserve 20K  / Walk-in 30K — the classic tariff)
+//   > 75%  → HIGH   (Reserve 30K  / Walk-in 35K)
+// Overtime stays flat Rp5.000/hour for every tier.
+
+export type DemandTier = "LOW" | "NORMAL" | "HIGH";
+
+export interface DemandInfo {
+  tier: DemandTier;
+  pct: number;
+  occupied: number;
+  reserved: number;
+  active: number;
+}
+
+/** Price ladder per demand tier (NORMAL mirrors the classic TARIFF). */
+export const DEMAND_TIERS: Record<DemandTier, { advanceFee: number; walkInFee: number }> = {
+  LOW: { advanceFee: 15000, walkInFee: 25000 },
+  NORMAL: { advanceFee: TARIFF.advanceFee, walkInFee: TARIFF.walkInFee },
+  HIGH: { advanceFee: 30000, walkInFee: 35000 },
+};
+
+/** Occupancy thresholds separating the tiers (percentage points). */
+export const TIER_THRESHOLDS = { normal: 40, high: 75 } as const;
+
+export function demandTierFor(occupancyPct: number): DemandTier {
+  if (occupancyPct > TIER_THRESHOLDS.high) return "HIGH";
+  if (occupancyPct >= TIER_THRESHOLDS.normal) return "NORMAL";
+  return "LOW";
+}
+
+/** Live demand snapshot for a slot list, measured over the "now" window. */
+export function demandNow(slots: Slot[], reservations: Reservation[], nowMs?: number): DemandInfo {
+  const now = nowMs ?? Date.now();
+  const d = new Date(now);
+  const win: TimeWindow = {
+    date: dateStr(d),
+    startTime: timeStr(new Date(now - 60_000)),
+    endTime: timeStr(new Date(now + 60_000)),
+  };
+  let active = 0;
+  let occupied = 0;
+  let reserved = 0;
+  for (const s of slots) {
+    if (s.status === "MAINTENANCE") continue;
+    active++;
+    const st = slotStatusForWindow(s, reservations, win);
+    if (st === "OCCUPIED") occupied++;
+    else if (st === "RESERVED") reserved++;
+  }
+  const pct = active === 0 ? 0 : Math.round(((occupied + reserved) / active) * 100);
+  return { tier: demandTierFor(pct), pct, occupied, reserved, active };
+}
 
 // ───────────────────────── Time helpers ─────────────────────────
 
@@ -490,6 +580,38 @@ const dict = {
     qrLocation: "Gedung Parkir Anggrek · Lantai 1",
     qrPrintBrand: "Tempel QR ini di tiap slot parkir",
     qrSaved: "QR diunduh",
+    // campus picker
+    campusCurrent: "Kampus aktif",
+    campusPick: "Pilih Kampus",
+    campusPickSub: "Pilih lokasi kampus untuk melihat parkir",
+    campusPickNote: "Kampus Coming Soon bisa dipilih — layout parkir menyusul",
+    campusActive: "Aktif",
+    campusSoon: "Coming Soon",
+    campusSoonNote: "Layout & jumlah slot parkir sedang disiapkan",
+    campusSoonHeroSub:
+      "Sistem reservasi parkir untuk kampus ini sedang disiapkan. Sementara itu, pilih kampus lain yang sudah aktif.",
+    campusSeeOthers: "Lihat Kampus Lain",
+    campusSwitched: "Kampus aktif diganti",
+    scanSoonNote:
+      "Scan slot tersedia setelah layout parkir kampus ini siap. Kembali ke Beranda untuk memilih kampus lain.",
+    // dynamic pricing
+    dynTitle: "Harga Dinamis",
+    dynLow: "Low demand",
+    dynNormal: "Normal",
+    dynHigh: "High demand",
+    dynReserve: "Reserve",
+    dynWalkin: "Walk-in",
+    dynOvertime: "Overtime",
+    dynOccupiedPct: "parkir terisi",
+    dynAutoNote: "tier otomatis dari okupansi real-time",
+    dynNextLow: "Naik ke Normal di 40%",
+    dynNextNormal: "Naik ke High di atas 75%",
+    dynNextHigh: "Turun ke Normal di 75%",
+    dynBannerLow: "Harga lebih hemat — parkir sedang sepi",
+    dynBannerNormal: "Harga standar — okupansi normal",
+    dynBannerHigh: "Harga lebih tinggi — parkir hampir penuh",
+    dynPriceNote: "Harga menyesuaikan permintaan secara real-time",
+    dynWalkinNow: "Tarif walk-in saat ini",
     // misc
     cancel: "Batal",
     back: "Kembali",
@@ -756,6 +878,38 @@ const dict = {
     qrLocation: "Anggrek Parking Building · Level 1",
     qrPrintBrand: "Mount this QR on each parking slot",
     qrSaved: "QR downloaded",
+    // campus picker
+    campusCurrent: "Active campus",
+    campusPick: "Select Campus",
+    campusPickSub: "Pick a campus location to view parking",
+    campusPickNote: "Coming Soon campuses are selectable — parking layout to follow",
+    campusActive: "Active",
+    campusSoon: "Coming Soon",
+    campusSoonNote: "Parking layout & slot count are being prepared",
+    campusSoonHeroSub:
+      "The parking reservation system for this campus is being prepared. Meanwhile, pick another campus that's already active.",
+    campusSeeOthers: "See Other Campuses",
+    campusSwitched: "Active campus switched",
+    scanSoonNote:
+      "Slot scanning unlocks once this campus parking layout is ready. Head back to Home to pick another campus.",
+    // dynamic pricing
+    dynTitle: "Dynamic Pricing",
+    dynLow: "Low demand",
+    dynNormal: "Normal",
+    dynHigh: "High demand",
+    dynReserve: "Reserve",
+    dynWalkin: "Walk-in",
+    dynOvertime: "Overtime",
+    dynOccupiedPct: "parking filled",
+    dynAutoNote: "tier follows real-time occupancy",
+    dynNextLow: "Up to Normal at 40%",
+    dynNextNormal: "Up to High above 75%",
+    dynNextHigh: "Down to Normal at 75%",
+    dynBannerLow: "Cheaper rate — parking is quiet",
+    dynBannerNormal: "Standard rate — normal occupancy",
+    dynBannerHigh: "Higher rate — parking nearly full",
+    dynPriceNote: "Prices adjust to demand in real time",
+    dynWalkinNow: "Current walk-in rate",
     cancel: "Cancel",
     back: "Back",
     close: "Close",

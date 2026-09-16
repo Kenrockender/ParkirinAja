@@ -2,9 +2,17 @@
 /** ScannerView — simulated camera overlay with scan frame, slot picker & manual code. */
 import React from "react";
 import { motion } from "framer-motion";
-import { QrCode, ScanLine, X } from "lucide-react";
+import { Building2, QrCode, ScanLine, X, Zap } from "lucide-react";
 import { useParkir } from "@/lib/store";
-import { slotStatusForWindow, tr, type Slot } from "@/lib/parking-data";
+import {
+  campusById,
+  demandNow,
+  DEMAND_TIERS,
+  rupiah,
+  slotStatusForWindow,
+  tr,
+  type Slot,
+} from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
 
 export function ScannerView({
@@ -22,9 +30,18 @@ export function ScannerView({
   const win = useParkir((s) => s.viewWindow);
   const scanSlot = useParkir((s) => s.scanSlot);
   const toast = useParkir((s) => s.toast);
+  const campus = campusById(useParkir((s) => s.campusId));
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const [code, setCode] = React.useState("");
   const [flash, setFlash] = React.useState<string | null>(null);
+
+  /** Live dynamic walk-in rate for the current demand tier. */
+  const demand = demandNow(slots, reservations);
+  const walkInFee = DEMAND_TIERS[demand.tier].walkInFee;
+  const tierLabel = tr(
+    lang,
+    demand.tier === "LOW" ? "dynLow" : demand.tier === "HIGH" ? "dynHigh" : "dynNormal"
+  );
 
   const free = slots.filter(
     (s) => slotStatusForWindow(s, reservations, win) === "AVAILABLE"
@@ -32,6 +49,52 @@ export function ScannerView({
   const mine = reservations.filter((r) => ["CONFIRMED", "CHECKED_IN"].includes(r.status));
 
   if (!open) return null;
+
+  /** Coming Soon campus — scanning unlocks once the layout is ready. */
+  if (!campus.available) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex flex-col bg-[#04060d]"
+      >
+        <div className="flex items-center justify-between px-4 pb-2 pt-5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary glow-primary">
+              <QrCode className="h-4.5 w-4.5 text-primary-foreground" />
+            </span>
+            <div>
+              <p className="font-display text-sm font-bold leading-tight">{t("scannerTitle")}</p>
+              <p className="text-[10px] text-white/50">{campus.name}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label={t("close")}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white backdrop-blur transition hover:bg-white/10"
+          >
+            <X className="h-4.5 w-4.5" />
+          </button>
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
+          <span className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/25 bg-primary/[0.08]">
+            <Building2 className="h-7 w-7 text-primary" />
+            <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <ScanLine className="h-3 w-3" />
+            </span>
+          </span>
+          <p className="font-display text-base font-bold">{campus.name}</p>
+          <span className="rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+            {t("campusSoon")}
+          </span>
+          <p className="max-w-[300px] text-[12px] leading-relaxed text-white/50">
+            {t("scanSoonNote")}
+          </p>
+        </div>
+      </motion.div>
+    );
+  }
 
   function handleScan(slotNumber: string) {
     const res = scanSlot(slotNumber);
@@ -168,6 +231,18 @@ export function ScannerView({
           </button>
         </div>
         <p className="mt-1.5 text-center text-[9.5px] text-white/35">{t("orEnterCode")}</p>
+
+        {/* live dynamic walk-in rate */}
+        <div className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-2">
+          <Zap className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <p className="text-[10.5px] font-semibold text-white/60">
+            {t("dynWalkinNow")}:{" "}
+            <span className="tnum font-bold text-primary">{rupiah(walkInFee)}</span>
+            <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-white/40">
+              {tierLabel}
+            </span>
+          </p>
+        </div>
 
         {/* my sessions — quick scan out */}
         {mine.length > 0 && (

@@ -1,0 +1,854 @@
+     1→/**
+     2→ * Parkir Binus — domain types, tariffs, business logic, bilingual strings & mock seed.
+     3→ * Ported from the original PRD v1.0 logic (parking.ts) and adapted for the live preview.
+     4→ */
+     5→
+     6→// ───────────────────────────── Types ─────────────────────────────
+     7→
+     8→export type SlotStatus = "AVAILABLE" | "RESERVED" | "OCCUPIED" | "MAINTENANCE";
+     9→export type ResStatus =
+    10→  | "CONFIRMED"
+    11→  | "CHECKED_IN"
+    12→  | "COMPLETED"
+    13→  | "CANCELLED"
+    14→  | "NO_SHOW"
+    15→  | "EXPIRED";
+    16→export type ResType = "ADVANCE" | "WALK_IN";
+    17→export type TxnType =
+    18→  | "TOP_UP"
+    19→  | "SERVICE_FEE"
+    20→  | "PARKING_FEE"
+    21→  | "OVERTIME"
+    22→  | "REFUND";
+    23→
+    24→export interface Slot {
+    25→  id: string;
+    26→  slotNumber: string;
+    27→  rowLabel: "A" | "B";
+    28→  colIndex: number;
+    29→  status: "ACTIVE" | "MAINTENANCE";
+    30→}
+    31→
+    32→export interface Reservation {
+    33→  id: string;
+    34→  code: string;
+    35→  type: ResType;
+    36→  slotId: string;
+    37→  slotNumber: string;
+    38→  date: string; // YYYY-MM-DD
+    39→  startTime: string; // HH:mm
+    40→  endTime: string; // HH:mm
+    41→  status: ResStatus;
+    42→  serviceFee: number;
+    43→  parkingFee: number;
+    44→  overtimeFee: number;
+    45→  refundAmount: number;
+    46→  vehiclePlate: string;
+    47→  vehicleName: string;
+    48→  driverName: string;
+    49→  createdAt: number; // epoch ms
+    50→  checkedInAt?: number;
+    51→  checkedOutAt?: number;
+    52→}
+    53→
+    54→export interface Vehicle {
+    55→  id: string;
+    56→  nickname: string;
+    57→  licensePlate: string;
+    58→  brand: string | null;
+    59→  model: string | null;
+    60→  color: string | null;
+    61→}
+    62→
+    63→export interface Txn {
+    64→  id: string;
+    65→  type: TxnType;
+    66→  amount: number; // positive
+    67→  createdAt: number;
+    68→  note: string;
+    69→}
+    70→
+    71→export interface Ad {
+    72→  id: string;
+    73→  title: string;
+    74→  description: string;
+    75→  theme: "coffee" | "carwash" | "event";
+    76→  ctaText: string;
+    77→  accent: string;
+    78→}
+    79→
+    80→// ─────────────────────────── Tariffs ────────────────────────────
+    81→
+    82→export const TARIFF = {
+    83→  advanceFee: 20000,
+    84→  walkInFee: 30000,
+    85→  overtimeFeePerHour: 5000,
+    86→  parkFirstHours: 2,
+    87→  parkFirstHoursFee: 20000,
+    88→  parkAddHourFee: 5000,
+    89→  parkMaxFee: 50000,
+    90→  refundFullBeforeH: 24,
+    91→  refundPartialPct: 50,
+    92→  openHour: 6,
+    93→  closeHour: 22,
+    94→  fullRefundWindowMs: 10 * 60 * 1000,
+    95→} as const;
+    96→
+    97→export const LOCATION = {
+    98→  name: "Gedung Parkir Anggrek",
+    99→  campus: "BINUS @ Kemanggisan",
+   100→  address: "Jl. K.H. Syahdan No.9, Kemanggisan, Palmerah",
+   101→  operatingHours: "06:00 – 22:00",
+   102→} as const;
+   103→
+   104→// ───────────────────────── Time helpers ─────────────────────────
+   105→
+   106→export function toMinutes(t: string): number {
+   107→  const [h, m] = t.split(":").map(Number);
+   108→  return h * 60 + m;
+   109→}
+   110→
+   111→export function fromMinutes(mins: number): string {
+   112→  return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+   113→}
+   114→
+   115→export function dateStr(d: Date): string {
+   116→  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+   117→}
+   118→
+   119→export function timeStr(d: Date): string {
+   120→  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+   121→}
+   122→
+   123→export interface TimeWindow {
+   124→  date: string;
+   125→  startTime: string;
+   126→  endTime: string;
+   127→}
+   128→
+   129→export function overlaps(a: TimeWindow, b: TimeWindow): boolean {
+   130→  if (a.date !== b.date) return false;
+   131→  const aS = toMinutes(a.startTime);
+   132→  const aE = toMinutes(a.endTime);
+   133→  const bS = toMinutes(b.startTime);
+   134→  const bE = toMinutes(b.endTime);
+   135→  return aS < bE && bS < aE;
+   136→}
+   137→
+   138→export function validateWindow(w: TimeWindow): { ok: boolean; error?: string } {
+   139→  const s = toMinutes(w.startTime);
+   140→  const e = toMinutes(w.endTime);
+   141→  if (!w.date || !w.startTime || !w.endTime) return { ok: false, error: "incomplete" };
+   142→  if (e <= s) return { ok: false, error: "end_before_start" };
+   143→  if (s < TARIFF.openHour * 60) return { ok: false, error: "before_open" };
+   144→  if (e > TARIFF.closeHour * 60) return { ok: false, error: "after_close" };
+   145→  if ((e - s) / 60 > 12) return { ok: false, error: "too_long" };
+   146→  return { ok: true };
+   147→}
+   148→
+   149→/** Display status of a slot for a given viewing window */
+   150→export function slotStatusForWindow(
+   151→  slot: Slot,
+   152→  reservations: Reservation[],
+   153→  window: TimeWindow
+   154→): SlotStatus {
+   155→  if (slot.status === "MAINTENANCE") return "MAINTENANCE";
+   156→  const wStart = new Date(`${window.date}T${window.startTime}:00`).getTime();
+   157→  const wEnd = new Date(`${window.date}T${window.endTime}:00`).getTime();
+   158→  const now = Date.now();
+   159→  for (const r of reservations) {
+   160→    if (r.slotId !== slot.id) continue;
+   161→    if (r.status === "CHECKED_IN") {
+   162→      // A parked car physically occupies its slot until it checks out —
+   163→      // even when it has overstayed its booked window (overdue case).
+   164→      const rStart = r.checkedInAt ?? new Date(`${r.date}T${r.startTime}:00`).getTime();
+   165→      const rEnd = Math.max(new Date(`${r.date}T${r.endTime}:00`).getTime(), now);
+   166→      if (wStart <= rEnd && wEnd >= rStart) return "OCCUPIED";
+   167→      continue;
+   168→    }
+   169→    if (r.status === "CONFIRMED" && overlaps({ date: r.date, startTime: r.startTime, endTime: r.endTime }, window)) {
+   170→      return "RESERVED";
+   171→    }
+   172→  }
+   173→  return "AVAILABLE";
+   174→}
+   175→
+   176→/** Refund policy: 100% within 10 min of creation, 50% otherwise, 0% no-show */
+   177→export function refundAmount(
+   178→  serviceFee: number,
+   179→  startMs: number,
+   180→  cancelledAt: number,
+   181→  createdAt: number
+   182→): number {
+   183→  if (cancelledAt - createdAt <= TARIFF.fullRefundWindowMs) return serviceFee;
+   184→  void startMs;
+   185→  return Math.floor((serviceFee * TARIFF.refundPartialPct) / 100);
+   186→}
+   187→
+   188→/** Parking fee by minutes parked */
+   189→export function parkingFee(minutes: number): number {
+   190→  const hours = Math.max(1, Math.ceil(minutes / 60));
+   191→  if (hours <= TARIFF.parkFirstHours) return TARIFF.parkFirstHoursFee;
+   192→  const fee =
+   193→    TARIFF.parkFirstHoursFee + (hours - TARIFF.parkFirstHours) * TARIFF.parkAddHourFee;
+   194→  return Math.min(fee, TARIFF.parkMaxFee);
+   195→}
+   196→
+   197→export function overtimeFee(minutesLate: number): number {
+   198→  if (minutesLate <= 0) return 0;
+   199→  return Math.ceil(minutesLate / 60) * TARIFF.overtimeFeePerHour;
+   200→}
+   201→
+   202→export function rupiah(n: number): string {
+   203→  return `Rp${n.toLocaleString("id-ID")}`;
+   204→}
+   205→
+   206→export function resCode(): string {
+   207→  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+   208→  let s = "";
+   209→  for (let i = 0; i < 3; i++) s += letters[Math.floor(Math.random() * letters.length)];
+   210→  return `PB-${s}${String(Math.floor(1000 + Math.random() * 9000))}`;
+   211→}
+   212→
+   213→export function uid(): string {
+   214→  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+   215→}
+   216→
+   217→// ─────────────────────────── i18n ───────────────────────────────
+   218→
+   219→export type Lang = "id" | "en";
+   220→
+   221→const dict = {
+   222→  id: {
+   223→    appName: "Parkir Binus",
+   224→    tagline: "Slot parkir kampus — pasti ada tempat",
+   225→    heroTitle: "Parkir tanpa drama.",
+   226→    heroSub: "Reservasi slot favoritmu di Gedung Parkir Anggrek, scan QR untuk masuk & keluar. Selesai.",
+   227→    signIn: "Masuk dengan Microsoft",
+   228→    msSignIn: "Masuk dengan Microsoft",
+   229→    msOrDemo: "atau pilih akun demo",
+   230→    msModalTitle: "Masuk",
+   231→    msModalFor: "untuk melanjutkan ke Parkir Binus",
+   232→    msModalSub: "Gunakan akun Microsoft kampus (@binus.ac.id)",
+   233→    msContinue: "Lanjutkan",
+   234→    msWorking: "Memverifikasi akun…",
+   235→    msDemoNote: "Demo — SSO Microsoft disimulasikan",
+   236→    msVerified: "BINUSIAN terverifikasi",
+   237→    signInNote: "Akun Microsoft @binus.ac.id terdeteksi sebagai BINUSIAN · email lain = non-BINUSIAN",
+   238→    demoAccounts: "Pilih akun demo",
+   239→    student: "Mahasiswa BINUS",
+   240→    general: "Pengguna umum",
+   241→    nonBinusian: "NON-BINUSIAN",
+   242→    binusianOnly: "Khusus BINUSIAN",
+   243→    guestBookingNote: "Booking jadwal hanya untuk BINUSIAN. Non-BINUSIAN tetap bisa parkir — scan QR di slot untuk sesi walk-in.",
+   244→    maxActiveToast: "Batas tercapai — maksimal 2 kendaraan sedang parkir",
+   245→    activeSessions: "sedang parkir",
+   246→    footerNote: "Preview UI — data simulasi",
+   247→    // nav
+   248→    navHome: "Beranda",
+   249→    navHistory: "Riwayat",
+   250→    navWallet: "Dompet",
+   251→    navProfile: "Profil",
+   252→    // home
+   253→    goodMorning: "Selamat pagi",
+   254→    goodAfternoon: "Selamat siang",
+   255→    goodEvening: "Selamat malam",
+   256→    liveNow: "LIVE",
+   257→    availabilityNow: "Ketersediaan sekarang",
+   258→    slotsFree: "slot kosong",
+   259→    of: "dari",
+   260→    level: "Kepadatan",
+   261→    low: "Sepi",
+   262→    medium: "Sedang",
+   263→    high: "Padat",
+   264→    findSlot: "Cari Slot",
+   265→    scanQr: "Scan QR",
+   266→    viewForTime: "Lihat ketersediaan untuk",
+   267→    date: "Tanggal",
+   268→    startTime: "Mulai",
+   269→    endTime: "Selesai",
+   270→    today: "Hari ini",
+   271→    advance: "Advance",
+   272→    walkIn: "Walk-in",
+   273→    fullMap: "Peta lengkap",
+   274→    openMap: "Buka peta lengkap",
+   275→    heatmap: "Heatmap permintaan",
+   276→    heatmapSub: "Rata-rata okupansi 4 minggu terakhir",
+   277→    busiest: "Tersibuk",
+   278→    quietest: "Paling sepi",
+   279→    tapSlotHint: "Ketuk slot hijau untuk booking",
+   280→    // availability search
+   281→    searchSlots: "Cari Slot",
+   282→    searchResults: "Hasil ketersediaan",
+   283→    slotsFound: "slot kosong",
+   284→    noSlotsFound: "Semua slot penuh di jadwal ini",
+   285→    noSlotsFoundSub: "Coba tanggal atau jam yang lain",
+   286→    tapChipToBook: "Ketuk nomor slot untuk booking",
+   287→    windowLabel: "Jendela waktu",
+   288→    // map
+   289→    parkingMap: "Peta Parkir",
+   290→    floorLabel: "LANTAI 1 — GEDUNG PARKIR ANGGREK",
+   291→    slotWord: "slot",
+   292→    available: "Kosong",
+   293→    reserved: "Terbooking",
+   294→    occupied: "Terisi",
+   295→    maintenance: "Perawatan",
+   296→    entranceLabel: "MASUK",
+   297→    exitLabel: "KELUAR",
+   298→    rampLabel: "RAMP B2",
+   299→    liftLabel: "LIFT",
+   300→    wcLabel: "WC",
+   301→    legend: "Legenda",
+   302→    mapNote: "Mobil masuk lewat kanan-atas → pilih slot · Scan QR di slot untuk check-in & keluar",
+   303→    scrollHint: "Geser untuk melihat semua slot",
+   304→    // booking
+   305→    bookSlot: "Booking Slot",
+   306→    bookType: "Tipe booking",
+   307→    chooseVehicle: "Pilih kendaraan",
+   308→    summary: "Ringkasan",
+   309→    serviceFee: "Biaya layanan",
+   310→    walletBalance: "Saldo dompet",
+   311→    balanceAfter: "Saldo setelahnya",
+   312→    payAndBook: "Bayar & Booking",
+   313→    insufficient: "Saldo tidak cukup — top up dulu di Dompet",
+   314→    bookSuccess: "Booking berhasil",
+   315→    window: "Jendela waktu",
+   316→    vehicle: "Kendaraan",
+   317→    plate: "Plat",
+   318→    // ticket
+   319→    parkingPass: "PARKING PASS",
+   320→    passTitle: "Pass parkir digital",
+   321→    showPass: "Tunjukkan pass ini ke petugas saat masuk & keluar area parkir",
+   322→    checkIn: "Check-in di sini",
+   323→    scanExit: "Scan untuk keluar",
+   324→    checkOutBtn: "Keluar & Bayar Parkir",
+   325→    checkoutConfirmTitle: "Selesaikan sesi parkir?",
+   326→    checkoutConfirmDesc: "Biaya parkir & lembur akan ditagih dari saldo dompetmu.",
+   327→    estParking: "Estimasi biaya parkir",
+   328→    estOvertime: "Estimasi lembur",
+   329→    totalDue: "Total ditagih",
+   330→    cancelBooking: "Batalkan booking",
+   331→    cancelConfirmTitle: "Batalkan booking ini?",
+   332→    cancelConfirmDesc: "Kamu akan menerima refund sesuai kebijakan.",
+   333→    refundYouGet: "Refund kamu",
+   334→    sessionActive: "Sesi parkir aktif",
+   335→    sessionDone: "Sesi selesai",
+   336→    overtimeNote: "Lembur Rp5.000/jam jika keluar lebih lambat",
+   337→    // history
+   338→    historyTitle: "Riwayat",
+   339→    filterAll: "Semua",
+   340→    filterUpcoming: "Mendatang",
+   341→    filterActive: "Aktif",
+   342→    filterDone: "Selesai",
+   343→    fullRefundEnds: "Refund 100% berakhir dalam",
+   344→    emptyHistory: "Belum ada reservasi",
+   345→    emptyHistorySub: "Booking pertamamu akan muncul di sini",
+   346→    // statuses
+   347→    stConfirmed: "Terkonfirmasi",
+   348→    stCheckedIn: "Sedang parkir",
+   349→    stCompleted: "Selesai",
+   350→    stCancelled: "Dibatalkan",
+   351→    stNoShow: "No-show",
+   352→    stExpired: "Kedaluwarsa",
+   353→    // wallet
+   354→    walletTitle: "Dompet",
+   355→    topUp: "Top up",
+   356→    balanceLabel: "Saldo tersedia",
+   357→    transactions: "Transaksi",
+   358→    todayLabel: "Hari ini",
+   359→    earlierLabel: "Sebelumnya",
+   360→    emptyTxn: "Belum ada transaksi",
+   361→    topUpSuccess: "Top up berhasil",
+   362→    // txns
+   363→    tTopUp: "Top up dompet",
+   364→    tServiceFee: "Biaya layanan parkir",
+   365→    tParkingFee: "Biaya parkir",
+   366→    tOvertime: "Biaya lembur",
+   367→    tRefund: "Refund pembatalan",
+   368→    // profile
+   369→    profileTitle: "Profil",
+   370→    binusian: "BINUSIAN",
+   371→    myVehicles: "Kendaraanku",
+   372→    addVehicle: "Tambah kendaraan",
+   373→    addVehicleTitle: "Tambah Kendaraan",
+   374→    addVehicleSub: "Kendaraan memudahkan petugas mengenali mobil & motormu",
+   375→    editVehicle: "Edit kendaraan",
+   376→    editVehicleTitle: "Edit Kendaraan",
+   377→    editVehicleSub: "Perbarui detail kendaraanmu",
+   378→    fNickname: "Nama panggilan",
+   379→    fNicknamePh: "mis. Motor Kampus",
+   380→    fPlate: "Plat nomor",
+   381→    fPlatePh: "B 1234 XYZ",
+   382→    fPlateHint: "Format plat Indonesia, mis. B 1234 XYZ",
+   383→    fBrand: "Merek",
+   384→    fBrandPh: "mis. Honda",
+   385→    fModel: "Model",
+   386→    fModelPh: "mis. Vario 160",
+   387→    fColor: "Warna",
+   388→    fColorPh: "mis. Hitam",
+   389→    vehicleSaved: "Kendaraan ditambahkan",
+   390→    vehicleUpdated: "Kendaraan diperbarui",
+   391→    vehicleRemoved: "Kendaraan dihapus",
+   392→    removeVehicle: "Hapus kendaraan",
+   393→    removeConfirm: "Hapus kendaraan ini?",
+   394→    plateRequired: "Plat nomor wajib diisi",
+   395→    nicknameRequired: "Nama panggilan wajib diisi",
+   396→    save: "Simpan",
+   397→    remove: "Hapus",
+   398→    preferences: "Preferensi",
+   399→    language: "Bahasa",
+   400→    appearance: "Tampilan",
+   401→    darkMode: "Mode gelap",
+   402→    signOut: "Keluar",
+   403→    memberSince: "Anggota sejak",
+   404→    totalSessions: "Total sesi",
+   405→    // scanner
+   406→    scannerTitle: "Scan QR Slot",
+   407→    scannerHint: "Arahkan kamera ke QR permanen yang terpasang di tiap slot",
+   408→    orEnterCode: "atau ketik kode slot",
+   409→    codePlaceholder: "mis. A-07",
+   410→    scanGo: "Scan",
+   411→    scanPick: "Pilih slot di bawah untuk simulasi",
+   412→    walkinOk: "Sesi walk-in dimulai",
+   413→    scanDenied: "Scan ditolak",
+   414→    badCode: "Kode tidak dikenali",
+   415→    slotBusy: "Slot sedang terisi",
+   416→    checkinOk: "Check-in berhasil — selamat parkir",
+   417→    checkoutOk: "Berhasil keluar — sampai jumpa",
+   418→    // operator
+   419→    operatorBadge: "OPERATOR",
+   420→    operatorGreeting: "Shift kamu aktif",
+   421→    liveMonitor: "Monitor slot — live",
+   422→    inBuilding: "Sedang di dalam",
+   423→    reservedNow: "Terbooking",
+   424→    inMaintenance: "Perawatan",
+   425→    activeSessionsTitle: "Sesi parkir aktif",
+   426→    noActiveSessions: "Tidak ada kendaraan yang sedang parkir",
+   427→    sinceLabel: "sejak",
+   428→    revenueToday: "Pendapatan hari ini",
+   429→    txnsToday: "Transaksi hari ini",
+   430→    slotDetail: "Detail slot",
+   431→    slotEmptyState: "Slot kosong",
+   432→    occupantLabel: "Penghuni",
+   433→    vehicleLabel: "Kendaraan",
+   434→    markMaintenance: "Tandai perawatan",
+   435→    backToService: "Kembalikan aktif",
+   436→    maintenanceDone: "Slot masuk perawatan",
+   437→    reactivated: "Slot kembali aktif",
+   438→    signInOperator: "Masuk sebagai Operator",
+   439→    operatorName: "Andi Wijaya",
+   440→    operatorShift: "Petugas Parkir Anggrek · Shift Pagi",
+   441→    reservedBy: "Dibooking",
+   442→    // operator command center
+   443→    opTabMonitor: "Monitor",
+   444→    opTabQr: "QR Slot",
+   445→    opTabHistory: "Riwayat",
+   446→    opSearchPh: "Cari plat, nama, slot, atau kode…",
+   447→    opSearchResults: "Hasil pencarian",
+   448→    opSearchNone: "Tidak ada yang cocok",
+   449→    occupancyTitle: "Okupansi Live",
+   450→    occupancyFilled: "terisi",
+   451→    shiftStatsTitle: "Statistik Shift",
+   452→    shiftCheckins: "Masuk",
+   453→    shiftCheckouts: "Keluar",
+   454→    shiftAvgStay: "Rata-rata",
+   455→    revenueHourTitle: "Pendapatan per Jam",
+   456→    revenueHourSub: "Hari ini · layanan, parkir & lembur",
+   457→    peakChip: "Puncak",
+   458→    busyTitle: "Jam Sibuk",
+   459→    busySub: "Check-in · 7 hari terakhir",
+   460→    feedTitle: "Aktivitas Live",
+   461→    feedEmpty: "Belum ada aktivitas",
+   462→    evCheckin: "check-in",
+   463→    evCheckout: "check-out",
+   464→    evBooking: "reservasi baru",
+   465→    evTopup: "top-up saldo",
+   466→    upcomingTitle: "Reservasi Hari Ini",
+   467→    upcomingEmpty: "Tidak ada reservasi hari ini",
+   468→    btnManualIn: "Check-in",
+   469→    btnExtend: "+1 Jam",
+   470→    btnForce: "Akhiri",
+   471→    extendOk: "Window parkir diperpanjang 1 jam",
+   472→    extendFail: "Sudah jam tutup — tidak bisa diperpanjang",
+   473→    forceOk: "Sesi diakhiri — biaya dicatat",
+   474→    manualInOk: "Check-in manual berhasil",
+   475→    recapTitle: "Ringkasan Hari Ini",
+   476→    recapVehicles: "Kendaraan dilayani",
+   477→    recapPeak: "Okupansi puncak",
+   478→    recapLongest: "Parkir terlama",
+   479→    completedTodayTitle: "Sesi Selesai Hari Ini",
+   480→    completedEmpty: "Belum ada sesi selesai",
+   481→    txnLogTitle: "Log Transaksi",
+   482→    // slot QR (operator)
+   483→    qrSlotsTitle: "QR Slot Parkir",
+   484→    qrSlotsSub: "32 QR unik — satu untuk tiap slot, dipasang permanen",
+   485→    qrPrintAll: "Cetak Semua",
+   486→    qrPrintHint: "A4 · 4 halaman · 8 kartu per halaman",
+   487→    qrDownload: "Unduh PNG",
+   488→    qrCardHint: "Scan untuk check-in & keluar",
+   489→    qrCodeLabel: "Kode slot",
+   490→    qrLocation: "Gedung Parkir Anggrek · Lantai 1",
+   491→    qrPrintBrand: "Tempel QR ini di tiap slot parkir",
+   492→    qrSaved: "QR diunduh",
+   493→    // misc
+   494→    cancel: "Batal",
+   495→    back: "Kembali",
+   496→    close: "Tutup",
+   497→    error: "Terjadi kesalahan",
+   498→  },
+   499→  en: {
+   500→    appName: "Parkir Binus",
+   501→    tagline: "Campus parking — a spot, guaranteed",
+   502→    heroTitle: "Parking, minus the drama.",
+   503→    heroSub: "Reserve your favorite slot at Anggrek Parking Building, scan the QR to enter & exit. Done.",
+   504→    signIn: "Sign in with Microsoft",
+   505→    msSignIn: "Sign in with Microsoft",
+   506→    msOrDemo: "or pick a demo account",
+   507→    msModalTitle: "Sign in",
+   508→    msModalFor: "to continue to Parkir Binus",
+   509→    msModalSub: "Use your campus Microsoft account (@binus.ac.id)",
+   510→    msContinue: "Continue",
+   511→    msWorking: "Verifying account…",
+   512→    msDemoNote: "Demo — Microsoft SSO simulated",
+   513→    msVerified: "Verified BINUSIAN",
+   514→    signInNote: "@binus.ac.id Microsoft accounts are detected as BINUSIAN · other emails = non-BINUSIAN",
+   515→    demoAccounts: "Pick a demo account",
+   516→    student: "BINUS student",
+   517→    general: "General user",
+   518→    nonBinusian: "NON-BINUSIAN",
+   519→    binusianOnly: "BINUSIAN only",
+   520→    guestBookingNote: "Scheduled booking is BINUSIAN-only. Guests can still park — scan the on-site slot QR for a walk-in session.",
+   521→    maxActiveToast: "Limit reached — max 2 vehicles parked at once",
+   522→    activeSessions: "parked now",
+   523→    footerNote: "UI preview — simulated data",
+   524→    navHome: "Home",
+   525→    navHistory: "History",
+   526→    navWallet: "Wallet",
+   527→    navProfile: "Profile",
+   528→    goodMorning: "Good morning",
+   529→    goodAfternoon: "Good afternoon",
+   530→    goodEvening: "Good evening",
+   531→    liveNow: "LIVE",
+   532→    availabilityNow: "Availability now",
+   533→    slotsFree: "slots free",
+   534→    of: "of",
+   535→    level: "Crowd",
+   536→    low: "Quiet",
+   537→    medium: "Moderate",
+   538→    high: "Packed",
+   539→    findSlot: "Find a slot",
+   540→    scanQr: "Scan QR",
+   541→    viewForTime: "View availability for",
+   542→    date: "Date",
+   543→    startTime: "Start",
+   544→    endTime: "End",
+   545→    today: "Today",
+   546→    advance: "Advance",
+   547→    walkIn: "Walk-in",
+   548→    fullMap: "Full map",
+   549→    openMap: "Open full map",
+   550→    heatmap: "Demand heatmap",
+   551→    heatmapSub: "Average occupancy, last 4 weeks",
+   552→    busiest: "Busiest",
+   553→    quietest: "Quietest",
+   554→    tapSlotHint: "Tap a green slot to book",
+   555→    // availability search
+   556→    searchSlots: "Find a slot",
+   557→    searchResults: "Availability results",
+   558→    slotsFound: "slots free",
+   559→    noSlotsFound: "All slots are full for this schedule",
+   560→    noSlotsFoundSub: "Try another date or time",
+   561→    tapChipToBook: "Tap a slot number to book",
+   562→    windowLabel: "Time window",
+   563→    parkingMap: "Parking Map",
+   564→    floorLabel: "LEVEL 1 — ANGGREK PARKING BUILDING",
+   565→    slotWord: "slots",
+   566→    available: "Free",
+   567→    reserved: "Booked",
+   568→    occupied: "Occupied",
+   569→    maintenance: "Maintenance",
+   570→    entranceLabel: "ENTER",
+   571→    exitLabel: "EXIT",
+   572→    rampLabel: "RAMP B2",
+   573→    liftLabel: "LIFT",
+   574→    wcLabel: "WC",
+   575→    legend: "Legend",
+   576→    mapNote: "Cars enter top-right → pick a slot · Scan the slot QR to check in & out",
+   577→    scrollHint: "Swipe to see all slots",
+   578→    bookSlot: "Book Slot",
+   579→    bookType: "Booking type",
+   580→    chooseVehicle: "Choose vehicle",
+   581→    summary: "Summary",
+   582→    serviceFee: "Service fee",
+   583→    walletBalance: "Wallet balance",
+   584→    balanceAfter: "Balance after",
+   585→    payAndBook: "Pay & Book",
+   586→    insufficient: "Insufficient balance — top up in Wallet first",
+   587→    bookSuccess: "Booking confirmed",
+   588→    window: "Time window",
+   589→    vehicle: "Vehicle",
+   590→    plate: "Plate",
+   591→    parkingPass: "PARKING PASS",
+   592→    passTitle: "Digital parking pass",
+   593→    showPass: "Show this pass to the officer when entering & leaving",
+   594→    checkIn: "Check in here",
+   595→    scanExit: "Scan to exit",
+   596→    checkOutBtn: "Check Out & Pay",
+   597→    checkoutConfirmTitle: "End parking session?",
+   598→    checkoutConfirmDesc: "Parking & overtime fees will be charged from your wallet.",
+   599→    estParking: "Estimated parking fee",
+   600→    estOvertime: "Estimated overtime",
+   601→    totalDue: "Total charged",
+   602→    cancelBooking: "Cancel booking",
+   603→    cancelConfirmTitle: "Cancel this booking?",
+   604→    cancelConfirmDesc: "You'll receive a refund per policy.",
+   605→    refundYouGet: "Your refund",
+   606→    sessionActive: "Active session",
+   607→    sessionDone: "Session complete",
+   608→    overtimeNote: "Rp5,000/h overtime if you leave later",
+   609→    historyTitle: "History",
+   610→    filterAll: "All",
+   611→    filterUpcoming: "Upcoming",
+   612→    filterActive: "Active",
+   613→    filterDone: "Done",
+   614→    fullRefundEnds: "100% refund ends in",
+   615→    emptyHistory: "No reservations yet",
+   616→    emptyHistorySub: "Your first booking will show up here",
+   617→    stConfirmed: "Confirmed",
+   618→    stCheckedIn: "Parked",
+   619→    stCompleted: "Completed",
+   620→    stCancelled: "Cancelled",
+   621→    stNoShow: "No-show",
+   622→    stExpired: "Expired",
+   623→    walletTitle: "Wallet",
+   624→    topUp: "Top up",
+   625→    balanceLabel: "Available balance",
+   626→    transactions: "Transactions",
+   627→    todayLabel: "Today",
+   628→    earlierLabel: "Earlier",
+   629→    emptyTxn: "No transactions yet",
+   630→    topUpSuccess: "Top up successful",
+   631→    tTopUp: "Wallet top-up",
+   632→    tServiceFee: "Parking service fee",
+   633→    tParkingFee: "Parking fee",
+   634→    tOvertime: "Overtime fee",
+   635→    tRefund: "Cancellation refund",
+   636→    profileTitle: "Profile",
+   637→    binusian: "BINUSIAN",
+   638→    myVehicles: "My vehicles",
+   639→    addVehicle: "Add vehicle",
+   640→    addVehicleTitle: "Add Vehicle",
+   641→    addVehicleSub: "Vehicles help staff recognize your car & motorbike",
+   642→    editVehicle: "Edit vehicle",
+   643→    editVehicleTitle: "Edit Vehicle",
+   644→    editVehicleSub: "Update your vehicle details",
+   645→    fNickname: "Nickname",
+   646→    fNicknamePh: "e.g. Campus Bike",
+   647→    fPlate: "License plate",
+   648→    fPlatePh: "B 1234 XYZ",
+   649→    fPlateHint: "Indonesian plate format, e.g. B 1234 XYZ",
+   650→    fBrand: "Brand",
+   651→    fBrandPh: "e.g. Honda",
+   652→    fModel: "Model",
+   653→    fModelPh: "e.g. Vario 160",
+   654→    fColor: "Color",
+   655→    fColorPh: "e.g. Black",
+   656→    vehicleSaved: "Vehicle added",
+   657→    vehicleUpdated: "Vehicle updated",
+   658→    vehicleRemoved: "Vehicle removed",
+   659→    removeVehicle: "Remove vehicle",
+   660→    removeConfirm: "Remove this vehicle?",
+   661→    plateRequired: "License plate is required",
+   662→    nicknameRequired: "Nickname is required",
+   663→    save: "Save",
+   664→    remove: "Remove",
+   665→    preferences: "Preferences",
+   666→    language: "Language",
+   667→    appearance: "Appearance",
+   668→    darkMode: "Dark mode",
+   669→    signOut: "Sign out",
+   670→    memberSince: "Member since",
+   671→    totalSessions: "Total sessions",
+   672→    // scanner
+   673→    scannerTitle: "Scan Slot QR",
+   674→    scannerHint: "Point the camera at the permanent QR mounted on each slot",
+   675→    orEnterCode: "or type a slot code",
+   676→    codePlaceholder: "e.g. A-07",
+   677→    scanGo: "Scan",
+   678→    scanPick: "Pick a slot below to simulate",
+   679→    walkinOk: "Walk-in session started",
+   680→    scanDenied: "Scan rejected",
+   681→    badCode: "Unknown code",
+   682→    slotBusy: "Slot is occupied",
+   683→    checkinOk: "Checked in — happy parking",
+   684→    checkoutOk: "Checked out — see you soon",
+   685→    operatorBadge: "OPERATOR",
+   686→    operatorGreeting: "Your shift is active",
+   687→    liveMonitor: "Slot monitor — live",
+   688→    inBuilding: "Currently in",
+   689→    reservedNow: "Booked",
+   690→    inMaintenance: "Maintenance",
+   691→    activeSessionsTitle: "Active parking sessions",
+   692→    noActiveSessions: "No vehicles currently parked",
+   693→    sinceLabel: "since",
+   694→    revenueToday: "Revenue today",
+   695→    txnsToday: "Transactions today",
+   696→    slotDetail: "Slot detail",
+   697→    slotEmptyState: "Slot is free",
+   698→    occupantLabel: "Occupant",
+   699→    vehicleLabel: "Vehicle",
+   700→    markMaintenance: "Mark as maintenance",
+   701→    backToService: "Back in service",
+   702→    maintenanceDone: "Slot put into maintenance",
+   703→    reactivated: "Slot is back in service",
+   704→    signInOperator: "Sign in as Operator",
+   705→    operatorName: "Andi Wijaya",
+   706→    operatorShift: "Anggrek Parking Officer · Morning Shift",
+   707→    reservedBy: "Booked",
+   708→    // operator command center
+   709→    opTabMonitor: "Monitor",
+   710→    opTabQr: "Slot QR",
+   711→    opTabHistory: "History",
+   712→    opSearchPh: "Search plate, name, slot, or code…",
+   713→    opSearchResults: "Search results",
+   714→    opSearchNone: "No matches",
+   715→    occupancyTitle: "Live Occupancy",
+   716→    occupancyFilled: "filled",
+   717→    shiftStatsTitle: "Shift Statistics",
+   718→    shiftCheckins: "Check-ins",
+   719→    shiftCheckouts: "Check-outs",
+   720→    shiftAvgStay: "Avg stay",
+   721→    revenueHourTitle: "Revenue by Hour",
+   722→    revenueHourSub: "Today · service, parking & overtime",
+   723→    peakChip: "Peak",
+   724→    busyTitle: "Peak Hours",
+   725→    busySub: "Check-ins · last 7 days",
+   726→    feedTitle: "Live Activity",
+   727→    feedEmpty: "No activity yet",
+   728→    evCheckin: "checked in",
+   729→    evCheckout: "checked out",
+   730→    evBooking: "new booking",
+   731→    evTopup: "wallet top-up",
+   732→    upcomingTitle: "Today's Reservations",
+   733→    upcomingEmpty: "No reservations today",
+   734→    btnManualIn: "Check in",
+   735→    btnExtend: "+1 Hour",
+   736→    btnForce: "End",
+   737→    extendOk: "Parking window extended by 1 hour",
+   738→    extendFail: "At closing time — cannot extend",
+   739→    forceOk: "Session ended — fees recorded",
+   740→    manualInOk: "Manual check-in successful",
+   741→    recapTitle: "Today's Recap",
+   742→    recapVehicles: "Vehicles served",
+   743→    recapPeak: "Peak occupancy",
+   744→    recapLongest: "Longest stay",
+   745→    completedTodayTitle: "Completed Today",
+   746→    completedEmpty: "No completed sessions yet",
+   747→    txnLogTitle: "Transaction Log",
+   748→    // slot QR (operator)
+   749→    qrSlotsTitle: "Slot QR Codes",
+   750→    qrSlotsSub: "32 unique QRs — one per slot, mounted permanently",
+   751→    qrPrintAll: "Print All",
+   752→    qrPrintHint: "A4 · 4 pages · 8 cards per page",
+   753→    qrDownload: "Download PNG",
+   754→    qrCardHint: "Scan to check in & check out",
+   755→    qrCodeLabel: "Slot code",
+   756→    qrLocation: "Anggrek Parking Building · Level 1",
+   757→    qrPrintBrand: "Mount this QR on each parking slot",
+   758→    qrSaved: "QR downloaded",
+   759→    cancel: "Cancel",
+   760→    back: "Back",
+   761→    close: "Close",
+   762→    error: "Something went wrong",
+   763→  },
+   764→} as const;
+   765→
+   766→export type DictKey = keyof (typeof dict)["id"];
+   767→
+   768→export function tr(lang: Lang, key: DictKey): string {
+   769→  return dict[lang][key] ?? dict.id[key] ?? String(key);
+   770→}
+   771→
+   772→// ─────────────────────────── Mock seed ─────────────────────────
+   773→
+   774→export const ROW_A = 18;
+   775→export const ROW_B_LEFT = 8;
+   776→export const ROW_B_RIGHT = 6;
+   777→
+   778→export function buildSlots(): Slot[] {
+   779→  const slots: Slot[] = [];
+   780→  for (let i = 0; i < ROW_A; i++) {
+   781→    slots.push({
+   782→      id: `slot-A-${i + 1}`,
+   783→      slotNumber: `A-${String(i + 1).padStart(2, "0")}`,
+   784→      rowLabel: "A",
+   785→      colIndex: i,
+   786→      status: i === 13 ? "MAINTENANCE" : "ACTIVE",
+   787→    });
+   788→  }
+   789→  for (let i = 0; i < ROW_B_LEFT + ROW_B_RIGHT; i++) {
+   790→    slots.push({
+   791→      id: `slot-B-${i + 1}`,
+   792→      slotNumber: `B-${String(i + 1).padStart(2, "0")}`,
+   793→      rowLabel: "B",
+   794→      colIndex: i,
+   795→      status: i === 10 ? "MAINTENANCE" : "ACTIVE",
+   796→    });
+   797→  }
+   798→  return slots;
+   799→}
+   800→
+   801→/** Deterministic heatmap: 7 days × 07:00–21:00 */
+   802→export function buildHeatmap(): number[][] {
+   803→  // rows: Mon..Sun, cols: 07..21 (15 hours)
+   804→  const days = [0, 1, 2, 3, 4, 5, 6];
+   805→  return days.map((d) =>
+   806→    Array.from({ length: 15 }, (_, h) => {
+   807→      const hour = h + 7;
+   808→      let v = 0.12;
+   809→      if (d < 5) {
+   810→        if (hour >= 7 && hour <= 10) v = 0.55 + (hour === 8 || hour === 9 ? 0.35 : 0);
+   811→        if (hour >= 11 && hour <= 13) v = 0.45;
+   812→        if (hour >= 16 && hour <= 18) v = 0.6 + (hour === 17 ? 0.3 : 0);
+   813→        if (hour >= 19) v = 0.25;
+   814→      } else {
+   815→        v = hour <= 10 ? 0.15 : hour <= 15 ? 0.22 : 0.12;
+   816→      }
+   817→      const jitter = ((d * 31 + h * 17) % 13) / 130;
+   818→      return Math.min(1, Math.max(0.05, v + jitter - 0.05));
+   819→    })
+   820→  );
+   821→}
+   822→
+   823→export const ADS: Ad[] = [
+   824→  {
+   825→    id: "ad-1",
+   826→    title: "Kopi Rp15.000",
+   827→    description: "Fusion Cafe — show your parking pass",
+   828→    theme: "coffee",
+   829→    ctaText: "Claim",
+   830→    accent: "amber",
+   831→  },
+   832→  {
+   833→    id: "ad-2",
+   834→    title: "Free car wash",
+   835→    description: "Every 5th parking session this month",
+   836→    theme: "carwash",
+   837→    ctaText: "Detail",
+   838→    accent: "sky",
+   839→  },
+   840→  {
+   841→    id: "ad-3",
+   842→    title: "Campus fest 2026",
+   843→    description: "Gedung Anggrek hall — free entry w/ student ID",
+   844→    theme: "event",
+   845→    ctaText: "See",
+   846→    accent: "violet",
+   847→  },
+   848→];
+   849→
+   850→export const DAY_LABELS: Record<Lang, string[]> = {
+   851→  id: ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"],
+   852→  en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+   853→};
+   854→

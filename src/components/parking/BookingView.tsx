@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import {
+  Activity,
   ArrowLeft,
   CalendarClock,
   CalendarDays,
@@ -12,11 +13,15 @@ import {
   Lock,
   QrCode,
   ShieldCheck,
+  TrendingDown,
+  TrendingUp,
   Wallet,
 } from "lucide-react";
 import { DateGrid, TimeGrid, WindowPicker, fmtDateLabel } from "./WindowPickers";
 import { useParkir } from "@/lib/store";
 import {
+  demandNow,
+  DEMAND_TIERS,
   LOCATION,
   TARIFF,
   fromMinutes,
@@ -45,9 +50,44 @@ export function BookingView({
   const walletBalance = useParkir((s) => s.walletBalance);
   const globalWin = useParkir((s) => s.viewWindow);
   const isBinusian = useParkir((s) => s.user.isBinusian);
+  const slots = useParkir((s) => s.slots);
+  const reservations = useParkir((s) => s.reservations);
   const book = useParkir((s) => s.book);
   const toast = useParkir((s) => s.toast);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+
+  /** Live demand snapshot — the fee follows the active tier in real time. */
+  const demand = demandNow(slots, reservations);
+  const pricing = DEMAND_TIERS[demand.tier];
+  const tierMeta = {
+    LOW: {
+      label: t("dynLow"),
+      note: t("dynBannerLow"),
+      icon: TrendingDown,
+      box: "border-emerald-400/25 bg-emerald-400/[0.07]",
+      ico: "text-emerald-300",
+      lbl: "text-emerald-300",
+      chip: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+    },
+    NORMAL: {
+      label: t("dynNormal"),
+      note: t("dynBannerNormal"),
+      icon: Activity,
+      box: "border-sky-400/25 bg-sky-400/[0.06]",
+      ico: "text-sky-300",
+      lbl: "text-sky-300",
+      chip: "border-sky-400/30 bg-sky-400/10 text-sky-300",
+    },
+    HIGH: {
+      label: t("dynHigh"),
+      note: t("dynBannerHigh"),
+      icon: TrendingUp,
+      box: "border-amber-400/30 bg-amber-400/[0.08]",
+      ico: "text-amber-300",
+      lbl: "text-amber-300",
+      chip: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+    },
+  }[demand.tier];
 
   /** Non-BINUSIAN (guest): advance booking locked — walk-in only. */
   const [type, setType] = React.useState<ResType>(
@@ -57,7 +97,7 @@ export function BookingView({
   const [win, setWin] = React.useState({ ...globalWin });
   const [busy, setBusy] = React.useState(false);
 
-  const fee = type === "ADVANCE" ? TARIFF.advanceFee : TARIFF.walkInFee;
+  const fee = type === "ADVANCE" ? pricing.advanceFee : pricing.walkInFee;
   const enough = walletBalance >= fee;
 
   const durationH = React.useMemo(() => {
@@ -139,14 +179,38 @@ export function BookingView({
         </div>
       </div>
 
+      {/* dynamic pricing banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className={cn("flex items-center gap-3 rounded-2xl border p-3.5", tierMeta.box)}
+      >
+        <tierMeta.icon className={cn("h-5 w-5 shrink-0", tierMeta.ico)} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className={cn("text-[11px] font-black uppercase tracking-[0.12em]", tierMeta.lbl)}>
+              {tierMeta.label}
+            </span>
+            <span className="tnum rounded-full bg-foreground/[0.06] px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">
+              {demand.pct}% {t("dynOccupiedPct")}
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{tierMeta.note}</p>
+        </div>
+        <span className="shrink-0 text-[8.5px] font-black uppercase tracking-wider text-muted-foreground/50">
+          {t("liveNow")}
+        </span>
+      </motion.div>
+
       {/* type */}
       <section className="space-y-2">
         <p className="text-xs font-semibold text-muted-foreground">{t("bookType")}</p>
         <div className="grid grid-cols-2 gap-2.5">
           {(
             [
-              { k: "ADVANCE", icon: Gauge, label: t("advance"), fee: TARIFF.advanceFee, note: lang === "id" ? "Pilih slot lebih dulu" : "Pick your slot early" },
-              { k: "WALK_IN", icon: QrCode, label: t("walkIn"), fee: TARIFF.walkInFee, note: lang === "id" ? "Langsung via scan QR di slot" : "Instant via slot QR scan" },
+              { k: "ADVANCE", icon: Gauge, label: t("advance"), fee: pricing.advanceFee, ref: TARIFF.advanceFee, note: lang === "id" ? "Pilih slot lebih dulu" : "Pick your slot early" },
+              { k: "WALK_IN", icon: QrCode, label: t("walkIn"), fee: pricing.walkInFee, ref: TARIFF.walkInFee, note: lang === "id" ? "Langsung via scan QR di slot" : "Instant via slot QR scan" },
             ] as const
           ).map((o) => {
             const locked = !isBinusian && o.k === "ADVANCE";
@@ -174,7 +238,14 @@ export function BookingView({
                   {o.label}
                   {locked && <Lock className="h-3 w-3 text-muted-foreground" />}
                 </p>
-                <p className="tnum mt-0.5 text-xs font-semibold text-primary">{rupiah(o.fee)}</p>
+                <p className="tnum mt-0.5 flex flex-wrap items-baseline gap-1.5 text-xs font-semibold text-primary">
+                  {o.fee !== o.ref && (
+                    <span className="tnum text-[10px] font-medium text-muted-foreground line-through">
+                      {rupiah(o.ref)}
+                    </span>
+                  )}
+                  {rupiah(o.fee)}
+                </p>
                 <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
                   {locked ? t("binusianOnly") : o.note}
                 </p>
@@ -279,7 +350,19 @@ export function BookingView({
         <p className="text-xs font-semibold">{t("summary")}</p>
         <div className="space-y-1.5 text-[13px]">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">{t("serviceFee")}</span>
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              {t("serviceFee")}
+              {demand.tier !== "NORMAL" && (
+                <span
+                  className={cn(
+                    "rounded-full border px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider",
+                    tierMeta.chip
+                  )}
+                >
+                  {tierMeta.label}
+                </span>
+              )}
+            </span>
             <span className="tnum font-bold">{rupiah(fee)}</span>
           </div>
           <div className="flex items-center justify-between">

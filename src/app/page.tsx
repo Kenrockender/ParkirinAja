@@ -29,7 +29,7 @@ import { ScannerView } from "@/components/parking/ScannerView";
 import { MapView } from "@/components/parking/MapView";
 import { OperatorView } from "@/components/parking/OperatorView";
 import { useParkir } from "@/lib/store";
-import { rupiah, tr } from "@/lib/parking-data";
+import { campusById, campusLabel, rupiah, tr } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
 
 type Tab = "home" | "history" | "wallet" | "profile";
@@ -73,6 +73,7 @@ function Shell() {
   const lang = useParkir((s) => s.lang);
   const setLang = useParkir((s) => s.setLang);
   const walletBalance = useParkir((s) => s.walletBalance);
+  const campus = campusById(useParkir((s) => s.campusId));
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const { theme, setTheme } = useTheme();
 
@@ -103,9 +104,7 @@ function Shell() {
             <p className="truncate font-display text-[13.5px] font-bold leading-tight tracking-tight">
               {t("appName")}
             </p>
-            <p className="truncate text-[9px] text-muted-foreground">
-              BINUS @ Kemanggisan · Anggrek
-            </p>
+            <p className="truncate text-[9px] text-muted-foreground">{campusLabel(campus)}</p>
           </div>
           <button
             onClick={() => {

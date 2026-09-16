@@ -7,6 +7,8 @@ import { create } from "zustand";
 import {
   buildSlots,
   dateStr,
+  demandNow,
+  DEMAND_TIERS,
   overtimeFee,
   parkingFee,
   refundAmount,
@@ -16,6 +18,7 @@ import {
   toMinutes,
   fromMinutes,
   uid,
+  type CampusId,
   type Lang,
   type Reservation,
   type ResStatus,
@@ -59,7 +62,10 @@ interface ParkirState {
   walletBalance: number;
   toasts: Toast[];
   viewWindow: TimeWindow;
+  /** Active campus — Coming Soon campuses are selectable but gated in the UI. */
+  campusId: CampusId;
 
+  selectCampus: (id: CampusId) => void;
   setLang: (l: Lang) => void;
   setViewWindow: (w: TimeWindow) => void;
   toast: (message: string, tone?: Toast["tone"]) => void;
@@ -127,6 +133,7 @@ function seedReservations(now: number): Reservation[] {
     id: uid(),
     code: resCode(),
     type: "ADVANCE",
+    demandTier: "NORMAL",
     serviceFee: TARIFF.advanceFee,
     parkingFee: 0,
     overtimeFee: 0,
@@ -304,6 +311,7 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
     id: uid(),
     code: resCode(),
     type: "WALK_IN",
+    demandTier: "NORMAL",
     serviceFee: TARIFF.walkInFee,
     parkingFee: 0,
     overtimeFee: 0,
@@ -494,7 +502,9 @@ export const useParkir = create<ParkirState>((set, get) => ({
   walletBalance: 0,
   toasts: [],
   viewWindow: defaultWindow(),
+  campusId: "anggrek",
 
+  selectCampus: (id) => set({ campusId: id }),
   setLang: (l) => set({ lang: l }),
   setViewWindow: (w) => set({ viewWindow: w }),
 
@@ -576,7 +586,9 @@ export const useParkir = create<ParkirState>((set, get) => ({
 
   book: ({ slotId, slotNumber, type, date, startTime, endTime, vehiclePlate, vehicleName }) => {
     const { walletBalance, lang } = get();
-    const fee = type === "ADVANCE" ? TARIFF.advanceFee : TARIFF.walkInFee;
+    // Dynamic pricing — the service fee follows the live demand tier.
+    const demand = demandNow(get().slots, get().reservations);
+    const fee = type === "ADVANCE" ? DEMAND_TIERS[demand.tier].advanceFee : DEMAND_TIERS[demand.tier].walkInFee;
     if (walletBalance < fee) {
       return null;
     }
@@ -585,6 +597,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
       id: uid(),
       code: resCode(),
       type,
+      demandTier: demand.tier,
       slotId,
       slotNumber,
       date,
@@ -737,10 +750,12 @@ export const useParkir = create<ParkirState>((set, get) => ({
     );
     if (busy) return { ok: false as const, reason: "busy" as const };
 
-    // Free slot → walk-in session, charged at walk-in rate
+    // Free slot → walk-in session, charged at the live dynamic walk-in rate
     if (activeNow >= MAX_ACTIVE_PARKING)
       return { ok: false as const, reason: "max_active" as const };
-    if (walletBalance < TARIFF.walkInFee)
+    const demand = demandNow(slots, reservations);
+    const walkInFee = DEMAND_TIERS[demand.tier].walkInFee;
+    if (walletBalance < walkInFee)
       return { ok: false as const, reason: "insufficient" as const };
 
     const nowD = new Date(now);
@@ -748,13 +763,14 @@ export const useParkir = create<ParkirState>((set, get) => ({
       id: uid(),
       code: resCode(),
       type: "WALK_IN",
+      demandTier: demand.tier,
       slotId: slot.id,
       slotNumber: slot.slotNumber,
       date: dateStr(nowD),
       startTime: timeStr(nowD),
       endTime: addH(timeStr(nowD), 2),
       status: "CHECKED_IN",
-      serviceFee: TARIFF.walkInFee,
+      serviceFee: walkInFee,
       parkingFee: 0,
       overtimeFee: 0,
       refundAmount: 0,
@@ -766,9 +782,9 @@ export const useParkir = create<ParkirState>((set, get) => ({
     };
     set((s) => ({
       reservations: [res, ...s.reservations],
-      walletBalance: s.walletBalance - TARIFF.walkInFee,
+      walletBalance: s.walletBalance - walkInFee,
       transactions: [
-        { id: uid(), type: "SERVICE_FEE", amount: TARIFF.walkInFee, createdAt: now, note: res.code },
+        { id: uid(), type: "SERVICE_FEE", amount: walkInFee, createdAt: now, note: res.code },
         ...s.transactions,
       ],
     }));

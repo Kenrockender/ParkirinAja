@@ -2,10 +2,17 @@
 /** MapView — full-screen immersive parking map overlay. */
 import React from "react";
 import { motion } from "framer-motion";
-import { ChevronRight, MoveHorizontal, X } from "lucide-react";
+import { Building2, ChevronRight, MoveHorizontal, X } from "lucide-react";
 import { MapLegend, ParkingMap, useMapCounts } from "./ParkingMap";
 import { useParkir } from "@/lib/store";
-import { LOCATION, slotStatusForWindow, tr, type Slot } from "@/lib/parking-data";
+import {
+  campusById,
+  campusLabel,
+  LOCATION,
+  slotStatusForWindow,
+  tr,
+  type Slot,
+} from "@/lib/parking-data";
 
 export function MapView({
   open,
@@ -20,6 +27,7 @@ export function MapView({
   const slots = useParkir((s) => s.slots);
   const reservations = useParkir((s) => s.reservations);
   const win = useParkir((s) => s.viewWindow);
+  const campus = campusById(useParkir((s) => s.campusId));
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const { free, total } = useMapCounts();
   const [showHint, setShowHint] = React.useState(true);
@@ -48,18 +56,37 @@ export function MapView({
             <h2 className="font-display text-base font-bold leading-tight tracking-tight">
               {t("parkingMap")}
             </h2>
-            <p className="text-[10px] text-muted-foreground">{LOCATION.name}</p>
+            <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              {campus.available ? `${LOCATION.name} · ` : ""}
+              {campusLabel(campus)}
+              {!campus.available && (
+                <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-primary">
+                  {t("campusSoon")}
+                </span>
+              )}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="tnum rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-xs font-bold text-emerald-300">
-            {free}/{total} {t("slotWord")}
-          </span>
+          {campus.available && (
+            <span className="tnum rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-xs font-bold text-emerald-300">
+              {free}/{total} {t("slotWord")}
+            </span>
+          )}
         </div>
       </div>
 
       {/* map */}
       <div className="slim-scroll flex-1 overflow-y-auto px-4 pb-4">
+        {!campus.available ? (
+          <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-primary/25 bg-primary/[0.03] px-6 py-16 text-center">
+            <Building2 className="h-8 w-8 text-primary" />
+            <p className="text-sm font-bold">{campus.name}</p>
+            <p className="max-w-[260px] text-[11px] leading-relaxed text-muted-foreground">
+              {t("campusSoonNote")}
+            </p>
+          </div>
+        ) : (
         <ParkingMap
           onSlotPress={(s: Slot) => {
             const st = slotStatusForWindow(s, reservations, win);
@@ -69,12 +96,15 @@ export function MapView({
             }
           }}
         />
-        <div className="mt-3 flex items-center justify-between">
-          <MapLegend />
-          <span className="hidden items-center gap-1 text-[10px] text-muted-foreground sm:flex">
-            {t("tapSlotHint")}
-          </span>
-        </div>
+        )}
+        {campus.available && (
+          <div className="mt-3 flex items-center justify-between">
+            <MapLegend />
+            <span className="hidden items-center gap-1 text-[10px] text-muted-foreground sm:flex">
+              {t("tapSlotHint")}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* scroll hint pill */}

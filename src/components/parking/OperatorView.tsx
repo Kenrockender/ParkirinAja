@@ -31,9 +31,12 @@ import {
   ShieldCheck,
   Timer,
   TimerReset,
+  TrendingDown,
+  TrendingUp,
   Wallet,
   Wrench,
   X,
+  Zap,
 } from "lucide-react";
 import {
   Dialog,
@@ -46,10 +49,14 @@ import { ResStatusPill } from "./Brand";
 import { useParkir } from "@/lib/store";
 import {
   dateStr,
+  demandNow,
+  DEMAND_TIERS,
   rupiah,
   slotStatusForWindow,
+  TARIFF,
   timeStr,
   tr,
+  type DemandInfo,
   type Reservation,
   type Slot,
   type SlotStatus,
@@ -329,6 +336,12 @@ export function OperatorView() {
     [reservations, transactions]
   );
 
+  /** Live demand tier — drives the dynamic pricing strip. */
+  const demand = React.useMemo(
+    () => demandNow(slots, reservations),
+    [slots, reservations, tick]
+  );
+
   const searchResults = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
@@ -546,6 +559,7 @@ export function OperatorView() {
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="grid gap-4 md:grid-cols-12"
           >
+            <PricingCard className="md:col-span-12" lang={lang} demand={demand} />
             <OccupancyCard className="md:col-span-5" lang={lang} stats={stats} total={slots.length} shift={shift} />
             <RevenueCard className="md:col-span-7" lang={lang} data={hourlyRevenue} total={revenue} />
             <SlotMonitorCard className="md:col-span-7" lang={lang} slots={slots} reservations={reservations} stats={stats} onSlot={setDetail} />
@@ -711,6 +725,130 @@ export function OperatorView() {
 }
 
 // ───────────────────────── monitor tab cards ─────────────────────────
+
+/** Live dynamic-pricing strip — active tier, running prices, occupancy gauge. */
+function PricingCard({
+  className,
+  lang,
+  demand,
+}: {
+  className?: string;
+  lang: string;
+  demand: DemandInfo;
+}) {
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang as "id" | "en", k);
+  const pricing = DEMAND_TIERS[demand.tier];
+  const meta = {
+    LOW: {
+      label: t("dynLow"),
+      icon: TrendingDown,
+      chip: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+      bar: "bg-emerald-400",
+      next: t("dynNextLow"),
+    },
+    NORMAL: {
+      label: t("dynNormal"),
+      icon: Activity,
+      chip: "border-sky-400/30 bg-sky-400/10 text-sky-300",
+      bar: "bg-sky-400",
+      next: t("dynNextNormal"),
+    },
+    HIGH: {
+      label: t("dynHigh"),
+      icon: TrendingUp,
+      chip: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+      bar: "bg-gradient-to-r from-amber-400 to-red-400",
+      next: t("dynNextHigh"),
+    },
+  }[demand.tier];
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className={cn("glass rounded-3xl p-4", className)}
+    >
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-5">
+        {/* tier identity */}
+        <div className="flex min-w-0 items-center gap-3 md:w-[212px] md:shrink-0">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/[0.08]">
+            <Zap className="h-4.5 w-4.5 text-primary" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="font-display text-sm font-bold leading-tight tracking-tight">
+              {t("dynTitle")}
+            </h3>
+            <span
+              className={cn(
+                "mt-1 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider",
+                meta.chip
+              )}
+            >
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute h-full w-full animate-ping rounded-full bg-current opacity-60" />
+                <span className="relative h-1.5 w-1.5 rounded-full bg-current" />
+              </span>
+              {meta.label}
+            </span>
+          </div>
+        </div>
+
+        {/* running prices */}
+        <div className="flex flex-1 items-stretch gap-2.5">
+          <div className="flex-1 rounded-xl border border-border bg-card/50 px-3 py-2 text-center">
+            <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">
+              {t("dynReserve")}
+            </p>
+            <p className="tnum mt-0.5 font-display text-lg font-bold leading-tight text-primary">
+              {rupiah(pricing.advanceFee)}
+            </p>
+          </div>
+          <div className="flex-1 rounded-xl border border-border bg-card/50 px-3 py-2 text-center">
+            <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">
+              {t("dynWalkin")}
+            </p>
+            <p className="tnum mt-0.5 font-display text-lg font-bold leading-tight">
+              {rupiah(pricing.walkInFee)}
+            </p>
+          </div>
+          <div className="hidden w-[104px] shrink-0 rounded-xl border border-border bg-card/50 px-3 py-2 text-center sm:block">
+            <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">
+              {t("dynOvertime")}
+            </p>
+            <p className="tnum mt-0.5 font-display text-lg font-bold leading-tight text-muted-foreground">
+              {rupiah(TARIFF.overtimeFeePerHour)}
+              <span className="text-[10px] font-semibold">{lang === "id" ? "/jam" : "/h"}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* occupancy gauge with tier thresholds */}
+        <div className="md:w-[210px] md:shrink-0">
+          <div className="flex items-baseline justify-between">
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {t("dynOccupiedPct")}
+            </p>
+            <p className="tnum text-sm font-bold">{demand.pct}%</p>
+          </div>
+          <div className="relative mt-1.5 h-2.5 overflow-hidden rounded-full bg-white/[0.06]">
+            <span aria-hidden className="absolute inset-y-0 left-[40%] z-10 w-px bg-white/20" />
+            <span aria-hidden className="absolute inset-y-0 left-[75%] z-10 w-px bg-white/20" />
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${demand.pct}%` }}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              className={cn("h-full rounded-full", meta.bar)}
+            />
+          </div>
+          <p className="mt-1.5 truncate text-[9px] text-muted-foreground/70">
+            {meta.next} · {t("dynAutoNote")}
+          </p>
+        </div>
+      </div>
+    </motion.section>
+  );
+}
 
 const RING_COLORS: Record<Exclude<SlotStatus, never>, string> = {
   OCCUPIED: "#f87171",

@@ -68,3 +68,30 @@ Work Log:
 
 Stage Summary:
 - v10 confirmed fully intact and functional post-restore; no regressions found; nothing to fix. Awaiting user feedback on the Command Center (or next iteration request).
+---
+Task ID: 8
+Agent: Super Z (main agent)
+Task: Iteration v11 per user request — (1) multi-campus selection: add BINUS Alam Sutera + BINUS Malang as selectable options (slot layout/count TBD), (2) dynamic pricing: Low 15K / Normal 20K / High 30–35K responsive to demand. User required AskUserQuestion before implementation.
+
+Work Log:
+- AskUserQuestion (8 questions) → answers: keep "The Anggrek" as main campus name; new campuses selectable but slots disabled + "Coming Soon" badge; campus selector on Home + map header; demand tier automatic from real-time occupancy (<40% LOW, 40–75% NORMAL, >75% HIGH); price map Low 15K/25K, Normal 20K/30K (current), High 30K/35K (Reserve/Walk-in); overtime flat Rp5K/jam; customer sees live price + tier badge with reason; operator gets live "Dynamic Pricing" card in Command Center
+- parking-data.ts (+154 lines): +CampusId/Campus/CAMPUSES (anggrek "BINUS @ Kemanggisan · The Anggrek" active; alamsutera "BINUS @ Alam Sutera" Tangerang coming soon; malang "BINUS @ Malang" coming soon) +campusById()/campusLabel(); +DemandTier/DemandInfo/DEMAND_TIERS (LOW 15/25K, NORMAL mirrors TARIFF 20/30K, HIGH 30/35K) +TIER_THRESHOLDS{40,75} +demandTierFor() +demandNow() (now±1min window over slotStatusForWindow, excludes MAINTENANCE from denominator, occupied+reserved numerator); Reservation.demandTier?: DemandTier; +32 i18n keys × ID/EN (campus* + dyn* families)
+- store.ts: +campusId state +selectCampus action; book() now prices fee via demandNow at click time and stamps demandTier on the reservation; scanSlot() walk-in branch charges DEMAND_TIERS[tier].walkInFee (4 call sites); both seed mk() defaults stamp demandTier "NORMAL" (seed fees are 20K/30K)
+- HomeView.tsx (+197 lines): CampusBar chip under greeting (MapPin + campusLabel + city · status chip Aktif/Coming Soon + chevron) → CampusPickerDialog (3 campus rows, building·city sub, emerald Aktif / gold Coming Soon badges, gold border + check on selected, note that Coming Soon campuses are selectable, toast on switch); hero availability ↔ ComingSoonHero ternary (building icon + gold COMING SOON badge + note + "Lihat Kampus Lain" CTA); search section + heatmap gated to campus.available; free/total chip hidden when coming soon
+- page.tsx: Shell header sub-label now campusLabel(campus) (dynamic)
+- MapView.tsx: header shows "Gedung Parkir Anggrek · BINUS @ Kemanggisan · The Anggrek" (available) or campus name + gold Coming Soon badge; map body swaps to dashed-border coming-soon card; legend/counter gated
+- BookingView.tsx: +demandNow live snapshot; tier banner after slot hero (per-tier icon TrendingDown/Activity/TrendingUp, colored box, tier label + "N% parkir terisi" chip, reason note, LIVE tag); type cards price from tier with struck-through normal price when different; summary service-fee row gains tier chip (non-NORMAL only)
+- ScannerView.tsx: +live walk-in rate strip in bottom sheet ("Tarif walk-in saat ini: Rp25.000 · Low demand" w/ Zap icon); full coming-soon gate overlay (Building2 + badge + scanSoonNote + close) when campus unavailable
+- OperatorView.tsx (+138 lines): PricingCard as first Monitor bento item (md:col-span-12 strip; Zap icon + "Harga Dinamis" + pinging tier chip; Reserve/Walk-in price tiles + flat Overtime Rp5.000/jam tile ≥sm; occupancy bar with 40%/75% threshold ticks + tier-colored fill; next-tier hint + auto note); demand memo refreshes on 30s tick
+
+Verification:
+- tsc clean (scoped src via temp tsconfig), eslint src --quiet clean, zero page/console errors (agent-browser 430×900 + 1024×800)
+- scripts/test-tier.mts (tsx): 14/14 — demandTierFor boundaries (39 LOW / 40 / 75 NORMAL / 76 HIGH), price ladder, demandNow synthetic worlds (5/30=17% LOW, 13/30=43% NORMAL, 24-res-with-A-14-maintenance → 23/30=77% HIGH proving maintenance exclusion)
+- agent-browser flows: campus bar renders "BINUS @ Kemanggisan · The Anggrek · Aktif"; picker lists 3 campuses with badges; select Alam Sutera → header "BINUS @ Alam Sutera", hero = ComingSoonHero, search/heatmap hidden; scanner FAB → coming-soon gate; back to Kemanggisan → full home restored; booking flow LOW banner + Rp15.000/Rp25.000 with struck Rp20.000/Rp30.000; paid → wallet 230.000→215.000 (exactly 15K); walk-in scan B-03 → rate strip + wallet 215.000→190.000 (exactly 25K); operator Monitor → Harga Dinamis card (LOW chip, Rp15.000/Rp25.000, 40/75 ticks, next hint); tablet 1024px → + Overtime Rp5.000/jam tile; EN toggle → "Dynamic Pricing" / "Up to Normal at 40%" / "real-time occupancy"
+- scripts/book-loop.mjs (Playwright): 13 consecutive bookings — iters 1–11 LOW Rp15.000, iter 12 flips to NORMAL Rp20.000 (12/30 = 40% live), iter 13 stays NORMAL — end-to-end proof that pricing responds to real-time occupancy mid-flow
+- VLM: campus-picker 8.5, coming-soon 8.5, booking-dynamic 8.5, operator-pricing 8.5, normal-banner 8.0 (issues cited = screenshot fold artifacts / by-design truncation, no defects)
+
+Stage Summary:
+- v11 delivered: (1) Multi-campus — Kemanggisan/The Anggrek active + Alam Sutera & Malang selectable Coming Soon with gated UI (home hero, map, scanner, heatmap) and picker on Home; header/map labels follow active campus. (2) Dynamic pricing — occupancy-driven tier engine (<40/40–75/>75) pricing Reserve 15/20/30K and Walk-in 25/30/35K, overtime flat 5K; live tier badge + reason in booking flow, live walk-in rate in scanner, operator "Harga Dinamis" command strip with thresholds + next-tier hint; demandTier stamped on every new reservation
+- Key artifacts: parking-data.ts (campuses + pricing engine + 64 dict lines), store.ts (campusId + dynamic fees), HomeView.tsx (CampusBar/PickerDialog/ComingSoonHero), BookingView.tsx (banner + live prices), ScannerView.tsx (rate strip + gate), MapView.tsx, page.tsx, OperatorView.tsx (PricingCard); scripts/test-tier.mts + scripts/book-loop.mjs
+- Screenshots: scripts/shots/v11-00..13 (13 captures)
