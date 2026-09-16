@@ -95,3 +95,29 @@ Stage Summary:
 - v11 delivered: (1) Multi-campus — Kemanggisan/The Anggrek active + Alam Sutera & Malang selectable Coming Soon with gated UI (home hero, map, scanner, heatmap) and picker on Home; header/map labels follow active campus. (2) Dynamic pricing — occupancy-driven tier engine (<40/40–75/>75) pricing Reserve 15/20/30K and Walk-in 25/30/35K, overtime flat 5K; live tier badge + reason in booking flow, live walk-in rate in scanner, operator "Harga Dinamis" command strip with thresholds + next-tier hint; demandTier stamped on every new reservation
 - Key artifacts: parking-data.ts (campuses + pricing engine + 64 dict lines), store.ts (campusId + dynamic fees), HomeView.tsx (CampusBar/PickerDialog/ComingSoonHero), BookingView.tsx (banner + live prices), ScannerView.tsx (rate strip + gate), MapView.tsx, page.tsx, OperatorView.tsx (PricingCard); scripts/test-tier.mts + scripts/book-loop.mjs
 - Screenshots: scripts/shots/v11-00..13 (13 captures)
+
+---
+Task ID: 9
+Agent: Super Z (main agent)
+Task: v12 minor iteration — user feedback: "kenapa background untuk parkirnya itu masih hitam, gunakan putih saja" (make the parking lot map background white instead of dark).
+
+Work Log:
+- ParkingMap.tsx full restyle dark→white "paper blueprint" look (only file changed; used by HomeView compact map + MapView full-screen):
+  - Container: bg-[#0a0f1e]/80 → bg-white + border-slate-200 + deep shadow (0_18px_50px_-24px rgba(2,6,23,0.65)); radial tints retuned for white (blue 0.06, yellow 0.08)
+  - STYLE slots: AVAILABLE emerald-300/50/700 (hover emerald-100/400), RESERVED amber-200/50/600, OCCUPIED red-200/50/500, MAINTENANCE slate-200/100/400
+  - SlotBay icons explicit ink colors (CarFront red-400, Clock3 amber-500, Wrench slate-400) — previously inherited light foreground (would be invisible on white)
+  - Structure: walls + Pillar → slate-200/300 gradients; drive lane → bg-slate-100 + slate-300 dashed centerline + white pill (was bg-background/80)
+  - Facilities: LIFT blue-200/50/600, WC violet-200/50/600, ENTRANCE emerald-400 dashed/emerald-50/600-700, EXIT slate-300/50/500, RAMP blue-200/50/600 (replaced binus-bright/blue dark-tint classes)
+  - Header/footer text → slate-400/700 emerald chip; scroll fades from-[#0a0f1e] → from-white
+  - MapLegend untouched (renders on dark bg outside the card)
+- Tooling note: MultiEdit non-atomic failure again on first batch (3/13 applied, LIFT/WC block match failed) → re-applied remaining 28 edits as smaller unique chunks, all succeeded
+
+Verification:
+- tsc (scoped src) + eslint clean; zero page errors, zero console errors/warnings (430×900)
+- Computed styles: map card bg rgb(255,255,255) in both Home compact + full map overlay; slot emerald-50/300/700 confirmed; overlay stays dark (#070B16/95)
+- Slot tap interaction intact: A-01 tap in white map → BookingView opens with live LOW tier pricing (Rp15K/Rp25K struck Rp20K/Rp30K)
+- VLM 9/10 both screenshots: white card clearly readable, "blueprint on a desk" aesthetic, no invisible/defect elements (minor note: pre-existing header sub-label truncation on 430px, by design)
+- Screenshots: scripts/shots/v12-map-white-home.png, v12-map-white-full.png; check script scripts/vlm-v12-check.ts
+
+Stage Summary:
+- v12 delivered: parking site plan (ParkingMap) now white-background in both usages (Home search results + full-screen map), all in-map elements re-inked for light surface contrast; app shell remains dark premium so the white map pops as a paper site plan. No logic/i18n/pricing changes; interactions verified intact.
