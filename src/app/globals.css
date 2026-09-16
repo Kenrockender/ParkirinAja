@@ -214,6 +214,16 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+/* Parking map ambient tints (theme-aware) */
+.map-tint {
+  --map-glow-a: rgba(59, 130, 246, 0.06);
+  --map-glow-b: rgba(250, 204, 21, 0.08);
+}
+.dark .map-tint {
+  --map-glow-a: rgba(59, 130, 246, 0.1);
+  --map-glow-b: rgba(255, 214, 10, 0.05);
+}
+
 /* Card hover lift */
 .lift {
   transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.25s;

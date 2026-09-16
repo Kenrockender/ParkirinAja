@@ -121,3 +121,27 @@ Verification:
 
 Stage Summary:
 - v12 delivered: parking site plan (ParkingMap) now white-background in both usages (Home search results + full-screen map), all in-map elements re-inked for light surface contrast; app shell remains dark premium so the white map pops as a paper site plan. No logic/i18n/pricing changes; interactions verified intact.
+
+---
+Task ID: 10
+Agent: Super Z (main agent)
+Task: v12b iteration — user feedback: "loh kok kalo darkmode mapnya masih putih. sesuaikan dengan modenya dong" (map should follow the app's light/dark theme; previous fix had hardcoded white).
+
+Work Log:
+- Confirmed theme system: next-themes attribute="class" + Tailwind 4 @custom-variant dark (&:is(.dark *)) + toggle buttons in Shell header ("Tampilan") and ProfileView switch; light mode fully tokenized in globals.css
+- ParkingMap.tsx rewritten as dual-mode (full-file Write to avoid MultiEdit non-atomicity): every light style now paired with a dark: variant restoring the original dark look —
+  - Container: white + border-slate-200 + deep shadow / dark:border-border dark:bg-[#0a0f1e]/80 dark:shadow-none
+  - STYLE slots: light pastels (emerald-50/300/700, amber-200/50/600, red-200/50/500, slate-200/100/400) / dark original translucent tints + light inks (emerald-300, amber-300/70, red-300/60, slate-500), incl. per-mode hover states and dot glows
+  - SlotBay icons: explicit colors with dark:opacity tuning; Pillar+walls slate-200/300 / dark white/[0.06-0.14]; lane slate-100 + slate-300 dashes / dark bg-white/[0.03] + white/[0.08], pill bg-white / dark:bg-background/80
+  - LIFT/RAMP: blue-200/50/600 / dark binus-bright tints; WC violet light/dark; ENTRANCE emerald light/dark; EXIT slate light/dark; scroll fades from-white / dark:from-[#0a0f1e]; header+footer text slate-400 / dark muted-foreground
+- globals.css: +.map-tint / .dark .map-tint defining --map-glow-a/b ambient tints; ParkingMap uses them in the inline radial-gradient (theme-aware without JS)
+- Infra issue found & fixed: dev server served STALE CSS (new globals.css rules absent — postcss worker cache); killing worker insufficient → full dev-server restart required; plain background launches were reaped between tool commands (server died silently, cgroup oom_kill=0) → wrote scripts/daemon-dev.sh (double-fork + setsid, PPID=1) — server now persistent, CSS recompiled with map-tint (count 2)
+
+Verification:
+- tsc (scoped src) + eslint clean
+- Dark mode (default): computed cardBg lab(4.41…/0.8)=#0a0f1e/80, slot num emerald-300, lane white/3%, gradient var resolved; screenshot v12-map-dark.png — VLM 9/10 "no leftover white surfaces inside the map"
+- Light mode (toggle "Tampilan"): cardBg rgb(255,255,255), slot num emerald-700, lane slate-100; screenshot v12-map-light.png — VLM 9/10 "no leftover dark surfaces"
+- Zero page errors, zero console errors/warnings across the toggle flow
+
+Stage Summary:
+- v12b delivered: ParkingMap is now fully theme-aware — white paper-blueprint in light mode, original deep-navy glass in dark mode (slots, walls, lane, LIFT/WC/ENTRANCE/EXIT/RAMP, fades, ambient tints all dual-styled via dark: variants + CSS vars). No logic/i18n changes. Dev-server ops notes: use scripts/daemon-dev.sh for persistent restarts; stale CSS after globals.css edits requires full restart.

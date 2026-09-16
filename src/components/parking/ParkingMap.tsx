@@ -2,6 +2,7 @@
 /**
  * ParkingMap — modern minimal "seat-map" style site plan of Anggrek L1.
  * Row A (18 bays) + ENTRANCE · lane · Row B (14 bays with LIFT/WC) · ramp.
+ * Theme-aware: white "paper blueprint" in light mode, deep navy glass in dark mode.
  */
 import React from "react";
 import { cn } from "@/lib/utils";
@@ -30,24 +31,24 @@ const STYLE: Record<
   { box: string; num: string; dot: string }
 > = {
   AVAILABLE: {
-    box: "border-emerald-300 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 hover:shadow-[0_0_20px_-4px_rgba(16,185,129,0.45)] cursor-pointer",
-    num: "text-emerald-700",
-    dot: "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.65)]",
+    box: "border-emerald-300 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 hover:shadow-[0_0_20px_-4px_rgba(16,185,129,0.45)] dark:border-emerald-400/35 dark:bg-emerald-400/[0.07] dark:hover:bg-emerald-400/[0.14] dark:hover:border-emerald-400/60 dark:hover:shadow-[0_0_20px_-4px_rgba(52,211,153,0.5)] cursor-pointer",
+    num: "text-emerald-700 dark:text-emerald-300",
+    dot: "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.65)] dark:bg-emerald-400 dark:shadow-[0_0_6px_rgba(52,211,153,0.9)]",
   },
   RESERVED: {
-    box: "border-amber-200 bg-amber-50",
-    num: "text-amber-600",
-    dot: "bg-amber-400",
+    box: "border-amber-200 bg-amber-50 dark:border-amber-400/25 dark:bg-amber-400/[0.05]",
+    num: "text-amber-600 dark:text-amber-300/70",
+    dot: "bg-amber-400 dark:bg-amber-400/60",
   },
   OCCUPIED: {
-    box: "border-red-200 bg-red-50",
-    num: "text-red-500",
-    dot: "bg-red-400/70",
+    box: "border-red-200 bg-red-50 dark:border-red-400/20 dark:bg-red-400/[0.04]",
+    num: "text-red-500 dark:text-red-300/60",
+    dot: "bg-red-400/70 dark:bg-red-400/50",
   },
   MAINTENANCE: {
-    box: "border-slate-200 bg-slate-100",
-    num: "text-slate-400",
-    dot: "bg-slate-400",
+    box: "border-slate-200 bg-slate-100 dark:border-slate-500/20 dark:bg-slate-500/[0.05]",
+    num: "text-slate-400 dark:text-slate-500",
+    dot: "bg-slate-400 dark:bg-slate-600",
   },
 };
 
@@ -82,9 +83,9 @@ function SlotBay({
       {status === "AVAILABLE" && (
         <span className={cn("absolute right-1.5 top-1.5 h-1 w-1 rounded-full", st.dot)} />
       )}
-      {status === "OCCUPIED" && <CarFront className={cn("h-3 w-3 text-red-400", compact ? "hidden" : "block", "opacity-80")} />}
-      {status === "RESERVED" && <Clock3 className={cn("h-3 w-3 text-amber-500 opacity-70", compact && "hidden")} />}
-      {status === "MAINTENANCE" && <Wrench className={cn("h-3 w-3 text-slate-400 opacity-80", compact && "hidden")} />}
+      {status === "OCCUPIED" && <CarFront className={cn("h-3 w-3 text-red-400 opacity-80 dark:opacity-60", compact ? "hidden" : "block")} />}
+      {status === "RESERVED" && <Clock3 className={cn("h-3 w-3 text-amber-500 opacity-70 dark:text-amber-300 dark:opacity-40", compact && "hidden")} />}
+      {status === "MAINTENANCE" && <Wrench className={cn("h-3 w-3 text-slate-400 opacity-80 dark:opacity-40", compact && "hidden")} />}
       <span
         className={cn(
           "tnum font-display font-semibold tracking-tight",
@@ -102,7 +103,7 @@ function Pillar({ h }: { h: number }) {
   return (
     <div
       aria-hidden
-      className="w-1.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200"
+      className="w-1.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.07] dark:via-white/[0.13] dark:to-white/[0.07]"
       style={{ minHeight: h }}
     />
   );
@@ -142,22 +143,22 @@ function RowSlots({
     // Insert LIFT + WC after 8th slot of row B
     if (liftWC && i === ROW_B_LEFT - 1) {
       chunk.push(
-        <div key="lift" className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-1" style={{ width: compact ? 38 : 46, height: slotH }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={cn("text-blue-600", compact ? "h-3 w-3" : "h-4 w-4")} aria-hidden>
+        <div key="lift" className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-1 dark:border-binus-bright/30 dark:bg-binus-bright/[0.08]" style={{ width: compact ? 38 : 46, height: slotH }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={cn("text-blue-600 dark:text-binus-bright", compact ? "h-3 w-3" : "h-4 w-4")} aria-hidden>
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <path d="M8 12V8M16 12v4" strokeLinecap="round" />
             <path d="m6 10 2-2 2 2M14 14l2 2 2-2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span className="text-[7.5px] font-bold text-blue-600">{tr(lang, "liftLabel")}</span>
+          <span className="text-[7.5px] font-bold text-blue-600 dark:text-binus-bright">{tr(lang, "liftLabel")}</span>
         </div>,
-        <div key="wc" className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-violet-200 bg-violet-50 px-1" style={{ width: compact ? 38 : 46, height: slotH }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={cn("text-violet-500", compact ? "h-3 w-3" : "h-4 w-4")} aria-hidden>
+        <div key="wc" className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-violet-200 bg-violet-50 px-1 dark:border-violet-400/30 dark:bg-violet-400/[0.07]" style={{ width: compact ? 38 : 46, height: slotH }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={cn("text-violet-500 dark:text-violet-300", compact ? "h-3 w-3" : "h-4 w-4")} aria-hidden>
             <circle cx="7.5" cy="4.5" r="1.8" />
             <path d="M7.5 8v6M5.5 14h4l-1 7h-2z" strokeLinecap="round" strokeLinejoin="round" />
             <circle cx="16.5" cy="4.5" r="1.8" />
             <path d="M16.5 8v4m0 0c-1.4 0-2.5 1-2.5 2.5V21h5v-6.5c0-1.5-1.1-2.5-2.5-2.5z" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span className="text-[7.5px] font-bold text-violet-600">{tr(lang, "wcLabel")}</span>
+          <span className="text-[7.5px] font-bold text-violet-600 dark:text-violet-300">{tr(lang, "wcLabel")}</span>
         </div>
       );
     }
@@ -209,20 +210,20 @@ export function ParkingMap({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_50px_-24px_rgba(2,6,23,0.65)]",
+        "map-tint relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_50px_-24px_rgba(2,6,23,0.65)] dark:border-border dark:bg-[#0a0f1e]/80 dark:shadow-none",
         compact ? "p-3" : "p-4 sm:p-5"
       )}
       style={{
         backgroundImage:
-          "radial-gradient(560px 200px at 70% -20%, rgba(59,130,246,0.06), transparent 65%), radial-gradient(400px 180px at 0% 120%, rgba(250,204,21,0.08), transparent 60%)",
+          "radial-gradient(560px 200px at 70% -20%, var(--map-glow-a), transparent 65%), radial-gradient(400px 180px at 0% 120%, var(--map-glow-b), transparent 60%)",
       }}
     >
       {/* header strip */}
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-[9px] font-bold tracking-[0.18em] text-slate-400">
+        <span className="text-[9px] font-bold tracking-[0.18em] text-slate-400 dark:text-muted-foreground">
           {tr(lang, "floorLabel")}
         </span>
-        <span className="tnum rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+        <span className="tnum rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300">
           {free}/{total} {tr(lang, "slotWord")}
         </span>
       </div>
@@ -231,21 +232,21 @@ export function ParkingMap({
         <div className="slim-scroll overflow-x-auto pb-1">
           <div style={{ width: "max-content", minWidth: "100%" }}>
           {/* top wall */}
-          <div className="mb-1.5 h-1.5 rounded-full bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200" />
+          <div className="mb-1.5 h-1.5 rounded-full bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]" />
 
           {/* Row A + entrance */}
           <div className="flex items-stretch gap-1.5">
             <RowSlots slots={rowA} onSlotPress={onSlotPress} compact={compact} />
             <div
-              className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-emerald-400 bg-emerald-50 px-2"
+              className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-emerald-400 bg-emerald-50 px-2 dark:border-emerald-400/40 dark:bg-emerald-400/[0.06]"
               style={{ width: compact ? 64 : 84, height: slotH }}
             >
-              <LogIn className={cn("text-emerald-600", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
-              <span className="text-[8px] font-bold tracking-wider text-emerald-700">
+              <LogIn className={cn("text-emerald-600 dark:text-emerald-300", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
+              <span className="text-[8px] font-bold tracking-wider text-emerald-700 dark:text-emerald-300">
                 {tr(lang, "entranceLabel")}
               </span>
               {!compact && (
-                <span className="flex items-center gap-0.5 text-[7px] font-semibold text-emerald-500/80">
+                <span className="flex items-center gap-0.5 text-[7px] font-semibold text-emerald-500/80 dark:text-emerald-300/60">
                   <ArrowLeft className="h-2.5 w-2.5" /> {lang === "id" ? "arah masuk" : "way in"}
                 </span>
               )}
@@ -253,9 +254,9 @@ export function ParkingMap({
           </div>
 
           {/* lane */}
-          <div className="relative my-1.5 flex h-9 items-center overflow-hidden rounded-lg bg-slate-100">
-            <div className="w-full border-t-2 border-dashed border-slate-300" />
-            <span className="absolute left-1/2 -translate-x-1/2 rounded-full bg-white px-2 py-0.5 text-[7.5px] font-semibold tracking-[0.2em] text-slate-400">
+          <div className="relative my-1.5 flex h-9 items-center overflow-hidden rounded-lg bg-slate-100 dark:bg-white/[0.03]">
+            <div className="w-full border-t-2 border-dashed border-slate-300 dark:border-white/[0.08]" />
+            <span className="absolute left-1/2 -translate-x-1/2 rounded-full bg-white px-2 py-0.5 text-[7.5px] font-semibold tracking-[0.2em] text-slate-400 dark:bg-background/80 dark:text-muted-foreground/60">
               {lang === "id" ? "JALUR MOBIL" : "DRIVE LANE"}
             </span>
           </div>
@@ -264,43 +265,43 @@ export function ParkingMap({
           <div className="flex items-stretch gap-1.5">
             <RowSlots slots={rowB} onSlotPress={onSlotPress} compact={compact} liftWC />
             <div
-              className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-2"
+              className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-2 dark:border-slate-400/30 dark:bg-white/[0.03]"
               style={{ width: compact ? 52 : 64, height: slotH }}
             >
-              <DoorOpen className={cn("text-slate-500", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
-              <span className="text-[8px] font-bold tracking-wider text-slate-500">
+              <DoorOpen className={cn("text-slate-500 dark:text-slate-400", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
+              <span className="text-[8px] font-bold tracking-wider text-slate-500 dark:text-slate-400">
                 {tr(lang, "exitLabel")}
               </span>
             </div>
             <div
-              className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-1.5"
+              className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-1.5 dark:border-binus-bright/25 dark:bg-binus-blue/20"
               style={{ width: compact ? 34 : 42, height: slotH }}
             >
-              <ArrowDown className={cn("text-blue-600", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
-              <span className="text-[7px] font-bold text-blue-600 [writing-mode:vertical-rl]">
+              <ArrowDown className={cn("text-blue-600 dark:text-binus-bright", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
+              <span className="text-[7px] font-bold text-blue-600 dark:text-binus-bright/90 [writing-mode:vertical-rl]">
                 {tr(lang, "rampLabel")}
               </span>
             </div>
           </div>
 
           {/* bottom wall */}
-          <div className="mt-1.5 h-1.5 rounded-full bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200" />
+          <div className="mt-1.5 h-1.5 rounded-full bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]" />
             </div>
         </div>
         {/* scroll affordance fades */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-0 w-8 rounded-l-3xl bg-gradient-to-r from-white to-transparent"
+          className="pointer-events-none absolute inset-y-0 left-0 w-8 rounded-l-3xl bg-gradient-to-r from-white to-transparent dark:from-[#0a0f1e]"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-3xl bg-gradient-to-l from-white to-transparent"
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-3xl bg-gradient-to-l from-white to-transparent dark:from-[#0a0f1e]"
         />
       </div>
 
       {/* footer note */}
       {!compact && (
-        <p className="mt-3 text-center text-[10px] leading-snug text-slate-400">
+        <p className="mt-3 text-center text-[10px] leading-snug text-slate-400 dark:text-muted-foreground/70">
           {tr(lang, "mapNote")}
         </p>
       )}
