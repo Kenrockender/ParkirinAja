@@ -5,6 +5,7 @@
  */
 import { create } from "zustand";
 import {
+  buildAlamSuteraSlots,
   buildSlots,
   dateStr,
   demandNow,
@@ -56,7 +57,10 @@ interface ParkirState {
   signedIn: boolean;
   user: User;
   vehicles: Vehicle[];
+  /** Slots of the active campus (mirrors slotsByCampus[campusId]). */
   slots: Slot[];
+  /** Per-campus slot worlds — Anggrek building lot & Alam Sutera open lot. */
+  slotsByCampus: Record<CampusId, Slot[]>;
   reservations: Reservation[];
   transactions: Txn[];
   walletBalance: number;
@@ -283,6 +287,102 @@ function opSlot(slotNumber: string): { slotId: string; slotNumber: string } {
   return { slotId: `slot-${row}-${Number(num)}`, slotNumber };
 }
 
+/** slotNumber → {slotId, slotNumber} pair matching buildAlamSuteraSlots() id format. */
+function asSlot(slotNumber: string): { slotId: string; slotNumber: string } {
+  const [row, num] = slotNumber.split("-");
+  return { slotId: `as-${row}-${Number(num)}`, slotNumber };
+}
+
+/**
+ * Alam Sutera live world — other parkers only, so the open lot opens at a
+ * believable ~42% occupancy (16 of 38 active bays) → NORMAL demand tier:
+ * 13 walk-in sessions active now + 3 advance holds overlapping now.
+ */
+function seedAlamSuteraWorld(now: number): { reservations: Reservation[]; transactions: Txn[] } {
+  const nowD = new Date(now);
+  const today = dateStr(nowD);
+  const res: Reservation[] = [];
+  const txns: Txn[] = [];
+
+  const mk = (
+    r: Partial<Reservation> &
+      Pick<Reservation, "slotId" | "slotNumber" | "startTime" | "endTime" | "status" | "driverName" | "vehiclePlate" | "vehicleName">
+  ): Reservation => ({
+    id: uid(),
+    code: resCode(),
+    type: "WALK_IN",
+    demandTier: "NORMAL",
+    serviceFee: TARIFF.walkInFee,
+    parkingFee: 0,
+    overtimeFee: 0,
+    refundAmount: 0,
+    date: today,
+    createdAt: now,
+    ...r,
+  });
+
+  const actives: { off: number; hrs: number; p: number; slot: string }[] = [
+    { off: 176, hrs: 3, p: 0, slot: "A-02" },
+    { off: 154, hrs: 2, p: 1, slot: "A-05" },
+    { off: 132, hrs: 3, p: 2, slot: "A-09" },
+    { off: 121, hrs: 2, p: 3, slot: "A-11" },
+    { off: 103, hrs: 3, p: 4, slot: "A-14" },
+    { off: 88, hrs: 2, p: 5, slot: "A-18" },
+    { off: 74, hrs: 3, p: 6, slot: "B-02" },
+    { off: 61, hrs: 2, p: 7, slot: "B-06" },
+    { off: 47, hrs: 3, p: 8, slot: "B-09" },
+    { off: 35, hrs: 2, p: 9, slot: "B-12" },
+    { off: 22, hrs: 3, p: 10, slot: "B-17" },
+    { off: 12, hrs: 2, p: 11, slot: "B-19" },
+    { off: 5, hrs: 2, p: 4, slot: "B-20" },
+  ];
+  for (const a of actives) {
+    const inAt = now - a.off * MIN;
+    const inD = new Date(inAt);
+    const person = OP_PEOPLE[a.p];
+    const r = mk({
+      ...asSlot(a.slot),
+      startTime: timeStr(inD),
+      endTime: addH(timeStr(inD), a.hrs),
+      status: "CHECKED_IN",
+      driverName: person.name,
+      vehiclePlate: person.plate,
+      vehicleName: person.vehicle,
+      createdAt: inAt,
+      checkedInAt: inAt,
+    });
+    res.push(r);
+    txns.push({ id: uid(), type: "SERVICE_FEE", amount: TARIFF.walkInFee, createdAt: inAt, note: r.code });
+  }
+
+  const holds: { off: number; hrs: number; p: number; slot: string }[] = [
+    { off: 40, hrs: 2, p: 2, slot: "A-12" },
+    { off: 25, hrs: 3, p: 7, slot: "B-04" },
+    { off: 15, hrs: 2, p: 9, slot: "B-10" },
+  ];
+  for (const h of holds) {
+    const startAt = now - h.off * MIN;
+    const startD = new Date(startAt);
+    const person = OP_PEOPLE[h.p];
+    const r = mk({
+      ...asSlot(h.slot),
+      type: "ADVANCE",
+      serviceFee: TARIFF.advanceFee,
+      startTime: timeStr(startD),
+      endTime: addH(timeStr(startD), h.hrs),
+      status: "CONFIRMED",
+      driverName: person.name,
+      vehiclePlate: person.plate,
+      vehicleName: person.vehicle,
+      createdAt: startAt - 10 * MIN,
+    });
+    res.push(r);
+    txns.push({ id: uid(), type: "SERVICE_FEE", amount: TARIFF.advanceFee, createdAt: startAt - 10 * MIN, note: r.code });
+  }
+
+  return { reservations: res, transactions: txns };
+}
+
 /** Weighted check-in hours for the 7-day peak-hours histogram (campus rhythm). */
 const OP_HIST_HOURS = [7, 8, 8, 9, 9, 9, 10, 11, 12, 12, 13, 13, 14, 15, 16, 16, 17, 17, 18];
 const OP_HIST_SLOTS = ["A-03", "A-04", "A-08", "A-11", "A-16", "A-18", "B-04", "B-07", "B-10", "B-14"];
@@ -496,6 +596,11 @@ export const useParkir = create<ParkirState>((set, get) => ({
       color: "Putih",
     },
   ],
+  slotsByCampus: {
+    anggrek: buildSlots(),
+    alamsutera: buildAlamSuteraSlots(),
+    malang: [],
+  },
   slots: buildSlots(),
   reservations: [],
   transactions: [],
@@ -504,7 +609,8 @@ export const useParkir = create<ParkirState>((set, get) => ({
   viewWindow: defaultWindow(),
   campusId: "anggrek",
 
-  selectCampus: (id) => set({ campusId: id }),
+  selectCampus: (id) =>
+    set((s) => ({ campusId: id, slots: s.slotsByCampus[id] ?? [] })),
   setLang: (l) => set({ lang: l }),
   setViewWindow: (w) => set({ viewWindow: w }),
 
@@ -521,6 +627,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
     const now = Date.now();
     if (kind === "operator") {
       const world = seedOperatorWorld(now);
+      const asWorld = seedAlamSuteraWorld(now);
       set({
         signedIn: true,
         user: {
@@ -530,8 +637,8 @@ export const useParkir = create<ParkirState>((set, get) => ({
           memberSince: "Feb 2024",
           role: "OPERATOR",
         },
-        reservations: world.reservations,
-        transactions: world.transactions,
+        reservations: [...world.reservations, ...asWorld.reservations],
+        transactions: [...world.transactions, ...asWorld.transactions],
         walletBalance: 230000,
       });
       return;
@@ -559,7 +666,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
     set({
       signedIn: true,
       user: { ...profiles[kind], role: "USER" },
-      reservations: seedReservations(now),
+      reservations: [...seedReservations(now), ...seedAlamSuteraWorld(now).reservations],
       transactions: seedTxns(now),
       walletBalance: 230000,
     });
@@ -580,9 +687,13 @@ export const useParkir = create<ParkirState>((set, get) => ({
   removeVehicle: (id) => set((s) => ({ vehicles: s.vehicles.filter((v) => v.id !== id) })),
 
   setSlotStatus: (slotId, status) =>
-    set((s) => ({
-      slots: s.slots.map((sl) => (sl.id === slotId ? { ...sl, status } : sl)),
-    })),
+    set((s) => {
+      const next = s.slots.map((sl) => (sl.id === slotId ? { ...sl, status } : sl));
+      return {
+        slots: next,
+        slotsByCampus: { ...s.slotsByCampus, [s.campusId]: next },
+      };
+    }),
 
   book: ({ slotId, slotNumber, type, date, startTime, endTime, vehiclePlate, vehicleName }) => {
     const { walletBalance, lang } = get();
@@ -654,7 +765,8 @@ export const useParkir = create<ParkirState>((set, get) => ({
     const { reservations } = get();
     const target = reservations.find((r) => r.id === id && r.status === "CONFIRMED");
     if (!target) return false;
-    const activeNow = reservations.filter((r) => r.status === "CHECKED_IN").length;
+    const me = get().user.name;
+    const activeNow = reservations.filter((r) => r.status === "CHECKED_IN" && r.driverName === me).length;
     if (activeNow >= MAX_ACTIVE_PARKING) return false;
     set((s) => ({
       reservations: s.reservations.map((r) =>
@@ -706,18 +818,19 @@ export const useParkir = create<ParkirState>((set, get) => ({
   scanSlot: (slotNumberRaw) => {
     const now = Date.now();
     const { slots, reservations, walletBalance } = get();
-    const code = slotNumberRaw.trim().toUpperCase().replace(/^PB-?/, "");
+    const code = slotNumberRaw.trim().toUpperCase().replace(/^(PB|AS|ML)-?/, "");
     const slot = slots.find(
       (s) => s.slotNumber === code || s.slotNumber === code.replace("-", "") || `slot-${code.replace("-", "-")}` === s.id
     );
     if (!slot) return { ok: false as const, reason: "unknown" as const };
     if (slot.status === "MAINTENANCE") return { ok: false as const, reason: "maintenance" as const };
 
-    const activeNow = reservations.filter((r) => r.status === "CHECKED_IN").length;
+    const me = get().user.name;
+    const activeNow = reservations.filter((r) => r.status === "CHECKED_IN" && r.driverName === me).length;
 
     // Own active session on this slot → checkout (reuse checkOut for identical fee logic)
     const active = reservations.find(
-      (r) => r.slotId === slot.id && r.status === "CHECKED_IN"
+      (r) => r.slotId === slot.id && r.status === "CHECKED_IN" && r.driverName === me
     );
     if (active) {
       const out = get().checkOut(active.id);
@@ -728,7 +841,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
 
     // Own confirmed reservation on this slot → check in
     const confirmed = reservations.find(
-      (r) => r.slotId === slot.id && r.status === "CONFIRMED"
+      (r) => r.slotId === slot.id && r.status === "CONFIRMED" && r.driverName === me
     );
     if (confirmed) {
       if (activeNow >= MAX_ACTIVE_PARKING)

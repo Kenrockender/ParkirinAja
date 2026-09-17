@@ -95,8 +95,10 @@ export function HomeView({
   const greet =
     hour < 11 ? t("goodMorning") : hour < 18 ? t("goodAfternoon") : t("goodEvening");
 
-  /** Sedang parkir (max 2) — live counter */
-  const activeCount = reservations.filter((r) => r.status === "CHECKED_IN").length;
+  /** Sedang parkir (max 2) — live counter (own sessions only) */
+  const activeCount = reservations.filter(
+    (r) => r.status === "CHECKED_IN" && r.driverName === user.name
+  ).length;
 
   const levelKey = pct > 66 ? "high" : pct > 33 ? "medium" : "low";
   const levelTone: Record<string, string> = {

@@ -29,7 +29,8 @@ import { QRCodeSVG } from "qrcode.react";
 import { ResStatusPill } from "./Brand";
 import { useParkir } from "@/lib/store";
 import {
-  LOCATION,
+  campusById,
+  campusForSlot,
   TARIFF,
   overtimeFee,
   parkingFee,
@@ -140,7 +141,7 @@ export function TicketView({
           <div className="flex items-end justify-between">
             <div>
               <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                {LOCATION.name}
+                {campusById(campusForSlot(res.slotId)).location}
               </p>
               <p className="tnum mt-1 font-display text-[3.2rem] font-bold leading-none tracking-tight text-gradient-gold">
                 {res.slotNumber}

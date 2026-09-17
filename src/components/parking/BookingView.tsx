@@ -20,9 +20,9 @@ import {
 import { DateGrid, TimeGrid, WindowPicker, fmtDateLabel } from "./WindowPickers";
 import { useParkir } from "@/lib/store";
 import {
+  campusById,
   demandNow,
   DEMAND_TIERS,
-  LOCATION,
   TARIFF,
   fromMinutes,
   rupiah,
@@ -53,6 +53,7 @@ export function BookingView({
   const slots = useParkir((s) => s.slots);
   const reservations = useParkir((s) => s.reservations);
   const book = useParkir((s) => s.book);
+  const campus = campusById(useParkir((s) => s.campusId));
   const toast = useParkir((s) => s.toast);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
 
@@ -154,7 +155,7 @@ export function BookingView({
           <h2 className="font-display text-lg font-bold leading-tight tracking-tight">
             {t("bookSlot")}
           </h2>
-          <p className="text-[11px] text-muted-foreground">{LOCATION.name}</p>
+          <p className="text-[11px] text-muted-foreground">{campus.location}</p>
         </div>
       </div>
 

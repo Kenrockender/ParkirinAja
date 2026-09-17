@@ -5,14 +5,20 @@ import { motion } from "framer-motion";
 import { ChevronRight, Clock3, History as HistoryIcon, Timer, Zap } from "lucide-react";
 import { ResStatusPill } from "./Brand";
 import { useParkir } from "@/lib/store";
-import { rupiah, tr, TARIFF } from "@/lib/parking-data";
+import { campusForSlot, rupiah, tr, TARIFF } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
 
 type Filter = "all" | "upcoming" | "active" | "done";
 
 export function HistoryView({ onOpen }: { onOpen: (id: string) => void }) {
   const lang = useParkir((s) => s.lang);
-  const reservations = useParkir((s) => s.reservations);
+  const user = useParkir((s) => s.user);
+  const allReservations = useParkir((s) => s.reservations);
+  // Only the signed-in user's own sessions — other parkers' live sessions stay out.
+  const reservations = React.useMemo(
+    () => allReservations.filter((r) => r.driverName === user.name),
+    [allReservations, user.name]
+  );
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const [filter, setFilter] = React.useState<Filter>("all");
   const [, tick] = React.useReducer((x: number) => x + 1, 0);
@@ -154,7 +160,7 @@ export function HistoryView({ onOpen }: { onOpen: (id: string) => void }) {
                 {r.status === "CHECKED_IN" && (
                   <div className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-emerald-400/[0.07] px-2.5 py-1.5 text-[10px] font-semibold text-emerald-300">
                     <Timer className="h-3 w-3" />
-                    {t("sessionActive")} · {r.slotNumber} · {LOCATION_SHORT(lang)}
+                    {t("sessionActive")} · {r.slotNumber} · {LOCATION_SHORT(r.slotId)}
                   </div>
                 )}
               </motion.button>
@@ -166,6 +172,9 @@ export function HistoryView({ onOpen }: { onOpen: (id: string) => void }) {
   );
 }
 
-function LOCATION_SHORT(lang: "id" | "en") {
-  return lang === "id" ? "Anggrek L1" : "Anggrek L1";
+function LOCATION_SHORT(slotId: string): string {
+  const campus = campusForSlot(slotId);
+  if (campus === "alamsutera") return "Alam Sutera";
+  if (campus === "malang") return "Malang";
+  return "Anggrek L1";
 }

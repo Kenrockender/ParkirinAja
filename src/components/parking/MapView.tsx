@@ -8,7 +8,6 @@ import { useParkir } from "@/lib/store";
 import {
   campusById,
   campusLabel,
-  LOCATION,
   slotStatusForWindow,
   tr,
   type Slot,
@@ -57,8 +56,11 @@ export function MapView({
               {t("parkingMap")}
             </h2>
             <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-              {campus.available ? `${LOCATION.name} · ` : ""}
-              {campusLabel(campus)}
+              {campus.available
+                ? campus.building
+                  ? `${campus.location} · ${campusLabel(campus)}`
+                  : campus.location
+                : campusLabel(campus)}
               {!campus.available && (
                 <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-primary">
                   {t("campusSoon")}

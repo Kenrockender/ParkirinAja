@@ -116,12 +116,16 @@ export interface Campus {
   city: string;
   /** false → selectable, but the parking layout is still being prepared (Coming Soon). */
   available: boolean;
+  /** Parking location label for map/ticket headers. */
+  location: string;
+  /** Site-plan rendering style: "building" (walls, pillars, lift/WC) or "openlot" (paint-line bays). */
+  layout: "building" | "openlot";
 }
 
 export const CAMPUSES: Campus[] = [
-  { id: "anggrek", name: "BINUS @ Kemanggisan", building: "The Anggrek", city: "Jakarta Barat", available: true },
-  { id: "alamsutera", name: "BINUS @ Alam Sutera", building: null, city: "Tangerang", available: false },
-  { id: "malang", name: "BINUS @ Malang", building: null, city: "Malang", available: false },
+  { id: "anggrek", name: "BINUS @ Kemanggisan", building: "The Anggrek", city: "Jakarta Barat", available: true, location: "Gedung Parkir Anggrek", layout: "building" },
+  { id: "alamsutera", name: "BINUS @ Alam Sutera", building: null, city: "Tangerang", available: true, location: "BINUS @ Alam Sutera · Area Parkir", layout: "openlot" },
+  { id: "malang", name: "BINUS @ Malang", building: null, city: "Malang", available: false, location: "BINUS @ Malang · Area Parkir", layout: "openlot" },
 ];
 
 export function campusById(id: CampusId): Campus {
@@ -131,6 +135,18 @@ export function campusById(id: CampusId): Campus {
 /** One-line label for headers & chips: "BINUS @ Kemanggisan · The Anggrek" */
 export function campusLabel(c: Campus): string {
   return c.building ? `${c.name} · ${c.building}` : c.name;
+}
+
+/** QR payload prefix per campus — keeps physical slot codes unique across campuses. */
+export function campusCodePrefix(id: CampusId): string {
+  return id === "anggrek" ? "PB" : id === "alamsutera" ? "AS" : "ML";
+}
+
+/** Which campus a slotId belongs to ("slot-A-3" → anggrek, "as-A-3" → alamsutera). */
+export function campusForSlot(slotId: string): CampusId {
+  if (slotId.startsWith("as-")) return "alamsutera";
+  if (slotId.startsWith("ml-")) return "malang";
+  return "anggrek";
 }
 
 // ─────────────────────── Dynamic pricing ───────────────────────
@@ -378,6 +394,7 @@ const dict = {
     // map
     parkingMap: "Peta Parkir",
     floorLabel: "LANTAI 1 — GEDUNG PARKIR ANGGREK",
+    floorLabelOpen: "LANTAI 1 — AREA PARKIR",
     slotWord: "slot",
     available: "Kosong",
     reserved: "Terbooking",
@@ -390,6 +407,7 @@ const dict = {
     wcLabel: "WC",
     legend: "Legenda",
     mapNote: "Mobil masuk lewat kanan-atas → pilih slot · Scan QR di slot untuk check-in & keluar",
+    mapNoteOpen: "Mobil masuk lewat gerbang kiri → pilih slot · Keluar lewat gerbang kanan",
     scrollHint: "Geser untuk melihat semua slot",
     // booking
     bookSlot: "Booking Slot",
@@ -571,9 +589,9 @@ const dict = {
     txnLogTitle: "Log Transaksi",
     // slot QR (operator)
     qrSlotsTitle: "QR Slot Parkir",
-    qrSlotsSub: "32 QR unik — satu untuk tiap slot, dipasang permanen",
+    qrSlotsSub: "{n} QR unik — satu untuk tiap slot, dipasang permanen",
     qrPrintAll: "Cetak Semua",
-    qrPrintHint: "A4 · 4 halaman · 8 kartu per halaman",
+    qrPrintHint: "A4 · {p} halaman · 8 kartu per halaman",
     qrDownload: "Unduh PNG",
     qrCardHint: "Scan untuk check-in & keluar",
     qrCodeLabel: "Kode slot",
@@ -684,6 +702,7 @@ const dict = {
     windowLabel: "Time window",
     parkingMap: "Parking Map",
     floorLabel: "LEVEL 1 — ANGGREK PARKING BUILDING",
+    floorLabelOpen: "LEVEL 1 — PARKING AREA",
     slotWord: "slots",
     available: "Free",
     reserved: "Booked",
@@ -696,6 +715,7 @@ const dict = {
     wcLabel: "WC",
     legend: "Legend",
     mapNote: "Cars enter top-right → pick a slot · Scan the slot QR to check in & out",
+    mapNoteOpen: "Cars enter through the left gate → pick a bay · Exit through the right gate",
     scrollHint: "Swipe to see all slots",
     bookSlot: "Book Slot",
     bookType: "Booking type",
@@ -869,9 +889,9 @@ const dict = {
     txnLogTitle: "Transaction Log",
     // slot QR (operator)
     qrSlotsTitle: "Slot QR Codes",
-    qrSlotsSub: "32 unique QRs — one per slot, mounted permanently",
+    qrSlotsSub: "{n} unique QRs — one per slot, mounted permanently",
     qrPrintAll: "Print All",
-    qrPrintHint: "A4 · 4 pages · 8 cards per page",
+    qrPrintHint: "A4 · {p} pages · 8 cards per page",
     qrDownload: "Download PNG",
     qrCardHint: "Scan to check in & check out",
     qrCodeLabel: "Slot code",
@@ -928,6 +948,33 @@ export function tr(lang: Lang, key: DictKey): string {
 export const ROW_A = 18;
 export const ROW_B_LEFT = 8;
 export const ROW_B_RIGHT = 6;
+
+/** Alam Sutera open lot: 20 + 20 bays, no pillars/walls — paint-line divisions. */
+export const AS_ROW_A = 20;
+export const AS_ROW_B = 20;
+
+export function buildAlamSuteraSlots(): Slot[] {
+  const slots: Slot[] = [];
+  for (let i = 0; i < AS_ROW_A; i++) {
+    slots.push({
+      id: `as-A-${i + 1}`,
+      slotNumber: `A-${String(i + 1).padStart(2, "0")}`,
+      rowLabel: "A",
+      colIndex: i,
+      status: i === 6 ? "MAINTENANCE" : "ACTIVE", // A-07
+    });
+  }
+  for (let i = 0; i < AS_ROW_B; i++) {
+    slots.push({
+      id: `as-B-${i + 1}`,
+      slotNumber: `B-${String(i + 1).padStart(2, "0")}`,
+      rowLabel: "B",
+      colIndex: i,
+      status: i === 14 ? "MAINTENANCE" : "ACTIVE", // B-15
+    });
+  }
+  return slots;
+}
 
 export function buildSlots(): Slot[] {
   const slots: Slot[] = [];

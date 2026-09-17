@@ -145,3 +145,33 @@ Verification:
 
 Stage Summary:
 - v12b delivered: ParkingMap is now fully theme-aware — white paper-blueprint in light mode, original deep-navy glass in dark mode (slots, walls, lane, LIFT/WC/ENTRANCE/EXIT/RAMP, fades, ambient tints all dual-styled via dark: variants + CSS vars). No logic/i18n changes. Dev-server ops notes: use scripts/daemon-dev.sh for persistent restarts; stale CSS after globals.css edits requires full restart.
+
+---
+Task ID: 11
+Agent: Super Z (main agent)
+Task: v13 per user request — build BINUS @ Alam Sutera parking layout "same as Anggrek but A=20 & B=20, no divider walls, entrance left / exit right"; user required AskUserQuestion first.
+
+Clarifications (8 answers): thin paint-line bay dividers (no pillars/walls); layout like Anggrek (A top / lane / B bottom); MASUK box at left lane end + KELUAR at right lane end; NO LIFT/WC/RAMP (pure open lot); campus ACTIVATED immediately; realistic seed occupancy (~40% → NORMAL); same dynamic pricing engine per own campus; location label "BINUS @ Alam Sutera · Area Parkir".
+
+Work Log:
+- parking-data.ts: Campus +{location, layout:"building"|"openlot"}; CAMPUSES alamsutera available:true (malang stays coming soon); +campusCodePrefix (PB/AS/ML) +campusForSlot(slotId) helpers; +AS_ROW_A/AS_ROW_B=20 +buildAlamSuteraSlots() (ids as-A-# / as-B-#, maintenance A-07 & B-15 → 38 active); i18n +floorLabelOpen/mapNoteOpen (ID+EN, {n}/{p} templates for qrSlotsSub/qrPrintHint)
+- store.ts: +slotsByCampus Record<CampusId,Slot[]>; selectCampus swaps slots; setSlotStatus syncs both; +seedAlamSuteraWorld() — 13 other-parker CHECKED_IN walk-ins + 3 CONFIRMED advance holds overlapping now = 16/38 = 42% NORMAL (fee txns included for operator revenue); customer & operator signIn merge the AS world; OWNERSHIP scoping: checkIn/scanSlot activeNow counts + own-session finds now require driverName === user.name (other parkers no longer block MAX_ACTIVE or trigger false checkout); scanSlot strips PB|AS|ML prefixes
+- ParkingMap.tsx: dual layout render — openlot branch (flat bay strips with divide-x thin paint lines + rounded container, OPENLOT_FILL per status, no walls/pillars; lane row = MASUK gate (emerald, ArrowRight "arah masuk") | flex-1 JALUR MOBIL | KELUAR gate (slate)); building branch untouched; floor/note labels per layout
+- MapView/BookingView: campus.location (AS header "BINUS @ Alam Sutera · Area Parkir"); TicketView: campusById(campusForSlot(res.slotId)).location; HistoryView: ownership filter (driverName === user.name) + LOCATION_SHORT per campus
+- HomeView/ScannerView/ProfileView: own-session filters (activeCount, mine quick-actions, sessions stat); ScannerView mine also campus-scoped (slot numbers repeat across campuses — Anggrek A-03 session no longer leaks into AS scanner)
+- OperatorView: reservations + transactions scoped to active campus (slot-id set; txns by res code, top-ups kept for feed); slotQrPayload → campus prefix (AS-A-01); +slotLocation(slot) for QR dialog/print cards/print sheet; QR tab counts dynamic ({n} QR unik, pages = ceil(n/8))
+- page.tsx OperatorShell: header sub-line → campus switcher button (MapPin + "OPERATOR · Alam Sutera/The Anggrek" + ArrowLeftRight), click toggles anggrek ⇄ alamsutera
+
+Bugs found & fixed during verify: (1) divide-x missing on openlot strips → bays had no paint lines; (2) ScannerView mine list not campus-scoped; (3) QR tab "32 QR unik" hardcoded → dynamic {n}/{p}
+
+Verification:
+- tsc (scoped src) + eslint clean; scripts/test-as.mts 18/18 (40 slots, as- ids, no collision, A-07/B-15 maintenance, campus helpers, 16/38=42% NORMAL, empty lot LOW)
+- Customer e2e (430×900): picker shows 3 campuses (AS now AKTIF); AS home "Cari Slot 22 slot kosong" = 40−16−2 ✓; openlot map: 40 bays, 0 pillars, 0 walls, MASUK x=46 left / KELUAR x=878 right, 38 border-right dividers, floor "LANTAI 1 — AREA PARKIR"; booking A-01 → NORMAL banner "42% parkir terisi" + Rp20.000/Rp30.000 (no strikethrough), pay → wallet 230.000→210.000 exact; ticket shows AS location + A-01; scanner rate strip "Tarif walk-in saat ini: Rp30.000 NORMAL", typed code "AS-A-03" → walk-in OK, wallet →180.000 exact; Riwayat count 6 (own only, zero stranger names)
+- Operator e2e: header switcher "OPERATOR · ALAM SUTERA"; Harga Dinamis NORMAL Rp20K/Rp30K 42%; monitor 13/3/22/2; QR tab "40 QR unik · A4 · 5 halaman"; QR dialog code AS-A-01 + AS location; switcher → THE ANGGREK (LOW Rp15K/Rp25K) and back
+- Regression: Anggrek map intact (32 bays, 9 pillars, 2 walls, LIFT/WC/RAMP/MASUK; 29/32 free, A-03 occupied, A-14/B-11 maintenance); EN toggle labels correct (LEVEL 1 — ANGGREK PARKING BUILDING / 29 slots free)
+- Zero page errors, zero console errors/warnings across all flows
+- VLM: full AS map 8/10 (open-lot + thin dividers + gates confirmed), compact 8/10, operator 8-9/10, QR dialog 9/10
+- Screenshots: scripts/shots/v13-as-home-compact.png, v13-as-map-full.png, v13-as-operator.png, v13-as-qr-dialog.png; checks: scripts/test-as.mts + scripts/vlm-v13-check.ts
+
+Stage Summary:
+- v13 delivered: Alam Sutera campus fully activated with its own open-lot layout (A20/B20, paint-line dividers, left entrance / right exit), realistic 42% NORMAL world, campus-scoped customer & operator views, per-campus QR codes (AS-*) & locations, operator campus switcher; dynamic pricing follows each campus independently. Malang remains Coming Soon pending layout data.

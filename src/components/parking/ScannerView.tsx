@@ -46,7 +46,14 @@ export function ScannerView({
   const free = slots.filter(
     (s) => slotStatusForWindow(s, reservations, win) === "AVAILABLE"
   );
-  const mine = reservations.filter((r) => ["CONFIRMED", "CHECKED_IN"].includes(r.status));
+  const user = useParkir((s) => s.user);
+  const mine = reservations.filter(
+    (r) =>
+      ["CONFIRMED", "CHECKED_IN"].includes(r.status) &&
+      r.driverName === user.name &&
+      // scope to the active campus — slot numbers repeat across campuses
+      slots.some((s) => s.id === r.slotId)
+  );
 
   if (!open) return null;
 

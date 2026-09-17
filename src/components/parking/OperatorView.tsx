@@ -48,6 +48,9 @@ import {
 import { ResStatusPill } from "./Brand";
 import { useParkir } from "@/lib/store";
 import {
+  campusById,
+  campusCodePrefix,
+  campusForSlot,
   dateStr,
   demandNow,
   DEMAND_TIERS,
@@ -84,7 +87,12 @@ function nowWindow() {
 
 /** Payload encoded in every physical slot QR — parseable by the customer scanner. */
 export function slotQrPayload(slot: Slot): string {
-  return `PB-${slot.slotNumber}`;
+  return `${campusCodePrefix(campusForSlot(slot.id))}-${slot.slotNumber}`;
+}
+
+/** Campus-aware location line for QR cards & the print sheet. */
+export function slotLocation(slot: Slot): string {
+  return campusById(campusForSlot(slot.id)).location;
 }
 
 const TILE: Record<SlotStatus, { box: string; num: string }> = {
@@ -229,8 +237,20 @@ export function OperatorView() {
   const lang = useParkir((s) => s.lang);
   const user = useParkir((s) => s.user);
   const slots = useParkir((s) => s.slots);
-  const reservations = useParkir((s) => s.reservations);
-  const transactions = useParkir((s) => s.transactions);
+  const allReservations = useParkir((s) => s.reservations);
+  const allTransactions = useParkir((s) => s.transactions);
+  // Scope the console to the active campus — other campuses' worlds stay out.
+  const campusSlotIds = React.useMemo(() => new Set(slots.map((s) => s.id)), [slots]);
+  const reservations = React.useMemo(
+    () => allReservations.filter((r) => campusSlotIds.has(r.slotId)),
+    [allReservations, campusSlotIds]
+  );
+  const transactions = React.useMemo(() => {
+    // Fee/refund txns are tied to a reservation code (campus-scoped);
+    // blank-note txns are wallet top-ups — kept for the activity feed.
+    const codes = new Set(reservations.map((r) => r.code));
+    return allTransactions.filter((tx) => tx.note === "" || codes.has(tx.note));
+  }, [allTransactions, reservations]);
   const forceCheckOut = useParkir((s) => s.forceCheckOut);
   const extendSession = useParkir((s) => s.extendSession);
   const manualCheckIn = useParkir((s) => s.manualCheckIn);
@@ -603,7 +623,9 @@ export function OperatorView() {
                 {slots.length}
               </span>
             </div>
-            <p className="mb-3 text-[10.5px] leading-relaxed text-muted-foreground">{t("qrSlotsSub")}</p>
+            <p className="mb-3 text-[10.5px] leading-relaxed text-muted-foreground">
+              {t("qrSlotsSub").replace("{n}", String(slots.length))}
+            </p>
 
             <button
               onClick={() => window.print()}
@@ -611,7 +633,9 @@ export function OperatorView() {
             >
               <Printer className="h-4 w-4" />
               {t("qrPrintAll")}
-              <span className="font-semibold opacity-70">· {t("qrPrintHint")}</span>
+              <span className="font-semibold opacity-70">
+                · {t("qrPrintHint").replace("{p}", String(Math.ceil(slots.length / 8)))}
+              </span>
             </button>
 
             <div className="mt-3 grid grid-cols-3 gap-2 md:grid-cols-4 lg:grid-cols-6">
@@ -686,7 +710,7 @@ export function OperatorView() {
         </DialogContent>
       </Dialog>
 
-      {/* ── print-only sheet: 32 QR cards · A4 · 8 cards/page (2×4) ── */}
+      {/* ── print-only sheet: campus QR cards · A4 · 8 cards/page (2×4) ── */}
       <div id="qr-print-sheet" className="hidden">
         <div className="mb-[4mm] flex items-end justify-between border-b-[0.3mm] border-slate-300 pb-[2mm]">
           <div>
@@ -694,7 +718,7 @@ export function OperatorView() {
               {t("appName")} — {t("qrSlotsTitle")}
             </p>
             <p className="text-[8pt] text-slate-600">
-              {t("qrPrintBrand")} · {t("qrLocation")} ·{" "}
+              {t("qrPrintBrand")} · {(slots[0] && slotLocation(slots[0])) || ""} ·{" "}
               {new Date().toLocaleDateString(lang === "id" ? "id-ID" : "en-US", {
                 day: "numeric",
                 month: "long",
@@ -1893,7 +1917,7 @@ function QrSlotDetailDialog({ slot, onClose }: { slot: Slot; onClose: () => void
           {slot.slotNumber}
         </DialogTitle>
         <DialogDescription className="text-center text-xs text-muted-foreground">
-          {t("qrLocation")}
+          {slotLocation(slot)}
         </DialogDescription>
       </DialogHeader>
 
@@ -1961,7 +1985,7 @@ function QrPrintCard({ slot }: { slot: Slot }) {
         <p className="tnum mt-[1.5mm] text-[9pt] font-bold text-slate-700">
           {lang === "id" ? "Kode" : "Code"}: {slotQrPayload(slot)}
         </p>
-        <p className="text-[7.5pt] leading-snug text-slate-600">{t("qrLocation")}</p>
+        <p className="text-[7.5pt] leading-snug text-slate-600">{slotLocation(slot)}</p>
         <p className="mt-[2mm] inline-block rounded-[1.5mm] bg-[#FFD60A] px-[2mm] py-[0.8mm] text-[7pt] font-black uppercase tracking-wide text-[#070B16]">
           {t("qrCardHint")}
         </p>

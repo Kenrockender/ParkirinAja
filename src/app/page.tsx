@@ -7,6 +7,7 @@ import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import {
+  ArrowLeftRight,
   CheckCircle2,
   History as HistoryIcon,
   Info,
@@ -272,6 +273,9 @@ function Shell() {
 function OperatorShell() {
   const lang = useParkir((s) => s.lang);
   const setLang = useParkir((s) => s.setLang);
+  const campusId = useParkir((s) => s.campusId);
+  const selectCampus = useParkir((s) => s.selectCampus);
+  const campus = campusById(campusId);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const { theme, setTheme } = useTheme();
 
@@ -284,9 +288,18 @@ function OperatorShell() {
             <p className="truncate font-display text-[13.5px] font-bold leading-tight tracking-tight">
               {t("appName")} <span className="hidden text-muted-foreground/60 sm:inline">· Command Center</span>
             </p>
-            <p className="truncate text-[9px] font-semibold uppercase tracking-[0.14em] text-binus-bright">
-              {t("operatorBadge")} · {t("floorLabel").split("—")[0].trim()}
-            </p>
+            <button
+              onClick={() => selectCampus(campusId === "anggrek" ? "alamsutera" : "anggrek")}
+              aria-label={lang === "id" ? "Ganti kampus" : "Switch campus"}
+              title={campusLabel(campus)}
+              className="mt-0.5 flex max-w-full items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-binus-bright transition hover:text-primary"
+            >
+              <MapPin className="h-2.5 w-2.5 shrink-0" />
+              <span className="truncate">
+                {t("operatorBadge")} · {campus.building ?? campus.name.replace("BINUS @ ", "")}
+              </span>
+              <ArrowLeftRight className="h-2.5 w-2.5 shrink-0 opacity-60" />
+            </button>
           </div>
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

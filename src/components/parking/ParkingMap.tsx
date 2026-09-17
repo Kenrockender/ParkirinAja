@@ -1,14 +1,17 @@
 "use client";
 /**
- * ParkingMap — modern minimal "seat-map" style site plan of Anggrek L1.
- * Row A (18 bays) + ENTRANCE · lane · Row B (14 bays with LIFT/WC) · ramp.
- * Theme-aware: white "paper blueprint" in light mode, deep navy glass in dark mode.
+ * ParkingMap — site plan of the active campus, theme-aware.
+ * Two layouts:
+ *  · "building" (Anggrek)  — walled deck: pillars every 3 bays, LIFT/WC, right-side entrance/exit + ramp.
+ *  · "openlot"  (Alam Sutera) — open lot: A(20) · drive lane · B(20), no pillars/walls,
+ *    thin paint-line bay dividers, ENTRANCE gate at the left lane end, EXIT gate at the right.
  */
 import React from "react";
 import { cn } from "@/lib/utils";
 import {
   ArrowDown,
   ArrowLeft,
+  ArrowRight,
   CarFront,
   Clock3,
   DoorOpen,
@@ -17,6 +20,7 @@ import {
 } from "lucide-react";
 import {
   ROW_B_LEFT,
+  campusById,
   slotStatusForWindow,
   type Slot,
   type SlotStatus,
@@ -52,16 +56,27 @@ const STYLE: Record<
   },
 };
 
+/** Open-lot bay fills — bays sit adjacent, separated by thin paint lines (divide-x). */
+const OPENLOT_FILL: Record<SlotStatus, string> = {
+  AVAILABLE:
+    "bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-400/[0.07] dark:hover:bg-emerald-400/[0.14] cursor-pointer",
+  RESERVED: "bg-amber-50 dark:bg-amber-400/[0.05]",
+  OCCUPIED: "bg-red-50 dark:bg-red-400/[0.04]",
+  MAINTENANCE: "bg-slate-100 dark:bg-slate-500/[0.08]",
+};
+
 function SlotBay({
   slot,
   status,
   onSlotPress,
   compact,
+  openlot,
 }: {
   slot: Slot;
   status: SlotStatus;
   onSlotPress?: (s: Slot) => void;
   compact?: boolean;
+  openlot?: boolean;
 }) {
   const st = STYLE[status];
   const disabled = status !== "AVAILABLE";
@@ -73,9 +88,11 @@ function SlotBay({
       aria-label={`Slot ${slot.slotNumber} — ${status}`}
       title={`${slot.slotNumber} · ${status}`}
       className={cn(
-        "group relative flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border transition-all duration-200",
+        "group relative flex shrink-0 flex-col items-center justify-center gap-1 transition-all duration-200",
         compact ? "h-12 w-11" : "h-16 w-[52px]",
-        st.box,
+        openlot
+          ? cn("rounded-none", OPENLOT_FILL[status])
+          : cn("rounded-xl border", st.box),
         disabled && "cursor-default",
         !disabled && "active:scale-95"
       )}
@@ -114,16 +131,36 @@ function RowSlots({
   onSlotPress,
   compact,
   liftWC,
+  openlot,
 }: {
   slots: Slot[];
   onSlotPress?: (s: Slot) => void;
   compact?: boolean;
   liftWC?: boolean;
+  openlot?: boolean;
 }) {
   const lang = useParkir((s) => s.lang);
   const reservations = useParkir((s) => s.reservations);
   const win = useParkir((s) => s.viewWindow);
   const slotH = compact ? 48 : 64;
+
+  // Open lot — one continuous strip of bays divided by thin paint lines.
+  if (openlot) {
+    return (
+      <div className="flex items-stretch overflow-hidden rounded-xl border border-slate-300 divide-x divide-slate-300 dark:border-white/[0.12] dark:divide-white/[0.12]">
+        {slots.map((s) => (
+          <SlotBay
+            key={s.id}
+            slot={s}
+            status={slotStatusForWindow(s, reservations, win)}
+            onSlotPress={onSlotPress}
+            compact={compact}
+            openlot
+          />
+        ))}
+      </div>
+    );
+  }
 
   const chunks: React.ReactNode[] = [];
   let chunk: React.ReactNode[] = [];
@@ -194,6 +231,8 @@ export function ParkingMap({
   const slots = useParkir((s) => s.slots);
   const reservations = useParkir((s) => s.reservations);
   const win = useParkir((s) => s.viewWindow);
+  const campus = campusById(useParkir((s) => s.campusId));
+  const openlot = campus.layout === "openlot";
 
   const rowA = slots.filter((s) => s.rowLabel === "A");
   const rowB = slots.filter((s) => s.rowLabel === "B");
@@ -221,7 +260,7 @@ export function ParkingMap({
       {/* header strip */}
       <div className="mb-3 flex items-center justify-between">
         <span className="text-[9px] font-bold tracking-[0.18em] text-slate-400 dark:text-muted-foreground">
-          {tr(lang, "floorLabel")}
+          {tr(lang, openlot ? "floorLabelOpen" : "floorLabel")}
         </span>
         <span className="tnum rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300">
           {free}/{total} {tr(lang, "slotWord")}
@@ -231,6 +270,54 @@ export function ParkingMap({
       <div className="relative">
         <div className="slim-scroll overflow-x-auto pb-1">
           <div style={{ width: "max-content", minWidth: "100%" }}>
+          {openlot ? (
+            /* ── open lot: Row A · lane with gates · Row B — no walls, no pillars ── */
+            <div className="flex flex-col gap-1.5">
+              <RowSlots slots={rowA} onSlotPress={onSlotPress} compact={compact} openlot />
+
+              {/* lane + MASUK (left gate) + KELUAR (right gate) */}
+              <div className="flex items-stretch gap-1.5">
+                <div
+                  className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-emerald-400 bg-emerald-50 px-2 dark:border-emerald-400/40 dark:bg-emerald-400/[0.06]"
+                  style={{ width: compact ? 54 : 70, height: slotH }}
+                >
+                  <LogIn className={cn("text-emerald-600 dark:text-emerald-300", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
+                  <span className="text-[8px] font-bold tracking-wider text-emerald-700 dark:text-emerald-300">
+                    {tr(lang, "entranceLabel")}
+                  </span>
+                  {!compact && (
+                    <span className="flex items-center gap-0.5 text-[7px] font-semibold text-emerald-500/80 dark:text-emerald-300/60">
+                      <ArrowRight className="h-2.5 w-2.5" /> {lang === "id" ? "arah masuk" : "way in"}
+                    </span>
+                  )}
+                </div>
+                <div className="relative flex flex-1 items-center overflow-hidden rounded-lg bg-slate-100 dark:bg-white/[0.03]">
+                  <div className="w-full border-t-2 border-dashed border-slate-300 dark:border-white/[0.08]" />
+                  <span className="absolute left-1/2 -translate-x-1/2 rounded-full bg-white px-2 py-0.5 text-[7.5px] font-semibold tracking-[0.2em] text-slate-400 dark:bg-background/80 dark:text-muted-foreground/60">
+                    {lang === "id" ? "JALUR MOBIL" : "DRIVE LANE"}
+                  </span>
+                </div>
+                <div
+                  className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-slate-400 bg-slate-50 px-2 dark:border-slate-400/40 dark:bg-white/[0.05]"
+                  style={{ width: compact ? 50 : 66, height: slotH }}
+                >
+                  <DoorOpen className={cn("text-slate-500 dark:text-slate-300", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
+                  <span className="text-[8px] font-bold tracking-wider text-slate-500 dark:text-slate-300">
+                    {tr(lang, "exitLabel")}
+                  </span>
+                  {!compact && (
+                    <span className="flex items-center gap-0.5 text-[7px] font-semibold text-slate-400 dark:text-slate-400/70">
+                      <ArrowRight className="h-2.5 w-2.5" /> {lang === "id" ? "arah keluar" : "way out"}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <RowSlots slots={rowB} onSlotPress={onSlotPress} compact={compact} openlot />
+            </div>
+          ) : (
+            /* ── building deck (Anggrek): walls, pillars, facilities, right-side gates ── */
+            <>
           {/* top wall */}
           <div className="mb-1.5 h-1.5 rounded-full bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]" />
 
@@ -286,6 +373,8 @@ export function ParkingMap({
 
           {/* bottom wall */}
           <div className="mt-1.5 h-1.5 rounded-full bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]" />
+            </>
+          )}
             </div>
         </div>
         {/* scroll affordance fades */}
@@ -302,7 +391,7 @@ export function ParkingMap({
       {/* footer note */}
       {!compact && (
         <p className="mt-3 text-center text-[10px] leading-snug text-slate-400 dark:text-muted-foreground/70">
-          {tr(lang, "mapNote")}
+          {tr(lang, openlot ? "mapNoteOpen" : "mapNote")}
         </p>
       )}
     </div>

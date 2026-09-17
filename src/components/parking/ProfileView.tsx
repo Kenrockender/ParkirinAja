@@ -49,8 +49,9 @@ export function ProfileView() {
     .join("")
     .toUpperCase();
 
-  const sessions = reservations.filter((r) =>
-    ["COMPLETED", "CHECKED_IN"].includes(r.status)
+  const sessions = reservations.filter(
+    (r) =>
+      ["COMPLETED", "CHECKED_IN"].includes(r.status) && r.driverName === user.name
   ).length;
 
   return (
