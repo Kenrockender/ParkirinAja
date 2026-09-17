@@ -70,6 +70,33 @@ export interface Txn {
   note: string;
 }
 
+// ─────────────────────────── Notifications ───────────────────────────
+
+export type NotifKind =
+  | "welcome"
+  | "booking"
+  | "session_start"
+  | "session_end_soon"
+  | "overtime"
+  | "extended"
+  | "receipt"
+  | "refund"
+  | "promo";
+
+/**
+ * Structured notification — title/body are rendered per-language at display
+ * time (params + kind → i18n template), so the EN/ID toggle stays correct.
+ */
+export interface Notif {
+  id: string;
+  /** Dedupe key for auto-events (e.g. "end:<resId>") — pushes with an existing key are ignored. */
+  key?: string;
+  kind: NotifKind;
+  params: Record<string, string | number>;
+  createdAt: number;
+  read: boolean;
+}
+
 export interface Ad {
   id: string;
   title: string;
@@ -577,7 +604,7 @@ const dict = {
     btnExtend: "+1 Jam",
     btnForce: "Akhiri",
     extendOk: "Window parkir diperpanjang 1 jam",
-    extendFail: "Sudah jam tutup — tidak bisa diperpanjang",
+    extendFail: "Tidak bisa memperpanjang — slot sudah dipesan atau sudah jam tutup",
     forceOk: "Sesi diakhiri — biaya dicatat",
     manualInOk: "Check-in manual berhasil",
     recapTitle: "Ringkasan Hari Ini",
@@ -598,6 +625,42 @@ const dict = {
     qrLocation: "Gedung Parkir Anggrek · Lantai 1",
     qrPrintBrand: "Tempel QR ini di tiap slot parkir",
     qrSaved: "QR diunduh",
+    // extend session (customer ticket)
+    extendBtn: "Perpanjang +1 Jam",
+    extendHint: "Tambahan Rp5.000/jam dihitung dalam tarif parkir saat keluar — bebas lembur",
+    // notification center
+    notifTitle: "Notifikasi",
+    notifEmpty: "Belum ada notifikasi",
+    notifEmptySub: "Update sesi parkir, struk, dan promo akan muncul di sini",
+    notifMarkAll: "Tandai dibaca",
+    notifClearAll: "Hapus semua",
+    notifUnreadAria: "Notifikasi belum dibaca",
+    notifJustNow: "baru saja",
+    notifMinAgo: "{m} mnt lalu",
+    notifHourAgo: "{h} jam lalu",
+    notifDayAgo: "{d} hari lalu",
+    notifKWelcomeTitle: "Selamat datang di Parkir Binus",
+    notifKWelcomeBody: "Update sesi parkir, struk, dan promo akan muncul di sini.",
+    notifKBookingTitle: "Booking dikonfirmasi",
+    notifKBookingBody: "Slot {slot} ({code}) — jangan lupa check-in di lokasi.",
+    notifKSessionStartTitle: "Sesi parkir dimulai",
+    notifKSessionStartBody: "Slot {slot} aktif hingga {end}. Selamat parkir!",
+    notifKSessionEndSoonTitle: "Sesi segera berakhir",
+    notifKSessionEndSoonBody: "Slot {slot} berakhir dalam {minutes} menit — perpanjang atau keluar tepat waktu.",
+    notifKOvertimeTitle: "Lembur berjalan",
+    notifKOvertimeBody: "Sesi {slot} melewati jadwal — Rp5.000/jam ditagih saat keluar.",
+    notifKExtendedTitle: "Sesi diperpanjang",
+    notifKExtendedBody: "Slot {slot} kini berlaku hingga {end}.",
+    notifKReceiptTitle: "Sesi selesai",
+    notifKReceiptBody: "Slot {slot} selesai — total {total}. Rincian tersimpan di Riwayat.",
+    notifKRefundTitle: "Refund diterima",
+    notifKRefundBody: "{amount} dikembalikan untuk {code}.",
+    notifKPromoTitle: "Promo kampus",
+    notifKPromoBody: "Kopi Rp15.000 di Fusion Cafe — tunjukkan pass parkirmu.",
+    // operator csv export
+    csvExport: "Ekspor CSV",
+    csvExportTitle: "Laporan Operasional",
+    csvExported: "Laporan CSV diunduh",
     // campus picker
     campusCurrent: "Kampus aktif",
     campusPick: "Pilih Kampus",
@@ -877,7 +940,7 @@ const dict = {
     btnExtend: "+1 Hour",
     btnForce: "End",
     extendOk: "Parking window extended by 1 hour",
-    extendFail: "At closing time — cannot extend",
+    extendFail: "Cannot extend — slot is booked or past closing time",
     forceOk: "Session ended — fees recorded",
     manualInOk: "Manual check-in successful",
     recapTitle: "Today's Recap",
@@ -898,6 +961,42 @@ const dict = {
     qrLocation: "Anggrek Parking Building · Level 1",
     qrPrintBrand: "Mount this QR on each parking slot",
     qrSaved: "QR downloaded",
+    // extend session (customer ticket)
+    extendBtn: "Extend +1 Hour",
+    extendHint: "+Rp5,000/hour is billed within the parking fee at checkout — no overtime",
+    // notification center
+    notifTitle: "Notifications",
+    notifEmpty: "No notifications yet",
+    notifEmptySub: "Session updates, receipts and promos will appear here",
+    notifMarkAll: "Mark all read",
+    notifClearAll: "Clear all",
+    notifUnreadAria: "Unread notifications",
+    notifJustNow: "just now",
+    notifMinAgo: "{m}m ago",
+    notifHourAgo: "{h}h ago",
+    notifDayAgo: "{d}d ago",
+    notifKWelcomeTitle: "Welcome to Parkir Binus",
+    notifKWelcomeBody: "Parking session updates, receipts and promos will appear here.",
+    notifKBookingTitle: "Booking confirmed",
+    notifKBookingBody: "Slot {slot} ({code}) — don't forget to check in on site.",
+    notifKSessionStartTitle: "Parking started",
+    notifKSessionStartBody: "Slot {slot} is yours until {end}. Happy parking!",
+    notifKSessionEndSoonTitle: "Session ending soon",
+    notifKSessionEndSoonBody: "Slot {slot} ends in {minutes} minutes — extend or leave on time.",
+    notifKOvertimeTitle: "Overtime running",
+    notifKOvertimeBody: "Slot {slot} is past its window — Rp5,000/hour charged at checkout.",
+    notifKExtendedTitle: "Session extended",
+    notifKExtendedBody: "Slot {slot} now runs until {end}.",
+    notifKReceiptTitle: "Session complete",
+    notifKReceiptBody: "Slot {slot} finished — total {total}. Details saved in History.",
+    notifKRefundTitle: "Refund received",
+    notifKRefundBody: "{amount} refunded for {code}.",
+    notifKPromoTitle: "Campus promo",
+    notifKPromoBody: "Rp15,000 coffee at Fusion Cafe — show your parking pass.",
+    // operator csv export
+    csvExport: "Export CSV",
+    csvExportTitle: "Operations Report",
+    csvExported: "CSV report downloaded",
     // campus picker
     campusCurrent: "Active campus",
     campusPick: "Select Campus",

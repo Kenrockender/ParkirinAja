@@ -13,6 +13,7 @@ import {
   LogOut,
   Ticket as TicketIcon,
   Timer,
+  TimerReset,
   XCircle,
 } from "lucide-react";
 import {
@@ -54,6 +55,8 @@ export function TicketView({
   const cancelReservation = useParkir((s) => s.cancelReservation);
   const checkIn = useParkir((s) => s.checkIn);
   const checkOut = useParkir((s) => s.checkOut);
+  const extendSession = useParkir((s) => s.extendSession);
+  const user = useParkir((s) => s.user);
   const toast = useParkir((s) => s.toast);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -285,13 +288,40 @@ export function TicketView({
         )}
 
         {res.status === "CHECKED_IN" && (
-          <button
-            onClick={() => setCheckoutOpen(true)}
-            className="glow-primary flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground transition-all hover:scale-[1.01] active:scale-[0.98]"
-          >
-            <LogOut className="h-4.5 w-4.5" />
-            {t("checkOutBtn")}
-          </button>
+          <>
+            <button
+              onClick={() => setCheckoutOpen(true)}
+              className="glow-primary flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground transition-all hover:scale-[1.01] active:scale-[0.98]"
+            >
+              <LogOut className="h-4.5 w-4.5" />
+              {t("checkOutBtn")}
+            </button>
+            {res.driverName === user.name && (
+              <div>
+                <button
+                  onClick={() => {
+                    const ok = extendSession(res.id, 1);
+                    toast(
+                      ok
+                        ? `${t("extendOk")} — ${
+                            useParkir.getState().reservations.find((r) => r.id === res.id)?.endTime ?? res.endTime
+                          }`
+                        : t("extendFail"),
+                      ok ? "success" : "error"
+                    );
+                    if (ok) onUpdate(useParkir.getState().reservations.find((r) => r.id === res.id)!);
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-400/25 bg-sky-400/[0.06] py-3 text-sm font-semibold text-sky-400 transition hover:bg-sky-400/10"
+                >
+                  <TimerReset className="h-4 w-4" />
+                  {t("extendBtn")}
+                </button>
+                <p className="mt-1.5 text-center text-[10px] leading-snug text-muted-foreground">
+                  {t("extendHint")}
+                </p>
+              </div>
+            )}
+          </>
         )}
 
         {["COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED"].includes(res.status) && (

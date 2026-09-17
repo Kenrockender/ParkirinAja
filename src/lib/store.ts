@@ -8,13 +8,16 @@ import {
   buildAlamSuteraSlots,
   buildBekasiSlots,
   buildSlots,
+  type Notif,
   dateStr,
   demandNow,
   DEMAND_TIERS,
+  overlaps,
   overtimeFee,
   parkingFee,
   refundAmount,
   resCode,
+  rupiah,
   TARIFF,
   timeStr,
   toMinutes,
@@ -53,6 +56,9 @@ interface Toast {
   tone: "success" | "error" | "info";
 }
 
+/** Push a notification (dedupe by key — auto-events reuse keys like "end:<resId>"). */
+type PushNotif = (n: Pick<Notif, "kind" | "params"> & { key?: string; createdAt?: number; read?: boolean }) => void;
+
 interface ParkirState {
   lang: Lang;
   signedIn: boolean;
@@ -66,6 +72,8 @@ interface ParkirState {
   transactions: Txn[];
   walletBalance: number;
   toasts: Toast[];
+  /** Customer notification center (structured — rendered per-language at display time). */
+  notifications: Notif[];
   viewWindow: TimeWindow;
   /** Active campus — Coming Soon campuses are selectable but gated in the UI. */
   campusId: CampusId;
@@ -75,6 +83,10 @@ interface ParkirState {
   setViewWindow: (w: TimeWindow) => void;
   toast: (message: string, tone?: Toast["tone"]) => void;
   dismissToast: (id: string) => void;
+
+  pushNotif: PushNotif;
+  markNotifsRead: () => void;
+  clearNotifs: () => void;
 
   signIn: (kind: "student" | "general" | "operator" | "microsoft") => void;
   signOut: () => void;
@@ -707,6 +719,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
   transactions: [],
   walletBalance: 0,
   toasts: [],
+  notifications: [],
   viewWindow: defaultWindow(),
   campusId: "anggrek",
 
@@ -723,6 +736,28 @@ export const useParkir = create<ParkirState>((set, get) => ({
     }, 3800);
   },
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+
+  pushNotif: (n) =>
+    set((s) => {
+      if (n.key && s.notifications.some((x) => x.key === n.key)) return s;
+      return {
+        notifications: [
+          {
+            id: uid(),
+            key: n.key,
+            kind: n.kind,
+            params: n.params,
+            createdAt: n.createdAt ?? Date.now(),
+            read: n.read ?? false,
+          },
+          ...s.notifications,
+        ],
+      };
+    }),
+
+  markNotifsRead: () => set((s) => ({ notifications: s.notifications.map((n) => ({ ...n, read: true })) })),
+
+  clearNotifs: () => set({ notifications: [] }),
 
   signIn: (kind) => {
     const now = Date.now();
@@ -765,16 +800,64 @@ export const useParkir = create<ParkirState>((set, get) => ({
         memberSince: "Jan 2026",
       },
     };
+    const mine = [
+      ...seedReservations(now),
+      ...seedAlamSuteraWorld(now).reservations,
+      ...seedBekasiWorld(now).reservations,
+    ];
+    // Believable notification inbox, derived from the seeded world.
+    const me = profiles[kind].name;
+    const activeOwn = mine.find((r) => r.driverName === me && r.status === "CHECKED_IN");
+    const upcomingOwn = mine.find((r) => r.driverName === me && r.status === "CONFIRMED" && r.date >= dateStr(new Date(now)));
+    const completedOwn = [...mine]
+      .filter((r) => r.driverName === me && r.status === "COMPLETED" && r.checkedOutAt)
+      .sort((a, b) => (b.checkedOutAt ?? 0) - (a.checkedOutAt ?? 0))[0];
+    const seedNotifs: Notif[] = [
+      ...(activeOwn
+        ? [{
+            id: uid(), key: `seed-start:${activeOwn.id}`, kind: "session_start" as const,
+            params: { slot: activeOwn.slotNumber, end: activeOwn.endTime },
+            createdAt: activeOwn.checkedInAt ?? now, read: true,
+          }]
+        : []),
+      ...(upcomingOwn
+        ? [{
+            id: uid(), key: `seed-book:${upcomingOwn.id}`, kind: "booking" as const,
+            params: { slot: upcomingOwn.slotNumber, code: upcomingOwn.code },
+            createdAt: upcomingOwn.createdAt, read: true,
+          }]
+        : []),
+      ...(completedOwn
+        ? [{
+            id: uid(), kind: "receipt" as const,
+            params: {
+              slot: completedOwn.slotNumber,
+              total: rupiah(completedOwn.parkingFee + completedOwn.overtimeFee + completedOwn.serviceFee),
+            },
+            createdAt: completedOwn.checkedOutAt ?? now - DAY, read: true,
+          }]
+        : []),
+      {
+        id: uid(), key: "seed-promo", kind: "promo" as const,
+        params: {}, createdAt: now - 3 * HOUR, read: false,
+      },
+      {
+        id: uid(), key: "seed-welcome", kind: "welcome" as const,
+        params: {}, createdAt: now - 26 * HOUR, read: true,
+      },
+    ];
     set({
       signedIn: true,
       user: { ...profiles[kind], role: "USER" },
-      reservations: [...seedReservations(now), ...seedAlamSuteraWorld(now).reservations, ...seedBekasiWorld(now).reservations],
+      reservations: mine,
       transactions: seedTxns(now),
       walletBalance: 230000,
+      notifications: seedNotifs,
     });
   },
 
-  signOut: () => set({ signedIn: false, reservations: [], transactions: [], walletBalance: 0 }),
+  signOut: () =>
+    set({ signedIn: false, reservations: [], transactions: [], walletBalance: 0, notifications: [] }),
 
   addVehicle: (v) =>
     set((s) => ({
@@ -838,6 +921,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
       transactions: [txn, ...s.transactions],
       walletBalance: s.walletBalance - fee,
     }));
+    get().pushNotif({ kind: "booking", params: { slot: slotNumber, code: res.code } });
     void lang;
     return res;
   },
@@ -859,6 +943,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
         ...s.transactions,
       ],
     }));
+    if (refund > 0) get().pushNotif({ kind: "refund", params: { amount: rupiah(refund), code: target.code } });
     void lang;
   },
 
@@ -875,6 +960,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
         r.id === id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
       ),
     }));
+    get().pushNotif({ kind: "session_start", params: { slot: target.slotNumber, end: target.endTime } });
     return true;
   },
 
@@ -914,6 +1000,10 @@ export const useParkir = create<ParkirState>((set, get) => ({
         ...s.transactions,
       ],
     }));
+    get().pushNotif({
+      kind: "receipt",
+      params: { slot: active.slotNumber, total: rupiah(pFee + oFee) },
+    });
     return { ok: true as const, parkingFee: pFee, overtimeFee: oFee };
   },
 
@@ -1003,6 +1093,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
         ...s.transactions,
       ],
     }));
+    get().pushNotif({ kind: "session_start", params: { slot: slot.slotNumber, end: res.endTime } });
     return { ok: true as const, kind: "walkin" as const, reservation: res };
   },
 
@@ -1043,9 +1134,26 @@ export const useParkir = create<ParkirState>((set, get) => ({
     const endMin = toMinutes(target.endTime);
     const next = Math.min(endMin + hours * 60, TARIFF.closeHour * 60);
     if (next <= endMin) return false;
+    // Conflict guard — don't extend into another reservation's window on the same slot.
+    const nextWin: TimeWindow = { date: target.date, startTime: target.endTime, endTime: fromMinutes(next) };
+    const clash = get().reservations.some(
+      (r) =>
+        r.id !== id &&
+        r.slotId === target.slotId &&
+        (r.status === "CONFIRMED" || r.status === "CHECKED_IN") &&
+        overlaps(
+          { date: r.date, startTime: r.startTime, endTime: r.endTime },
+          nextWin
+        )
+    );
+    if (clash) return false;
     set((s) => ({
       reservations: s.reservations.map((r) => (r.id === id ? { ...r, endTime: fromMinutes(next) } : r)),
     }));
+    get().pushNotif({
+      kind: "extended",
+      params: { slot: target.slotNumber, end: fromMinutes(next) },
+    });
     return true;
   },
 

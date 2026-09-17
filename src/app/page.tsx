@@ -29,6 +29,7 @@ import { ProfileView } from "@/components/parking/ProfileView";
 import { ScannerView } from "@/components/parking/ScannerView";
 import { MapView } from "@/components/parking/MapView";
 import { OperatorView } from "@/components/parking/OperatorView";
+import { NotifBell, NotifSheet, useSessionAlerts } from "@/components/parking/NotifCenter";
 import { useParkir } from "@/lib/store";
 import { campusById, campusLabel, rupiah, tr } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
@@ -82,7 +83,11 @@ function Shell() {
   const [view, setView] = React.useState<View>({ name: "tabs" });
   const [mapOpen, setMapOpen] = React.useState(false);
   const [scanOpen, setScanOpen] = React.useState(false);
+  const [notifOpen, setNotifOpen] = React.useState(false);
   const toast = useParkir((s) => s.toast);
+
+  // Live "session ending soon" / overtime alerts for the customer's own sessions.
+  useSessionAlerts();
 
   const navTabs: { k: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { k: "home", label: t("navHome"), icon: MapPin },
@@ -99,7 +104,7 @@ function Shell() {
     <div className="ambient flex min-h-dvh flex-col">
       {/* ── header ── */}
       <header className="sticky top-0 z-30 border-b border-border/50 bg-background/70 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 w-full max-w-[430px] items-center gap-2.5 px-4">
+        <div className="mx-auto flex h-14 w-full max-w-[430px] items-center gap-2 px-4">
           <LogoMark size={34} />
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-[13.5px] font-bold leading-tight tracking-tight">
@@ -107,6 +112,7 @@ function Shell() {
             </p>
             <p className="truncate text-[9px] text-muted-foreground">{campusLabel(campus)}</p>
           </div>
+          <NotifBell onOpen={() => setNotifOpen(true)} />
           <button
             onClick={() => {
               setView({ name: "tabs" });
@@ -263,6 +269,8 @@ function Shell() {
           if (resId) setView({ name: "ticket", reservationId: resId });
         }}
       />
+
+      <NotifSheet open={notifOpen} onClose={() => setNotifOpen(false)} />
 
       <Toasts />
     </div>

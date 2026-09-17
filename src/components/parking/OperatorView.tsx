@@ -378,6 +378,87 @@ export function OperatorView() {
   }, [query, reservations]);
 
   // ── operator actions ──
+  /** Campus-scoped operations report → CSV download (Excel-friendly, UTF-8 BOM). */
+  function exportCsv() {
+    const resByCode = new Map(reservations.map((r) => [r.code, r]));
+    const esc = (v: string | number) => `"${String(v).replaceAll('"', '""')}"`;
+    const dt = (ms: number) => {
+      const d = new Date(ms);
+      const p = (n: number) => String(n).padStart(2, "0");
+      return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    };
+    const loc = lang === "id" ? "id-ID" : "en-US";
+    const id = lang === "id";
+    const header = id
+      ? ["Waktu", "Kode", "Kategori", "Slot", "Pengemudi", "Jumlah (Rp)"]
+      : ["Time", "Code", "Category", "Slot", "Driver", "Amount (Rp)"];
+    const rows = [...transactions]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((tx) => {
+        const r = tx.note ? resByCode.get(tx.note) : undefined;
+        return [
+          dt(tx.createdAt),
+          tx.note || "-",
+          tr(lang, TXN_META[tx.type].labelKey),
+          r?.slotNumber ?? "-",
+          r?.driverName ?? "-",
+          String(tx.amount),
+        ];
+      });
+    // summary block
+    const byType = {} as Record<Txn["type"], { n: number; total: number }>;
+    for (const tx of transactions) {
+      byType[tx.type] = byType[tx.type] ?? { n: 0, total: 0 };
+      byType[tx.type].n++;
+      byType[tx.type].total += tx.amount;
+    }
+    const revenue = (types: Txn["type"][]) =>
+      types.reduce((s, ty) => s + (byType[ty]?.total ?? 0), 0);
+    const nowStats = { AVAILABLE: 0, RESERVED: 0, OCCUPIED: 0, MAINTENANCE: 0 } as Record<SlotStatus, number>;
+    slots.forEach((s) => nowStats[slotStatusForWindow(s, reservations, nowWindow())]++);
+    const summary: (string | number)[][] = [
+      ["", "", "", "", "", ""],
+      [id ? "RINGKASAN" : "SUMMARY", "", "", "", "", ""],
+      [id ? "Kategori" : "Category", id ? "Transaksi" : "Txns", id ? "Total (Rp)" : "Total (Rp)", "", "", ""],
+      ...(Object.keys(TXN_META) as Txn["type"][]).map((ty) => [
+        tr(lang, TXN_META[ty].labelKey),
+        String(byType[ty]?.n ?? 0),
+        String(byType[ty]?.total ?? 0),
+        "",
+        "",
+        "",
+      ]),
+      [id ? "TOTAL PENDAPATAN" : "TOTAL REVENUE", "", String(revenue(["SERVICE_FEE", "PARKING_FEE", "OVERTIME"])), "", "", ""],
+      ["", "", "", "", "", ""],
+      [id ? "Sesi aktif" : "Active sessions", String(activeSessions.length), id ? "Okupansi" : "Occupancy", `${nowStats.OCCUPIED}/${slots.length}`, "", ""],
+    ];
+    const campusName = campusById(useParkir.getState().campusId).name;
+    const meta = [
+      [`${t("appName")} — ${t("csvExportTitle")}`],
+      [id ? "Kampus" : "Campus", campusName, slotLocation(slots[0])],
+      [id ? "Dibuat" : "Generated", new Date().toLocaleString(loc)],
+      [""],
+    ];
+    const csv =
+      "\uFEFF" +
+      [...meta, header, ...rows, ...summary].map((r) => r.map(esc).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const stamp = (() => {
+      const d = new Date();
+      const p = (n: number) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+    })();
+    a.download = `laporan-parkirbinus-${useParkir.getState().campusId}-${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast(t("csvExported"), "success");
+  }
+
   function doForce(r: Reservation) {
     const out = forceCheckOut(r.id);
     toast(out.ok ? t("forceOk") : t("error"), out.ok ? "success" : "error");
@@ -682,7 +763,12 @@ export function OperatorView() {
               longest={longest}
             />
             <CompletedCard className="md:col-span-7" lang={lang} list={completedToday} />
-            <TxnLogCard className="md:col-span-12" lang={lang} txns={todayTxns} />
+            <TxnLogCard
+              className="md:col-span-12"
+              lang={lang}
+              txns={todayTxns}
+              onExport={() => exportCsv()}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -1665,7 +1751,17 @@ const TXN_META: Record<
 };
 
 /** Today's transaction log. */
-function TxnLogCard({ className, lang, txns }: { className?: string; lang: string; txns: Txn[] }) {
+function TxnLogCard({
+  className,
+  lang,
+  txns,
+  onExport,
+}: {
+  className?: string;
+  lang: string;
+  txns: Txn[];
+  onExport?: () => void;
+}) {
   const t = (k: Parameters<typeof tr>[1]) => tr(lang as "id" | "en", k);
   return (
     <motion.section
@@ -1674,14 +1770,25 @@ function TxnLogCard({ className, lang, txns }: { className?: string; lang: strin
       transition={{ duration: 0.35, delay: 0.1 }}
       className={cn("glass rounded-3xl p-4", className)}
     >
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-1.5 font-display text-sm font-bold tracking-tight">
           <Wallet className="h-4 w-4 text-primary" />
           {t("txnLogTitle")}
         </h3>
-        <span className="tnum rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">
-          {txns.length}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="tnum rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">
+            {txns.length}
+          </span>
+          {onExport && (
+            <button
+              onClick={onExport}
+              className="flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary transition hover:bg-primary/20"
+            >
+              <Download className="h-3 w-3" />
+              {t("csvExport")}
+            </button>
+          )}
+        </div>
       </div>
 
       {txns.length === 0 ? (

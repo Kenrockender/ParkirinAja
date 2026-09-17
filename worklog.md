@@ -218,3 +218,29 @@ Work Log:
 
 Stage Summary:
 - v15 delivered: printable QR signage sets for Alam Sutera (40) & Bekasi (50) matching the Anggrek design (navy QR, PARKIR BINUS brand, yellow scan badge, dashed cut guides); payloads verified machine-decodable (AS-*/BKS-*), A4 PDFs print-ready. Feature roadmap recommendations + clarifying questions presented to user for the next round.
+
+---
+Task ID: 14
+Agent: Super Z (main agent)
+Task: v16 — user selected (via AskUserQuestion) 3 core features for this round: Pusat Notifikasi (bell + inbox), Perpanjang Sesi (+1 jam on active ticket), Ekspor Laporan CSV (operator). Queued for future rounds: wayfinding, EV/disability slots, ANPR, broadcast promo, manual slot control. (Also delivered earlier in this turn: QR signage sets for Alam Sutera & Bekasi — Task 13/v15.)
+
+Work Log:
+- parking-data.ts: +NotifKind/Notif types (structured: kind+params+key+read — rendered per-language at display time so EN/ID toggle stays correct); +i18n ~50 keys (notif center UI, 9 kind templates × title/body ID+EN, time-ago, extend session, csv export); unified extendOk/extendFail wording (extendOk existed for operator — de-duplicated, wording now covers conflict + closing-time reasons)
+- store.ts: +notifications state, pushNotif (dedupe by key), markNotifsRead, clearNotifs; signOut clears; customer signIn seeds 5 believable notifs derived from seeded world (session_start A-03, booking B-05, receipt B-02, promo unread, welcome); event hooks in book (booking), cancelReservation (refund), checkIn (session_start), checkOut (receipt), scanSlot walk-in (session_start), extendSession (extended); extendSession +conflict guard (another CONFIRMED/CHECKED_IN overlapping the extended window on the same slot → reject); imports +overlaps, +rupiah
+- NotifCenter.tsx (new): notifText/timeAgo i18n renderers, KIND_ICON/KIND_TONE maps, useSessionAlerts (30s interval: ≤30min left → session_end_soon, past end → overtime; dedupe keys end:/ot:), NotifBell (badge unread count), NotifSheet (right slide-in inbox: mark all read, clear all, empty state, per-item icon/title/body/time-ago/unread dot)
+- page.tsx Shell: bell in header (gap-2.5→2 to fit), NotifSheet, useSessionAlerts mounted
+- TicketView.tsx: CHECKED_IN own session → "Perpanjang +1 Jam" button + hint ("tambahan Rp5.000/jam dihitung dalam tarif parkir saat keluar — bebas lembur"); onClick extends 1h, toasts with new endTime, onUpdate refreshes
+- OperatorView.tsx: exportCsv() — campus-scoped ops report CSV (meta block: campus+location+timestamp; header Waktu/Kode/Kategori/Slot/Pengemudi/Jumlah; rows resolve res code→slot+driver; RINGKASAN block: per-type totals, TOTAL PENDAPATAN, active sessions + occupancy); UTF-8 BOM (EF BB BF verified via blob.arrayBuffer), Blob download, filename laporan-parkirbinus-<campus>-<YYYYMMDD-HHMM>.csv; TxnLogCard +onExport prop → "Ekspor CSV" button in header
+
+Bug found & fixed during verify: NotifSheet v1 used AnimatePresence exit → React 19 dev "NotFoundError: removeChild" on every sheet close (isolated via agent-browser errors; note the errors list is stale across navigations — verify with a FRESH browser). Fix: sheet stays MOUNTED and slides via CSS transform/opacity + pointer-events (no unmount), backdrop+aside aria-hidden toggled. Fresh-browser re-test: 0 page errors across open/close/reopen cycles. (An earlier "DialogContent requires DialogTitle" console error turned out to be the Next.js dev-overlay's own dialog — not reproducible from a clean reload.)
+
+Verification:
+- tsc 0 errors src/, eslint clean, test-as.mts 33/33
+- Customer e2e (fresh browser, 430×900): badge=1 (unread promo) on sign-in; sheet lists 5 seeded notifs with correct ID templates + time-ago (50 mnt/4 mnt/1 hari/3 jam lalu); EN toggle → all items re-render in English ("Booking confirmed", "Happy parking!") proving structured templates; Mark all read clears badge; Clear all empties to empty-state; booking A-01 (LOW Rp15.000) → "Booking confirmed" notif (EN); check-in → "Parking started"; Extend +1 Hour → window 10:28→11:28 + toast + "Session extended … until 11:28" notif; checkout A-03 → receipt notif "total Rp20.000"; walk-in PB-A-02 scan → session starts, wallet exact 170.000 (230−15−20−25); badge counts accumulate correctly (1→4)
+- Operator e2e: Riwayat tab shows "Ekspor CSV" button in Log Transaksi header; blob captured via patched createObjectURL → 46 lines, ID headers, rows resolve code→slot+driver (PB-QTK9619→B-08 Hana Salsabila), TOTAL PENDAPATAN 685.000 (Anggrek-scoped), filename laporan-parkirbinus-anggrek-20260917-0831.csv, BOM bytes EF BB BF present
+- Regression: campus picker → Bekasi 28/50 slot kosong + bell present; Alam Sutera switch OK; A-01 history item shows extended window 08:28–11:28; zero console errors/warnings, zero page errors (fresh browser)
+- VLM: notif sheet 8/10, ticket extend 9/10, operator CSV 9/10
+- Screenshots: scripts/shots/v16-notif-sheet.png, v16-ticket-extend.png, v16-op-csv.png; checks: scripts/vlm-v16-check.ts
+
+Stage Summary:
+- v16 delivered: (1) Notification center — bell + slide-in inbox, structured bilingual templates, 5 seeded + live event notifs (booking/check-in/walk-in/receipt/refund/extend) + 30s session-ending/overtime detector with dedupe; (2) Extend session — +1h on own active ticket with conflict & closing-time guards, extra hour billed naturally via parkingFee at checkout (no double charge); (3) Operator CSV export — campus-scoped operations report with per-type summary, Excel-friendly BOM, verified end-to-end. Queued for next rounds: wayfinding, EV/disability slots, ANPR, broadcast promo, manual slot control.
