@@ -175,6 +175,6 @@ export function HistoryView({ onOpen }: { onOpen: (id: string) => void }) {
 function LOCATION_SHORT(slotId: string): string {
   const campus = campusForSlot(slotId);
   if (campus === "alamsutera") return "Alam Sutera";
-  if (campus === "malang") return "Malang";
+  if (campus === "bekasi") return "Bekasi";
   return "Anggrek L1";
 }

@@ -289,7 +289,11 @@ function OperatorShell() {
               {t("appName")} <span className="hidden text-muted-foreground/60 sm:inline">· Command Center</span>
             </p>
             <button
-              onClick={() => selectCampus(campusId === "anggrek" ? "alamsutera" : "anggrek")}
+              onClick={() =>
+                selectCampus(
+                  campusId === "anggrek" ? "alamsutera" : campusId === "alamsutera" ? "bekasi" : "anggrek"
+                )
+              }
               aria-label={lang === "id" ? "Ganti kampus" : "Switch campus"}
               title={campusLabel(campus)}
               className="mt-0.5 flex max-w-full items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-binus-bright transition hover:text-primary"

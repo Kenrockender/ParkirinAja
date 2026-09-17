@@ -6,6 +6,7 @@
 import { create } from "zustand";
 import {
   buildAlamSuteraSlots,
+  buildBekasiSlots,
   buildSlots,
   dateStr,
   demandNow,
@@ -293,6 +294,12 @@ function asSlot(slotNumber: string): { slotId: string; slotNumber: string } {
   return { slotId: `as-${row}-${Number(num)}`, slotNumber };
 }
 
+/** slotNumber → {slotId, slotNumber} pair matching buildBekasiSlots() id format. */
+function bkSlot(slotNumber: string): { slotId: string; slotNumber: string } {
+  const [row, num] = slotNumber.split("-");
+  return { slotId: `bk-${row}-${Number(num)}`, slotNumber };
+}
+
 /**
  * Alam Sutera live world — other parkers only, so the open lot opens at a
  * believable ~42% occupancy (16 of 38 active bays) → NORMAL demand tier:
@@ -366,6 +373,100 @@ function seedAlamSuteraWorld(now: number): { reservations: Reservation[]; transa
     const person = OP_PEOPLE[h.p];
     const r = mk({
       ...asSlot(h.slot),
+      type: "ADVANCE",
+      serviceFee: TARIFF.advanceFee,
+      startTime: timeStr(startD),
+      endTime: addH(timeStr(startD), h.hrs),
+      status: "CONFIRMED",
+      driverName: person.name,
+      vehiclePlate: person.plate,
+      vehicleName: person.vehicle,
+      createdAt: startAt - 10 * MIN,
+    });
+    res.push(r);
+    txns.push({ id: uid(), type: "SERVICE_FEE", amount: TARIFF.advanceFee, createdAt: startAt - 10 * MIN, note: r.code });
+  }
+
+  return { reservations: res, transactions: txns };
+}
+
+/**
+ * Bekasi live world — other parkers only, so the open lot opens at a
+ * believable ~42% occupancy (20 of 48 active bays) → NORMAL demand tier:
+ * 17 walk-in sessions active now + 3 advance holds overlapping now.
+ */
+function seedBekasiWorld(now: number): { reservations: Reservation[]; transactions: Txn[] } {
+  const nowD = new Date(now);
+  const today = dateStr(nowD);
+  const res: Reservation[] = [];
+  const txns: Txn[] = [];
+
+  const mk = (
+    r: Partial<Reservation> &
+      Pick<Reservation, "slotId" | "slotNumber" | "startTime" | "endTime" | "status" | "driverName" | "vehiclePlate" | "vehicleName">
+  ): Reservation => ({
+    id: uid(),
+    code: resCode(),
+    type: "WALK_IN",
+    demandTier: "NORMAL",
+    serviceFee: TARIFF.walkInFee,
+    parkingFee: 0,
+    overtimeFee: 0,
+    refundAmount: 0,
+    date: today,
+    createdAt: now,
+    ...r,
+  });
+
+  const actives: { off: number; hrs: number; p: number; slot: string }[] = [
+    { off: 189, hrs: 3, p: 0, slot: "A-02" },
+    { off: 172, hrs: 2, p: 1, slot: "A-04" },
+    { off: 155, hrs: 3, p: 2, slot: "A-09" },
+    { off: 138, hrs: 2, p: 3, slot: "A-11" },
+    { off: 121, hrs: 3, p: 4, slot: "A-14" },
+    { off: 104, hrs: 2, p: 5, slot: "A-18" },
+    { off: 87, hrs: 3, p: 6, slot: "A-21" },
+    { off: 70, hrs: 2, p: 7, slot: "A-24" },
+    { off: 168, hrs: 3, p: 8, slot: "B-02" },
+    { off: 151, hrs: 2, p: 9, slot: "B-05" },
+    { off: 134, hrs: 3, p: 10, slot: "B-08" },
+    { off: 117, hrs: 2, p: 11, slot: "B-11" },
+    { off: 99, hrs: 3, p: 0, slot: "B-17" },
+    { off: 82, hrs: 2, p: 1, slot: "B-19" },
+    { off: 64, hrs: 3, p: 2, slot: "B-22" },
+    { off: 41, hrs: 2, p: 3, slot: "B-24" },
+    { off: 18, hrs: 2, p: 4, slot: "B-25" },
+  ];
+  for (const a of actives) {
+    const inAt = now - a.off * MIN;
+    const inD = new Date(inAt);
+    const person = OP_PEOPLE[a.p];
+    const r = mk({
+      ...bkSlot(a.slot),
+      startTime: timeStr(inD),
+      endTime: addH(timeStr(inD), a.hrs),
+      status: "CHECKED_IN",
+      driverName: person.name,
+      vehiclePlate: person.plate,
+      vehicleName: person.vehicle,
+      createdAt: inAt,
+      checkedInAt: inAt,
+    });
+    res.push(r);
+    txns.push({ id: uid(), type: "SERVICE_FEE", amount: TARIFF.walkInFee, createdAt: inAt, note: r.code });
+  }
+
+  const holds: { off: number; hrs: number; p: number; slot: string }[] = [
+    { off: 44, hrs: 2, p: 5, slot: "A-12" },
+    { off: 27, hrs: 3, p: 7, slot: "B-06" },
+    { off: 13, hrs: 2, p: 9, slot: "B-20" },
+  ];
+  for (const h of holds) {
+    const startAt = now - h.off * MIN;
+    const startD = new Date(startAt);
+    const person = OP_PEOPLE[h.p];
+    const r = mk({
+      ...bkSlot(h.slot),
       type: "ADVANCE",
       serviceFee: TARIFF.advanceFee,
       startTime: timeStr(startD),
@@ -599,7 +700,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
   slotsByCampus: {
     anggrek: buildSlots(),
     alamsutera: buildAlamSuteraSlots(),
-    malang: [],
+    bekasi: buildBekasiSlots(),
   },
   slots: buildSlots(),
   reservations: [],
@@ -628,6 +729,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
     if (kind === "operator") {
       const world = seedOperatorWorld(now);
       const asWorld = seedAlamSuteraWorld(now);
+      const bkWorld = seedBekasiWorld(now);
       set({
         signedIn: true,
         user: {
@@ -637,8 +739,8 @@ export const useParkir = create<ParkirState>((set, get) => ({
           memberSince: "Feb 2024",
           role: "OPERATOR",
         },
-        reservations: [...world.reservations, ...asWorld.reservations],
-        transactions: [...world.transactions, ...asWorld.transactions],
+        reservations: [...world.reservations, ...asWorld.reservations, ...bkWorld.reservations],
+        transactions: [...world.transactions, ...asWorld.transactions, ...bkWorld.transactions],
         walletBalance: 230000,
       });
       return;
@@ -666,7 +768,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
     set({
       signedIn: true,
       user: { ...profiles[kind], role: "USER" },
-      reservations: [...seedReservations(now), ...seedAlamSuteraWorld(now).reservations],
+      reservations: [...seedReservations(now), ...seedAlamSuteraWorld(now).reservations, ...seedBekasiWorld(now).reservations],
       transactions: seedTxns(now),
       walletBalance: 230000,
     });
@@ -818,7 +920,7 @@ export const useParkir = create<ParkirState>((set, get) => ({
   scanSlot: (slotNumberRaw) => {
     const now = Date.now();
     const { slots, reservations, walletBalance } = get();
-    const code = slotNumberRaw.trim().toUpperCase().replace(/^(PB|AS|ML)-?/, "");
+    const code = slotNumberRaw.trim().toUpperCase().replace(/^(PB|AS|BKS)-?/, "");
     const slot = slots.find(
       (s) => s.slotNumber === code || s.slotNumber === code.replace("-", "") || `slot-${code.replace("-", "-")}` === s.id
     );

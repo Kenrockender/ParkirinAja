@@ -175,3 +175,46 @@ Verification:
 
 Stage Summary:
 - v13 delivered: Alam Sutera campus fully activated with its own open-lot layout (A20/B20, paint-line dividers, left entrance / right exit), realistic 42% NORMAL world, campus-scoped customer & operator views, per-campus QR codes (AS-*) & locations, operator campus switcher; dynamic pricing follows each campus independently. Malang remains Coming Soon pending layout data.
+
+---
+Task ID: 12
+Agent: Super Z (main agent)
+Task: v14 per user request — "ganti binus malang dengan bekasi. untuk petanya samakan saja sama yang alam sutera" (replace BINUS @ Malang with BINUS @ Bekasi, map same open-lot style as Alam Sutera).
+
+Clarifications (6 answers): 25+25 = 50 bays (bigger than AS); ACTIVATED immediately; ~42% NORMAL occupancy; QR prefix "BKS"; 2 maintenance bays (A-07 & B-15, same as AS); label "BINUS @ Bekasi" / city "Kota Bekasi" / location "BINUS @ Bekasi · Area Parkir".
+
+Work Log:
+- parking-data.ts: CampusId "malang"→"bekasi" everywhere; CAMPUSES bekasi entry (available:true, city "Kota Bekasi", layout openlot); campusCodePrefix → "BKS"; campusForSlot "ml-"→"bk-" prefix; +BK_ROW_A/BK_ROW_B=25 +buildBekasiSlots() (ids bk-A-#/bk-B-#, maintenance A-07 & B-15 → 48 active)
+- store.ts: +bkSlot() helper; +seedBekasiWorld() — 17 other-parker CHECKED_IN walk-ins (offsets 189→18 min, hrs 2-3) + 3 CONFIRMED advance holds (A-12/B-06/B-20) = 20/48 ≈ 42% NORMAL, fee txns included; slotsByCampus.bekasi = buildBekasiSlots(); operator & customer signIn merge the BK world; scanSlot prefix strip regex PB|AS|ML → PB|AS|BKS
+- HistoryView: LOCATION_SHORT malang→"Bekasi"
+- page.tsx OperatorShell: campus switcher now CYCLES 3 campuses (anggrek→alamsutera→bekasi→anggrek) instead of 2-way toggle
+- scripts/test-as.mts: updated malang check + new Bekasi section (50 slots, 25/25 rows, bk- ids, no collision, A-07/B-15 maintenance, BKS prefix, campusForSlot, 48 active, 20/48=42% NORMAL, empty lot LOW)
+- Bug fixed during edit: literal "\n" accidentally injected in seedBekasiWorld mk() — caught & patched before verify
+
+Verification:
+- tsc: 0 errors in src/ (project-wide errors are pre-existing noise in examples/skills/upload dirs); eslint clean; test-as.mts 33/33 (18 AS + 15 BK)
+- Customer e2e (430×900): picker shows 3 campuses all AKTIF (Bekasi replaces Malang, "Kota Bekasi"); Bekasi home "28 slot kosong" = 50−20−2 exact; openlot map: 2 divide-x strips of 25+25 bays, 0 pillars, MASUK x=56 left / KELUAR x=1104 right, floor "LANTAI 1 — AREA PARKIR"; booking A-01 → NORMAL (Advance Rp20.000/Walk-in Rp30.000), pay → wallet 230.000→210.000 exact; ticket "BINUS @ BEKASI · AREA PARKIR" + A-01; scanner rate strip "Tarif walk-in saat ini: Rp30.000 NORMAL", typed "BKS-A-03" → walk-in OK, wallet →180.000 exact; Riwayat own-only, walk-in labeled "Sesi parkir aktif · A-03 · Bekasi" beside own Anggrek A-03 "Anggrek L1"
+- Operator e2e: campus persists across sign-out/in; switcher full cycle verified Anggrek→Alam Sutera→Bekasi; Bekasi console "Sedang di dalam 17 / Terbooking 3 / Perawatan 2 / Kosong 28", Harga Dinamis NORMAL 42% Rp20K/Rp30K; QR tab "50 QR unik" + "Cetak Semua · A4 · 7 halaman" (50/8 ceil); QR dialog code "BKS-A-01" + "BINUS @ Bekasi · Area Parkir"
+- Regression: Anggrek map intact (32 bays, 9 pillars, LIFT/WC/RAMP present, home 29/32 free, operator LOW tier); Alam Sutera home "22/40 slots free" (40−16−2); EN labels all correct ("Find a slot", "Select Campus"); zero page errors, zero console errors/warnings across all flows
+- VLM: Bekasi map 9/10 (open-lot, gates, thin dividers confirmed), QR dialog 9/10 (BKS-A-01 crisp), home EN 7/10 (only viewport fold crop of compact map — same as v13, not a defect)
+- Screenshots: scripts/shots/v14-bk-map.png, v14-bk-home-en.png, v14-bk-qr-dialog.png; checks: scripts/test-as.mts + scripts/vlm-v14-check.ts
+
+Stage Summary:
+- v14 delivered: BINUS @ Malang fully replaced by BINUS @ Bekasi — active open-lot campus (A25/B25 paint-line bays, MASUK left/KELUAR right, no walls/pillars), realistic 42% NORMAL world (17 walk-ins + 3 holds / 48 active), BKS-prefixed QR codes, Bekasi labels in history/ticket/operator, operator switcher now cycles all 3 campuses. All three campuses (Anggrek building, Alam Sutera openlot, Bekasi openlot) verified live with exact pricing math.
+
+---
+Task ID: 13
+Agent: Super Z (main agent)
+Task: v15 per user request — "qrnya tolong bikinin juga untuk bekasi dan alam sutera" + asked for feature/function improvement recommendations. (Previous turn's AskUserQuestion batch was never answered — user re-sent the same message; proceeded with the unambiguous QR part.)
+
+Work Log:
+- Found prior pattern: scripts/gen_qr_slots.py + download/qr-slot/ (Anggrek, PB-*, 32 QR: PNG + A4 PDF + ZIP + README)
+- New parameterized generator scripts/gen_qr_campus.py: CAMPUSES config (prefix/rows/location/folder), dynamic QR box_size (payload length differs — BKS- = 9 chars → module count probed then scaled to ~567 px), campus-specific PDF footer + README template
+- Generated download/qr-slot-alam-sutera/: 40 PNG (QR-A-01…QR-B-20), ParkirBinus-QR-Slot-AlamSutera-A4-Print.pdf (5 hlm), PNG ZIP, README
+- Generated download/qr-slot-bekasi/: 50 PNG (QR-A-01…QR-B-25), ParkirBinus-QR-Slot-Bekasi-A4-Print.pdf (7 hlm), PNG ZIP, README
+- download/README.md rewritten as a deliverables index (3 campus QR folders)
+- Verifier scripts/verify_qr_campus.py: PNG counts, naming, OpenCV QRCodeDetector decode spot-checks (AS-A-01/AS-A-07/AS-B-20/BKS-A-01/BKS-A-07/BKS-B-25 all decode exactly), pdfinfo page counts (5 & 7), ZIP entry counts + integrity — 18/18 PASS
+- VLM checks: Bekasi card B-25 9/10 (texts readable, no overflow, crisp QR), AS PDF page 1 9/10 (2×4 grid, cut guides, A-01..A-08, footer), Bekasi PDF last page 7/7 9/10 (exactly 2 cards B-24/B-25 + footer)
+
+Stage Summary:
+- v15 delivered: printable QR signage sets for Alam Sutera (40) & Bekasi (50) matching the Anggrek design (navy QR, PARKIR BINUS brand, yellow scan badge, dashed cut guides); payloads verified machine-decodable (AS-*/BKS-*), A4 PDFs print-ready. Feature roadmap recommendations + clarifying questions presented to user for the next round.

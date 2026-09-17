@@ -105,7 +105,7 @@ export const LOCATION = {
 
 // ─────────────────────────── Campuses ───────────────────────────
 
-export type CampusId = "anggrek" | "alamsutera" | "malang";
+export type CampusId = "anggrek" | "alamsutera" | "bekasi";
 
 export interface Campus {
   id: CampusId;
@@ -125,7 +125,7 @@ export interface Campus {
 export const CAMPUSES: Campus[] = [
   { id: "anggrek", name: "BINUS @ Kemanggisan", building: "The Anggrek", city: "Jakarta Barat", available: true, location: "Gedung Parkir Anggrek", layout: "building" },
   { id: "alamsutera", name: "BINUS @ Alam Sutera", building: null, city: "Tangerang", available: true, location: "BINUS @ Alam Sutera · Area Parkir", layout: "openlot" },
-  { id: "malang", name: "BINUS @ Malang", building: null, city: "Malang", available: false, location: "BINUS @ Malang · Area Parkir", layout: "openlot" },
+  { id: "bekasi", name: "BINUS @ Bekasi", building: null, city: "Kota Bekasi", available: true, location: "BINUS @ Bekasi · Area Parkir", layout: "openlot" },
 ];
 
 export function campusById(id: CampusId): Campus {
@@ -139,13 +139,13 @@ export function campusLabel(c: Campus): string {
 
 /** QR payload prefix per campus — keeps physical slot codes unique across campuses. */
 export function campusCodePrefix(id: CampusId): string {
-  return id === "anggrek" ? "PB" : id === "alamsutera" ? "AS" : "ML";
+  return id === "anggrek" ? "PB" : id === "alamsutera" ? "AS" : "BKS";
 }
 
-/** Which campus a slotId belongs to ("slot-A-3" → anggrek, "as-A-3" → alamsutera). */
+/** Which campus a slotId belongs to ("slot-A-3" → anggrek, "as-A-3" → alamsutera, "bk-B-7" → bekasi). */
 export function campusForSlot(slotId: string): CampusId {
   if (slotId.startsWith("as-")) return "alamsutera";
-  if (slotId.startsWith("ml-")) return "malang";
+  if (slotId.startsWith("bk-")) return "bekasi";
   return "anggrek";
 }
 
@@ -952,6 +952,33 @@ export const ROW_B_RIGHT = 6;
 /** Alam Sutera open lot: 20 + 20 bays, no pillars/walls — paint-line divisions. */
 export const AS_ROW_A = 20;
 export const AS_ROW_B = 20;
+
+/** Bekasi open lot: 25 + 25 bays, same paint-line style as Alam Sutera. */
+export const BK_ROW_A = 25;
+export const BK_ROW_B = 25;
+
+export function buildBekasiSlots(): Slot[] {
+  const slots: Slot[] = [];
+  for (let i = 0; i < BK_ROW_A; i++) {
+    slots.push({
+      id: `bk-A-${i + 1}`,
+      slotNumber: `A-${String(i + 1).padStart(2, "0")}`,
+      rowLabel: "A",
+      colIndex: i,
+      status: i === 6 ? "MAINTENANCE" : "ACTIVE", // A-07
+    });
+  }
+  for (let i = 0; i < BK_ROW_B; i++) {
+    slots.push({
+      id: `bk-B-${i + 1}`,
+      slotNumber: `B-${String(i + 1).padStart(2, "0")}`,
+      rowLabel: "B",
+      colIndex: i,
+      status: i === 14 ? "MAINTENANCE" : "ACTIVE", // B-15
+    });
+  }
+  return slots;
+}
 
 export function buildAlamSuteraSlots(): Slot[] {
   const slots: Slot[] = [];
