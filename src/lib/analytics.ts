@@ -210,11 +210,13 @@ export interface HwForecast {
 }
 
 /**
- * Holt-Winters additive (level + trend + 24h seasonality) over an hourly series.
- * Alpha=0.32 · beta=0.03 · gamma=0.22 — tuned for smooth campus occupancy.
+ * Holt-Winters additive (level + trend + seasonality) over an hourly series.
+ * Seasonal period is WEEKLY (168 h) when at least two weeks of data exist —
+ * campus occupancy repeats weekly (quiet Saturdays) — else daily (24 h).
+ * Alpha=0.32 · beta=0.03 · gamma=0.22.
  */
 export function holtWintersForecast(series: number[], horizon: number = ANA_HORIZON): HwForecast {
-  const m = 24;
+  const m = series.length >= 336 ? 168 : 24;
   if (series.length < 2 * m) {
     const flat = series.length ? series[series.length - 1] : 0;
     return { forecast: new Array(horizon).fill(flat), mape: 0, band: { lo: new Array(horizon).fill(flat), hi: new Array(horizon).fill(flat) } };
