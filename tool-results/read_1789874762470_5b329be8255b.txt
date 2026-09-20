@@ -1,0 +1,712 @@
+     1→"use client";
+     2→/**
+     3→ * HomeView — hero availability, availability search
+     4→ * (date/time → count + free slot numbers), map preview, ads, heatmap.
+     5→ */
+     6→import React from "react";
+     7→import { motion, AnimatePresence } from "framer-motion";
+     8→import {
+     9→  Building2,
+    10→  CalendarClock,
+    11→  CalendarDays,
+    12→  CarFront,
+    13→  Check,
+    14→  ChevronDown,
+    15→  Clock,
+    16→  Coffee,
+    17→  Gauge,
+    18→  MapPin,
+    19→  Maximize2,
+    20→  PartyPopper,
+    21→  Search,
+    22→  SearchX,
+    23→  Sparkles,
+    24→  TrendingDown,
+    25→  TrendingUp,
+    26→} from "lucide-react";
+    27→import {
+    28→  Dialog,
+    29→  DialogContent,
+    30→  DialogDescription,
+    31→  DialogHeader,
+    32→  DialogTitle,
+    33→} from "@/components/ui/dialog";
+    34→import { ParkingMap, MapLegend, useMapCounts } from "./ParkingMap";
+    35→import { DateGrid, TimeGrid, WindowPicker, fmtDateLabel } from "./WindowPickers";
+    36→import { useParkir } from "@/lib/store";
+    37→import {
+    38→  ADS,
+    39→  buildHeatmap,
+    40→  CAMPUSES,
+    41→  campusById,
+    42→  campusLabel,
+    43→  DAY_LABELS,
+    44→  slotStatusForWindow,
+    45→  TARIFF,
+    46→  toMinutes,
+    47→  fromMinutes,
+    48→  tr,
+    49→  type Ad,
+    50→  type Campus,
+    51→  type Lang,
+    52→  type TimeWindow,
+    53→} from "@/lib/parking-data";
+    54→import { cn } from "@/lib/utils";
+    55→
+    56→const HEAT = buildHeatmap();
+    57→
+    58→const AD_ICON: Record<Ad["theme"], React.ComponentType<{ className?: string }>> = {
+    59→  coffee: Coffee,
+    60→  carwash: CarFront,
+    61→  event: PartyPopper,
+    62→};
+    63→
+    64→export function HomeView({
+    65→  onSlotPress,
+    66→  onOpenMap,
+    67→}: {
+    68→  onSlotPress: (slotId: string, slotNumber: string) => void;
+    69→  onOpenMap: () => void;
+    70→}) {
+    71→  const lang = useParkir((s) => s.lang);
+    72→  const user = useParkir((s) => s.user);
+    73→  const win = useParkir((s) => s.viewWindow);
+    74→  const setWin = useParkir((s) => s.setViewWindow);
+    75→  const slots = useParkir((s) => s.slots);
+    76→  const reservations = useParkir((s) => s.reservations);
+    77→  const campus = campusById(useParkir((s) => s.campusId));
+    78→  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+    79→  const { free, total, pct } = useMapCounts();
+    80→  const [pickerOpen, setPickerOpen] = React.useState(false);
+    81→
+    82→  /** null = belum mencari; setelah pencarian pertama, hasil mengikuti window aktif */
+    83→  const [searched, setSearched] = React.useState(false);
+    84→  const activeWin: TimeWindow | null = searched ? win : null;
+    85→
+    86→  const results = React.useMemo(() => {
+    87→    if (!activeWin) return null;
+    88→    const freeSlots = slots.filter(
+    89→      (s) => slotStatusForWindow(s, reservations, activeWin) === "AVAILABLE"
+    90→    );
+    91→    return { freeSlots };
+    92→  }, [activeWin, slots, reservations]);
+    93→
+    94→  const hour = new Date().getHours();
+    95→  const greet =
+    96→    hour < 11 ? t("goodMorning") : hour < 18 ? t("goodAfternoon") : t("goodEvening");
+    97→
+    98→  /** Sedang parkir (max 2) — live counter (own sessions only) */
+    99→  const activeCount = reservations.filter(
+   100→    (r) => r.status === "CHECKED_IN" && r.driverName === user.name
+   101→  ).length;
+   102→
+   103→  const levelKey = pct > 66 ? "high" : pct > 33 ? "medium" : "low";
+   104→  const levelTone: Record<string, string> = {
+   105→    low: "text-emerald-400",
+   106→    medium: "text-amber-400",
+   107→    high: "text-red-400",
+   108→  };
+   109→  const barTone: Record<string, string> = {
+   110→    low: "from-emerald-400 to-emerald-300",
+   111→    medium: "from-amber-400 to-amber-300",
+   112→    high: "from-red-400 to-orange-400",
+   113→  };
+   114→
+   115→  return (
+   116→    <div className="space-y-4">
+   117→      {/* ── greeting ── */}
+   118→      <motion.div
+   119→        initial={{ opacity: 0, y: 10 }}
+   120→        animate={{ opacity: 1, y: 0 }}
+   121→        transition={{ duration: 0.4 }}
+   122→        className="flex items-end justify-between"
+   123→      >
+   124→        <div>
+   125→          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+   126→            {greet}
+   127→          </p>
+   128→          <h2 className="font-display text-xl font-bold tracking-tight">
+   129→            {user.name.split(" ")[0]} 👋
+   130→          </h2>
+   131→        </div>
+   132→        <div className="flex shrink-0 items-center gap-1.5">
+   133→          {activeCount > 0 && (
+   134→            <span className="tnum inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary">
+   135→              <CarFront className="h-3 w-3" />
+   136→              {activeCount}/2 {t("activeSessions")}
+   137→            </span>
+   138→          )}
+   139→          {campus.available && (
+   140→            <span className="tnum inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+   141→              <Gauge className="h-3 w-3 text-primary" />
+   142→              {free}/{total} {t("slotsFree")}
+   143→            </span>
+   144→          )}
+   145→        </div>
+   146→      </motion.div>
+   147→
+   148→      {/* ── campus bar ── */}
+   149→      <CampusBar campus={campus} lang={lang} onOpen={() => setPickerOpen(true)} />
+   150→
+   151→      {/* ── hero availability / coming soon ── */}
+   152→      {campus.available ? (
+   153→      <motion.section
+   154→        initial={{ opacity: 0, y: 14 }}
+   155→        animate={{ opacity: 1, y: 0 }}
+   156→        transition={{ duration: 0.45, delay: 0.05 }}
+   157→        className="glass glow-soft relative overflow-hidden rounded-3xl p-5"
+   158→      >
+   159→        <div
+   160→          aria-hidden
+   161→          className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl"
+   162→        />
+   163→        <div className="flex items-start justify-between gap-3">
+   164→          <div className="min-w-0">
+   165→            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+   166→              {t("availabilityNow")}
+   167→            </p>
+   168→            <div className="mt-2 flex items-baseline gap-1.5">
+   169→              <span className="tnum font-display text-[3.4rem] font-bold leading-none tracking-tight text-gradient-gold">
+   170→                {free}
+   171→              </span>
+   172→              <span className="tnum text-sm font-medium text-muted-foreground">
+   173→                /{total} {t("slotsFree")}
+   174→              </span>
+   175→            </div>
+   176→          </div>
+   177→          {/* capacity dial */}
+   178→          <div className="relative shrink-0" aria-hidden>
+   179→            <svg width="76" height="76" viewBox="0 0 76 76" className="-rotate-90">
+   180→              <circle cx="38" cy="38" r="32" fill="none" stroke="currentColor" strokeWidth="7" className="text-foreground/[0.08]" />
+   181→              <circle
+   182→                cx="38"
+   183→                cy="38"
+   184→                r="32"
+   185→                fill="none"
+   186→                stroke="url(#dialGrad)"
+   187→                strokeWidth="7"
+   188→                strokeLinecap="round"
+   189→                strokeDasharray={`${(pct / 100) * 201} 999`}
+   190→              />
+   191→              <defs>
+   192→                <linearGradient id="dialGrad" x1="0" y1="0" x2="1" y2="1">
+   193→                  <stop offset="0%" stopColor="#ffd60a" />
+   194→                  <stop offset="100%" stopColor="#f59e0b" />
+   195→                </linearGradient>
+   196→              </defs>
+   197→            </svg>
+   198→            <span className="tnum absolute inset-0 flex items-center justify-center text-sm font-bold">
+   199→              {pct}%
+   200→            </span>
+   201→          </div>
+   202→        </div>
+   203→
+   204→        <div className="mt-4 flex items-center justify-between text-xs">
+   205→          <span className="text-muted-foreground">{t("level")}</span>
+   206→          <span className={cn("font-bold", levelTone[levelKey])}>
+   207→            {t(levelKey as "low")} · {pct}%
+   208→          </span>
+   209→        </div>
+   210→        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+   211→          <motion.div
+   212→            initial={{ width: 0 }}
+   213→            animate={{ width: `${pct}%` }}
+   214→            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+   215→            className={cn("h-full rounded-full bg-gradient-to-r", barTone[levelKey])}
+   216→          />
+   217→        </div>
+   218→      </motion.section>
+   219→      ) : (
+   220→        <ComingSoonHero campus={campus} lang={lang} onSeeOthers={() => setPickerOpen(true)} />
+   221→      )}
+   222→
+   223→      {/* ── availability search (active campuses only) ── */}
+   224→      {campus.available && (
+   225→      <motion.section
+   226→        initial={{ opacity: 0, y: 14 }}
+   227→        animate={{ opacity: 1, y: 0 }}
+   228→        transition={{ duration: 0.45, delay: 0.1 }}
+   229→        className="glass rounded-3xl p-4"
+   230→      >
+   231→        <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold">
+   232→          <CalendarClock className="h-4 w-4 text-primary" />
+   233→          {t("viewForTime")}
+   234→        </p>
+   235→        <div className="grid grid-cols-3 gap-2">
+   236→          <WindowPicker
+   237→            label={t("date")}
+   238→            display={fmtDateLabel(win.date, lang)}
+   239→            icon={<CalendarDays className="h-3.5 w-3.5" />}
+   240→          >
+   241→            {(close) => (
+   242→              <DateGrid
+   243→                value={win.date}
+   244→                onPick={(d) => {
+   245→                  setWin({ ...win, date: d });
+   246→                  close();
+   247→                }}
+   248→              />
+   249→            )}
+   250→          </WindowPicker>
+   251→          <WindowPicker
+   252→            label={t("startTime")}
+   253→            display={win.startTime}
+   254→            icon={<Clock className="h-3.5 w-3.5" />}
+   255→          >
+   256→            {(close) => (
+   257→              <TimeGrid
+   258→                value={win.startTime}
+   259→                onPick={(v) => {
+   260→                  const end = Math.min(
+   261→                    toMinutes(v) + 120,
+   262→                    TARIFF.closeHour * 60
+   263→                  );
+   264→                  setWin({ ...win, startTime: v, endTime: fromMinutes(end) });
+   265→                  close();
+   266→                }}
+   267→              />
+   268→            )}
+   269→          </WindowPicker>
+   270→          <WindowPicker
+   271→            label={t("endTime")}
+   272→            display={win.endTime}
+   273→            icon={<Clock className="h-3.5 w-3.5" />}
+   274→          >
+   275→            {(close) => (
+   276→              <TimeGrid
+   277→                value={win.endTime}
+   278→                from={toMinutes(win.startTime) + 30}
+   279→                onPick={(v) => {
+   280→                  setWin({ ...win, endTime: v });
+   281→                  close();
+   282→                }}
+   283→              />
+   284→            )}
+   285→          </WindowPicker>
+   286→        </div>
+   287→
+   288→        {/* Cari Slot button — moved here */}
+   289→        <button
+   290→          onClick={() => setSearched(true)}
+   291→          className="glow-primary mt-3 flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl bg-primary text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.01] active:scale-[0.98]"
+   292→        >
+   293→          <Search className="h-4.5 w-4.5" />
+   294→          {t("searchSlots")}
+   295→          <span className="tnum rounded-full bg-black/15 px-2 py-0.5 text-[10px] font-black">
+   296→            {free} {t("slotsFree")}
+   297→          </span>
+   298→        </button>
+   299→
+   300→        {/* results — parking map as the result (no text lists) */}
+   301→        <AnimatePresence initial={false}>
+   302→          {results && (
+   303→            <motion.div
+   304→              key="results"
+   305→              initial={{ opacity: 0, height: 0 }}
+   306→              animate={{ opacity: 1, height: "auto" }}
+   307→              exit={{ opacity: 0, height: 0 }}
+   308→              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+   309→              className="overflow-hidden"
+   310→            >
+   311→              <div className="mt-3 space-y-2.5">
+   312→                {/* summary strip */}
+   313→                <div className="flex items-center justify-between gap-2 rounded-2xl border border-primary/20 bg-primary/[0.04] px-3.5 py-2.5">
+   314→                  <div className="min-w-0">
+   315→                    <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+   316→                      {t("searchResults")}
+   317→                    </p>
+   318→                    <div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
+   319→                      <span className="tnum font-display text-2xl font-bold leading-none text-gradient-gold">
+   320→                        {results.freeSlots.length}
+   321→                      </span>
+   322→                      <span className="tnum text-[11px] font-medium text-muted-foreground">
+   323→                        {t("slotsFound")} · {fmtDateLabel(activeWin!.date, lang)} {activeWin!.startTime}–{activeWin!.endTime}
+   324→                      </span>
+   325→                    </div>
+   326→                  </div>
+   327→                  <button
+   328→                    onClick={onOpenMap}
+   329→                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary/20 active:scale-95"
+   330→                  >
+   331→                    <Maximize2 className="h-3 w-3" />
+   332→                    {t("fullMap")}
+   333→                  </button>
+   334→                </div>
+   335→
+   336→                {results.freeSlots.length === 0 && (
+   337→                  <div className="flex items-center gap-3 rounded-xl bg-red-400/[0.07] px-3 py-3">
+   338→                    <SearchX className="h-5 w-5 shrink-0 text-red-400" />
+   339→                    <div>
+   340→                      <p className="text-[13px] font-bold">{t("noSlotsFound")}</p>
+   341→                      <p className="text-[10.5px] text-muted-foreground">{t("noSlotsFoundSub")}</p>
+   342→                    </div>
+   343→                  </div>
+   344→                )}
+   345→
+   346→                {/* the parking map IS the result */}
+   347→                <ParkingMap
+   348→                  compact
+   349→                  onSlotPress={(s) => onSlotPress(s.id, s.slotNumber)}
+   350→                />
+   351→                <MapLegend />
+   352→                <p className="text-center text-[10px] text-muted-foreground/70">
+   353→                  {t("tapSlotHint")}
+   354→                </p>
+   355→              </div>
+   356→            </motion.div>
+   357→          )}
+   358→        </AnimatePresence>
+   359→      </motion.section>
+   360→      )}
+   361→
+   362→      {/* ── ads carousel ── */}
+   363→      <motion.section
+   364→        initial={{ opacity: 0, y: 14 }}
+   365→        animate={{ opacity: 1, y: 0 }}
+   366→        transition={{ duration: 0.45, delay: 0.2 }}
+   367→        className="space-y-2.5"
+   368→      >
+   369→        <AdCarousel lang={lang} />
+   370→      </motion.section>
+   371→
+   372→      {/* ── heatmap (Anggrek data — active campuses only) ── */}
+   373→      {campus.available && <HeatmapCard lang={lang} />}
+   374→
+   375→      {/* ── campus picker ── */}
+   376→      <CampusPickerDialog open={pickerOpen} onClose={() => setPickerOpen(false)} />
+   377→    </div>
+   378→  );
+   379→}
+   380→
+   381→// ─────────────────────────── campus ───────────────────────────
+   382→
+   383→/** Active-campus chip under the greeting — tap to switch campus. */
+   384→function CampusBar({ campus, lang, onOpen }: { campus: Campus; lang: Lang; onOpen: () => void }) {
+   385→  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+   386→  return (
+   387→    <motion.button
+   388→      initial={{ opacity: 0, y: 8 }}
+   389→      animate={{ opacity: 1, y: 0 }}
+   390→      transition={{ duration: 0.4, delay: 0.03 }}
+   391→      onClick={onOpen}
+   392→      aria-label={t("campusPick")}
+   393→      className="glass flex w-full items-center gap-2.5 rounded-2xl px-3.5 py-2.5 text-left transition hover:border-primary/30 active:scale-[0.99]"
+   394→    >
+   395→      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+   396→        <MapPin className="h-4 w-4" />
+   397→      </span>
+   398→      <span className="min-w-0 flex-1">
+   399→        <span className="block truncate text-[12.5px] font-bold leading-tight">
+   400→          {campusLabel(campus)}
+   401→        </span>
+   402→        <span className="block truncate text-[10px] text-muted-foreground">
+   403→          {campus.city} · {t("campusCurrent")}
+   404→        </span>
+   405→      </span>
+   406→      <span
+   407→        className={cn(
+   408→          "shrink-0 rounded-full border px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider",
+   409→          campus.available
+   410→            ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+   411→            : "border-primary/30 bg-primary/10 text-primary"
+   412→        )}
+   413→      >
+   414→        {campus.available ? t("campusActive") : t("campusSoon")}
+   415→      </span>
+   416→      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+   417→    </motion.button>
+   418→  );
+   419→}
+   420→
+   421→/** Dialog listing every campus — Coming Soon campuses stay selectable. */
+   422→function CampusPickerDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+   423→  const lang = useParkir((s) => s.lang);
+   424→  const campusId = useParkir((s) => s.campusId);
+   425→  const selectCampus = useParkir((s) => s.selectCampus);
+   426→  const toast = useParkir((s) => s.toast);
+   427→  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+   428→
+   429→  return (
+   430→    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+   431→      <DialogContent className="max-w-[400px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
+   432→        <DialogHeader>
+   433→          <DialogTitle className="font-display text-base font-bold tracking-tight">
+   434→            {t("campusPick")}
+   435→          </DialogTitle>
+   436→          <DialogDescription className="text-[11px]">
+   437→            {t("campusPickSub")}
+   438→          </DialogDescription>
+   439→        </DialogHeader>
+   440→        <div className="space-y-2">
+   441→          {CAMPUSES.map((c) => {
+   442→            const selected = c.id === campusId;
+   443→            return (
+   444→              <button
+   445→                key={c.id}
+   446→                onClick={() => {
+   447→                  selectCampus(c.id);
+   448→                  toast(`${t("campusSwitched")} · ${c.building ?? c.name}`, "success");
+   449→                  onClose();
+   450→                }}
+   451→                className={cn(
+   452→                  "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition active:scale-[0.99]",
+   453→                  selected
+   454→                    ? "border-primary/60 bg-primary/[0.08]"
+   455→                    : "border-border bg-card/40 hover:border-primary/25"
+   456→                )}
+   457→              >
+   458→                <span
+   459→                  className={cn(
+   460→                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
+   461→                    selected
+   462→                      ? "border-primary/40 bg-primary/15 text-primary"
+   463→                      : "border-border bg-white/[0.03] text-muted-foreground"
+   464→                  )}
+   465→                >
+   466→                  <Building2 className="h-4.5 w-4.5" />
+   467→                </span>
+   468→                <span className="min-w-0 flex-1">
+   469→                  <span className="block truncate text-sm font-bold leading-tight">{c.name}</span>
+   470→                  <span className="block truncate text-[11px] text-muted-foreground">
+   471→                    {[c.building, c.city].filter(Boolean).join(" · ")}
+   472→                  </span>
+   473→                </span>
+   474→                <span
+   475→                  className={cn(
+   476→                    "shrink-0 rounded-full border px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider",
+   477→                    c.available
+   478→                      ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+   479→                      : "border-primary/30 bg-primary/10 text-primary"
+   480→                  )}
+   481→                >
+   482→                  {c.available ? t("campusActive") : t("campusSoon")}
+   483→                </span>
+   484→                {selected && <Check className="h-4 w-4 shrink-0 text-primary" />}
+   485→              </button>
+   486→            );
+   487→          })}
+   488→        </div>
+   489→        <p className="pt-1 text-center text-[10px] leading-relaxed text-muted-foreground/70">
+   490→          {t("campusPickNote")}
+   491→        </p>
+   492→      </DialogContent>
+   493→    </Dialog>
+   494→  );
+   495→}
+   496→
+   497→/** Hero replacement for Coming Soon campuses. */
+   498→function ComingSoonHero({
+   499→  campus,
+   500→  lang,
+   501→  onSeeOthers,
+   502→}: {
+   503→  campus: Campus;
+   504→  lang: Lang;
+   505→  onSeeOthers: () => void;
+   506→}) {
+   507→  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+   508→  return (
+   509→    <motion.section
+   510→      initial={{ opacity: 0, y: 14 }}
+   511→      animate={{ opacity: 1, y: 0 }}
+   512→      transition={{ duration: 0.45, delay: 0.05 }}
+   513→      className="glass glow-soft relative overflow-hidden rounded-3xl p-6 text-center"
+   514→    >
+   515→      <div
+   516→        aria-hidden
+   517→        className="pointer-events-none absolute -top-16 left-1/2 h-44 w-44 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"
+   518→      />
+   519→      <div className="relative flex flex-col items-center">
+   520→        <span className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/25 bg-primary/[0.08]">
+   521→          <Building2 className="h-7 w-7 text-primary" />
+   522→          <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+   523→            <Clock className="h-3 w-3" />
+   524→          </span>
+   525→        </span>
+   526→        <h3 className="mt-3.5 font-display text-lg font-bold tracking-tight">{campus.name}</h3>
+   527→        <p className="mt-0.5 text-[11px] text-muted-foreground">{campus.city}</p>
+   528→        <span className="mt-3 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+   529→          {t("campusSoon")}
+   530→        </span>
+   531→        <p className="mt-3.5 max-w-[300px] text-[12px] leading-relaxed text-muted-foreground">
+   532→          {t("campusSoonHeroSub")}
+   533→        </p>
+   534→        <button
+   535→          onClick={onSeeOthers}
+   536→          className="glow-primary mt-4 inline-flex h-11 items-center gap-2 rounded-2xl bg-primary px-5 text-[12.5px] font-bold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
+   537→        >
+   538→          <MapPin className="h-4 w-4" />
+   539→          {t("campusSeeOthers")}
+   540→        </button>
+   541→      </div>
+   542→    </motion.section>
+   543→  );
+   544→}
+   545→
+   546→// ─────────────────────────── ads ───────────────────────────
+   547→
+   548→function AdCarousel({ lang }: { lang: "id" | "en" }) {
+   549→  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+   550→  const ref = React.useRef<HTMLDivElement>(null);
+   551→  const [idx, setIdx] = React.useState(0);
+   552→
+   553→  const onScroll = React.useCallback(() => {
+   554→    const el = ref.current;
+   555→    if (!el) return;
+   556→    const i = Math.round(el.scrollLeft / el.clientWidth);
+   557→    setIdx(Math.max(0, Math.min(ADS.length - 1, i)));
+   558→  }, []);
+   559→
+   560→  const tone: Record<Ad["accent"], string> = {
+   561→    amber: "border-amber-400/25 bg-gradient-to-r from-amber-400/[0.12] to-transparent",
+   562→    sky: "border-sky-400/25 bg-gradient-to-r from-sky-400/[0.12] to-transparent",
+   563→    violet: "border-violet-400/25 bg-gradient-to-r from-violet-400/[0.12] to-transparent",
+   564→  };
+   565→  const ico: Record<Ad["accent"], string> = {
+   566→    amber: "bg-amber-400/15 text-amber-300",
+   567→    sky: "bg-sky-400/15 text-sky-300",
+   568→    violet: "bg-violet-400/15 text-violet-300",
+   569→  };
+   570→
+   571→  return (
+   572→    <>
+   573→      <div className="mb-1.5 flex items-center justify-between">
+   574→        <h3 className="font-display text-sm font-bold tracking-tight">
+   575→          {lang === "id" ? "Promo kampus" : "Campus promos"}
+   576→        </h3>
+   577→        <div className="flex gap-1.5">
+   578→          {ADS.map((_, i) => (
+   579→            <button
+   580→              key={i}
+   581→              onClick={() => ref.current?.scrollTo({ left: i * ref.current.clientWidth, behavior: "smooth" })}
+   582→              aria-label={`promo ${i + 1}`}
+   583→              className={cn(
+   584→                "h-1.5 rounded-full transition-all",
+   585→                i === idx ? "w-5 bg-primary" : "w-1.5 bg-white/15 hover:bg-white/25"
+   586→              )}
+   587→            />
+   588→          ))}
+   589→        </div>
+   590→      </div>
+   591→      <div
+   592→        ref={ref}
+   593→        onScroll={onScroll}
+   594→        className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1"
+   595→      >
+   596→        {ADS.map((ad) => {
+   597→          const Icon = AD_ICON[ad.theme];
+   598→          return (
+   599→            <a
+   600→              key={ad.id}
+   601→              href="#"
+   602→              onClick={(e) => e.preventDefault()}
+   603→              className={cn(
+   604→                "flex w-[85%] shrink-0 snap-start items-center gap-3 rounded-2xl border p-3.5 transition hover:brightness-110",
+   605→                tone[ad.accent]
+   606→              )}
+   607→            >
+   608→              <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", ico[ad.accent])}>
+   609→                <Icon className="h-5 w-5" />
+   610→              </span>
+   611→              <span className="min-w-0 flex-1">
+   612→                <span className="block truncate text-sm font-bold">{ad.title}</span>
+   613→                <span className="block truncate text-[11px] text-muted-foreground">{ad.description}</span>
+   614→              </span>
+   615→              <span className="shrink-0 rounded-full bg-primary px-3 py-1 text-[10px] font-black text-primary-foreground">
+   616→                {ad.ctaText}
+   617→              </span>
+   618→              <span className="sr-only">(ad)</span>
+   619→            </a>
+   620→          );
+   621→        })}
+   622→      </div>
+   623→    </>
+   624→  );
+   625→}
+   626→
+   627→// ─────────────────────────── heatmap ───────────────────────────
+   628→
+   629→function heatColor(v: number): string {
+   630→  if (v < 0.25) return `rgba(52, 211, 153, ${0.12 + v * 0.5})`;
+   631→  if (v < 0.55) return `rgba(255, 214, 10, ${0.15 + v * 0.55})`;
+   632→  return `rgba(248, 113, 113, ${0.25 + v * 0.6})`;
+   633→}
+   634→
+   635→function HeatmapCard({ lang }: { lang: "id" | "en" }) {
+   636→  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+   637→  const { busiest, quietest } = React.useMemo(() => {
+   638→    let best = { v: -1, label: "" };
+   639→    let worst = { v: 2, label: "" };
+   640→    HEAT.forEach((row, d) => {
+   641→      row.forEach((v, h) => {
+   642→        const label = `${DAY_LABELS[lang][d]} ${String(h + 7).padStart(2, "0")}:00`;
+   643→        if (v > best.v) best = { v, label };
+   644→        if (v < worst.v) worst = { v, label };
+   645→      });
+   646→    });
+   647→    return { busiest: best.label, quietest: worst.label };
+   648→  }, [lang]);
+   649→
+   650→  return (
+   651→    <section className="glass rounded-3xl p-4">
+   652→      <div className="mb-3 flex items-center justify-between">
+   653→        <div>
+   654→          <h3 className="flex items-center gap-1.5 font-display text-sm font-bold tracking-tight">
+   655→            <Sparkles className="h-3.5 w-3.5 text-primary" />
+   656→            {t("heatmap")}
+   657→          </h3>
+   658→          <p className="mt-0.5 text-[10px] text-muted-foreground">{t("heatmapSub")}</p>
+   659→        </div>
+   660→      </div>
+   661→      <div className="flex gap-1.5">
+   662→        <div className="flex flex-col gap-1 pt-[13px]">
+   663→          {DAY_LABELS[lang].map((d) => (
+   664→            <span key={d} className="h-3 text-[8px] font-semibold leading-3 text-muted-foreground/70">
+   665→              {d}
+   666→            </span>
+   667→          ))}
+   668→        </div>
+   669→        <div className="min-w-0 flex-1">
+   670→          <div className="mb-1 flex gap-[3px] pr-6">
+   671→            {Array.from({ length: 15 }, (_, h) => (
+   672→              <span key={h} className="tnum flex-1 text-center text-[7px] text-muted-foreground/50">
+   673→                {(h + 7) % 3 === 0 ? h + 7 : ""}
+   674→              </span>
+   675→            ))}
+   676→          </div>
+   677→          <div className="flex flex-col gap-1">
+   678→            {HEAT.map((row, d) => (
+   679→              <div key={d} className="flex gap-[3px]">
+   680→                {row.map((v, h) => (
+   681→                  <span
+   682→                    key={h}
+   683→                    title={`${DAY_LABELS[lang][d]} ${h + 7}:00 · ${Math.round(v * 100)}%`}
+   684→                    className="h-3 flex-1 rounded-[3px] transition-transform hover:scale-125"
+   685→                    style={{ background: heatColor(v) }}
+   686→                  />
+   687→                ))}
+   688→              </div>
+   689→            ))}
+   690→          </div>
+   691→        </div>
+   692→      </div>
+   693→      <div className="mt-3 grid grid-cols-2 gap-2">
+   694→        <div className="flex items-center gap-2 rounded-xl bg-red-400/[0.08] px-2.5 py-2">
+   695→          <TrendingUp className="h-3.5 w-3.5 shrink-0 text-red-400" />
+   696→          <div className="min-w-0">
+   697→            <p className="text-[9px] font-semibold uppercase tracking-wider text-red-400/80">{t("busiest")}</p>
+   698→            <p className="tnum truncate text-[11px] font-bold">{busiest}</p>
+   699→          </div>
+   700→        </div>
+   701→        <div className="flex items-center gap-2 rounded-xl bg-emerald-400/[0.08] px-2.5 py-2">
+   702→          <TrendingDown className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+   703→          <div className="min-w-0">
+   704→            <p className="text-[9px] font-semibold uppercase tracking-wider text-emerald-400/80">{t("quietest")}</p>
+   705→            <p className="tnum truncate text-[11px] font-bold">{quietest}</p>
+   706→          </div>
+   707→        </div>
+   708→      </div>
+   709→    </section>
+   710→  );
+   711→}
+   712→

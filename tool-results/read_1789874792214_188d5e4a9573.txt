@@ -1,0 +1,1102 @@
+     1→"use client";
+     2→/**
+     3→ * OperatorView — parking officer command center.
+     4→ * Live slot monitor, occupancy & revenue analytics, peak-hours chart, live
+     5→ * activity feed, session control (force check-out / extend / manual check-in),
+     6→ * reservation management, slot QR codes and a daily recap — in 3 tabs.
+     7→ */
+     8→import React from "react";
+     9→import { AnimatePresence, motion } from "framer-motion";
+    10→import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
+    11→import {
+    12→  Activity,
+    13→  BadgeCheck,
+    14→  Banknote,
+    15→  BarChart3,
+    16→  CalendarPlus,
+    17→  Car,
+    18→  CarFront,
+    19→  ClipboardList,
+    20→  Clock3,
+    21→  Download,
+    22→  Gauge,
+    23→  History as HistoryIcon,
+    24→  LogIn,
+    25→  LogOut,
+    26→  Monitor,
+    27→  Plus,
+    28→  Printer,
+    29→  QrCode,
+    30→  Search,
+    31→  ShieldCheck,
+    32→  Timer,
+    33→  TimerReset,
+    34→  TrendingDown,
+    35→  TrendingUp,
+    36→  Wallet,
+    37→  Wrench,
+    38→  X,
+    39→  Zap,
+    40→} from "lucide-react";
+    41→import {
+    42→  Dialog,
+    43→  DialogContent,
+    44→  DialogDescription,
+    45→  DialogHeader,
+    46→  DialogTitle,
+    47→} from "@/components/ui/dialog";
+    48→import { ResStatusPill } from "./Brand";
+    49→import { useParkir } from "@/lib/store";
+    50→import {
+    51→  campusById,
+    52→  campusCodePrefix,
+    53→  campusForSlot,
+    54→  dateStr,
+    55→  demandNow,
+    56→  DEMAND_TIERS,
+    57→  rupiah,
+    58→  slotStatusForWindow,
+    59→  TARIFF,
+    60→  timeStr,
+    61→  tr,
+    62→  type DemandInfo,
+    63→  type Reservation,
+    64→  type Slot,
+    65→  type SlotStatus,
+    66→  type Txn,
+    67→} from "@/lib/parking-data";
+    68→import { cn } from "@/lib/utils";
+    69→
+    70→// ───────────────────────── module helpers ─────────────────────────
+    71→
+    72→const WEEK_MS = 7 * 24 * 3600_000;
+    73→const DAY_START_H = 6;
+    74→const DAY_END_H = 23;
+    75→
+    76→type OpTab = "monitor" | "qr" | "history";
+    77→
+    78→/** Window covering "right now" — operator always sees live state */
+    79→function nowWindow() {
+    80→  const d = new Date();
+    81→  return {
+    82→    date: dateStr(d),
+    83→    startTime: timeStr(new Date(d.getTime() - 60_000)),
+    84→    endTime: timeStr(new Date(d.getTime() + 60_000)),
+    85→  };
+    86→}
+    87→
+    88→/** Payload encoded in every physical slot QR — parseable by the customer scanner. */
+    89→export function slotQrPayload(slot: Slot): string {
+    90→  return `${campusCodePrefix(campusForSlot(slot.id))}-${slot.slotNumber}`;
+    91→}
+    92→
+    93→/** Campus-aware location line for QR cards & the print sheet. */
+    94→export function slotLocation(slot: Slot): string {
+    95→  return campusById(campusForSlot(slot.id)).location;
+    96→}
+    97→
+    98→const TILE: Record<SlotStatus, { box: string; num: string }> = {
+    99→  AVAILABLE: {
+   100→    box: "border-emerald-400/30 bg-emerald-400/[0.07] hover:bg-emerald-400/[0.15]",
+   101→    num: "text-emerald-300",
+   102→  },
+   103→  RESERVED: {
+   104→    box: "border-amber-400/30 bg-amber-400/[0.06]",
+   105→    num: "text-amber-300",
+   106→  },
+   107→  OCCUPIED: {
+   108→    box: "border-red-400/30 bg-red-400/[0.07]",
+   109→    num: "text-red-300",
+   110→  },
+   111→  MAINTENANCE: {
+   112→    box: "border-slate-500/30 bg-slate-500/[0.08]",
+   113→    num: "text-slate-400",
+   114→  },
+   115→};
+   116→
+   117→function useTicker(active: boolean): number {
+   118→  const [tick, setTick] = React.useState(0);
+   119→  React.useEffect(() => {
+   120→    if (!active) return;
+   121→    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+   122→    return () => clearInterval(id);
+   123→  }, [active]);
+   124→  return tick;
+   125→}
+   126→
+   127→function fmtDuration(ms: number): string {
+   128→  const mins = Math.max(0, Math.floor(ms / 60_000));
+   129→  const h = Math.floor(mins / 60);
+   130→  const m = mins % 60;
+   131→  return h > 0 ? `${h}j ${m}m` : `${m}m`;
+   132→}
+   133→
+   134→const pad2 = (n: number) => String(n).padStart(2, "0");
+   135→
+   136→// ───────────────────────── analytics (pure) ─────────────────────────
+   137→
+   138→type FeedKind = "checkin" | "checkout" | "booking" | "topup";
+   139→interface FeedEvent {
+   140→  id: string;
+   141→  at: number;
+   142→  kind: FeedKind;
+   143→  name: string;
+   144→  slot?: string;
+   145→  amount?: number;
+   146→}
+   147→
+   148→/** Derive the live activity feed from reservations + transactions. */
+   149→function buildFeed(reservations: Reservation[], transactions: Txn[]): FeedEvent[] {
+   150→  const evts: FeedEvent[] = [];
+   151→  for (const r of reservations) {
+   152→    if (r.type === "ADVANCE")
+   153→      evts.push({ id: `b-${r.id}`, at: r.createdAt, kind: "booking", name: r.driverName, slot: r.slotNumber });
+   154→    if (r.checkedInAt)
+   155→      evts.push({ id: `i-${r.id}`, at: r.checkedInAt, kind: "checkin", name: r.driverName, slot: r.slotNumber });
+   156→    if (r.checkedOutAt)
+   157→      evts.push({ id: `o-${r.id}`, at: r.checkedOutAt, kind: "checkout", name: r.driverName, slot: r.slotNumber });
+   158→  }
+   159→  for (const tx of transactions)
+   160→    if (tx.type === "TOP_UP") evts.push({ id: `t-${tx.id}`, at: tx.createdAt, kind: "topup", name: "", amount: tx.amount });
+   161→  return evts.sort((a, b) => b.at - a.at).slice(0, 24);
+   162→}
+   163→
+   164→/** Revenue per hour bucket (06–22) from today's fee transactions. */
+   165→function hourBucketsRevenue(txns: Txn[]): number[] {
+   166→  const buckets = new Array(DAY_END_H - DAY_START_H + 1).fill(0);
+   167→  for (const tx of txns) {
+   168→    if (tx.type === "TOP_UP" || tx.type === "REFUND") continue;
+   169→    const h = new Date(tx.createdAt).getHours();
+   170→    if (h >= DAY_START_H && h <= DAY_END_H) buckets[h - DAY_START_H] += tx.amount;
+   171→  }
+   172→  return buckets;
+   173→}
+   174→
+   175→/** Check-in counts per hour bucket (06–22) over the last 7 days. */
+   176→function hourBucketsCheckins(reservations: Reservation[], sinceMs: number): number[] {
+   177→  const buckets = new Array(DAY_END_H - DAY_START_H + 1).fill(0);
+   178→  for (const r of reservations) {
+   179→    if (!r.checkedInAt || r.checkedInAt < sinceMs) continue;
+   180→    const h = new Date(r.checkedInAt).getHours();
+   181→    if (h >= DAY_START_H && h <= DAY_END_H) buckets[h - DAY_START_H]++;
+   182→  }
+   183→  return buckets;
+   184→}
+   185→
+   186→/** Max simultaneous occupancy today (sweep over check-in/out events). */
+   187→function peakOccupancyToday(reservations: Reservation[], dayStart: number): number {
+   188→  const evts: { at: number; delta: number }[] = [];
+   189→  for (const r of reservations) {
+   190→    if (r.checkedInAt && r.checkedInAt >= dayStart) evts.push({ at: r.checkedInAt, delta: 1 });
+   191→    if (r.checkedOutAt && r.checkedOutAt >= dayStart) evts.push({ at: r.checkedOutAt, delta: -1 });
+   192→  }
+   193→  evts.sort((a, b) => a.at - b.at || a.delta - b.delta);
+   194→  let cur = 0;
+   195→  let peak = 0;
+   196→  for (const e of evts) {
+   197→    cur += e.delta;
+   198→    if (cur > peak) peak = cur;
+   199→  }
+   200→  return peak;
+   201→}
+   202→
+   203→// ───────────────────────── live clock ─────────────────────────
+   204→
+   205→function LiveClock() {
+   206→  const lang = useParkir((s) => s.lang);
+   207→  const [now, setNow] = React.useState<Date | null>(null);
+   208→  React.useEffect(() => {
+   209→    setNow(new Date());
+   210→    const id = setInterval(() => setNow(new Date()), 1000);
+   211→    return () => clearInterval(id);
+   212→  }, []);
+   213→  const locale = lang === "id" ? "id-ID" : "en-US";
+   214→  return (
+   215→    <div className="shrink-0 text-right">
+   216→      <p className="tnum flex items-center justify-end gap-1.5 font-display text-xl font-bold leading-none tracking-tight">
+   217→        <span className="relative flex h-1.5 w-1.5">
+   218→          <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+   219→          <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-400" />
+   220→        </span>
+   221→        {now
+   222→          ? now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
+   223→          : "--:--:--"}
+   224→      </p>
+   225→      <p className="mt-1.5 whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+   226→        {now
+   227→          ? now.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" })
+   228→          : "\u00A0"}
+   229→      </p>
+   230→    </div>
+   231→  );
+   232→}
+   233→
+   234→// ───────────────────────── main view ─────────────────────────
+   235→
+   236→export function OperatorView() {
+   237→  const lang = useParkir((s) => s.lang);
+   238→  const user = useParkir((s) => s.user);
+   239→  const slots = useParkir((s) => s.slots);
+   240→  const allReservations = useParkir((s) => s.reservations);
+   241→  const allTransactions = useParkir((s) => s.transactions);
+   242→  // Scope the console to the active campus — other campuses' worlds stay out.
+   243→  const campusSlotIds = React.useMemo(() => new Set(slots.map((s) => s.id)), [slots]);
+   244→  const reservations = React.useMemo(
+   245→    () => allReservations.filter((r) => campusSlotIds.has(r.slotId)),
+   246→    [allReservations, campusSlotIds]
+   247→  );
+   248→  const transactions = React.useMemo(() => {
+   249→    // Fee/refund txns are tied to a reservation code (campus-scoped);
+   250→    // blank-note txns are wallet top-ups — kept for the activity feed.
+   251→    const codes = new Set(reservations.map((r) => r.code));
+   252→    return allTransactions.filter((tx) => tx.note === "" || codes.has(tx.note));
+   253→  }, [allTransactions, reservations]);
+   254→  const forceCheckOut = useParkir((s) => s.forceCheckOut);
+   255→  const extendSession = useParkir((s) => s.extendSession);
+   256→  const manualCheckIn = useParkir((s) => s.manualCheckIn);
+   257→  const cancelReservation = useParkir((s) => s.cancelReservation);
+   258→  const signOut = useParkir((s) => s.signOut);
+   259→  const toast = useParkir((s) => s.toast);
+   260→  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+   261→
+   262→  const [tab, setTab] = React.useState<OpTab>("monitor");
+   263→  const [detail, setDetail] = React.useState<Slot | null>(null);
+   264→  const [qrSlot, setQrSlot] = React.useState<Slot | null>(null);
+   265→  const [query, setQuery] = React.useState("");
+   266→
+   267→  const tick = useTicker(true); // refresh durations every 30s
+   268→  const win = nowWindow();
+   269→  const todayStr = dateStr(new Date());
+   270→  const dayStart = new Date(`${todayStr}T00:00:00`).getTime();
+   271→
+   272→  const stats = React.useMemo(() => {
+   273→    const c: Record<SlotStatus, number> = { AVAILABLE: 0, RESERVED: 0, OCCUPIED: 0, MAINTENANCE: 0 };
+   274→    slots.forEach((s) => c[slotStatusForWindow(s, reservations, win)]++);
+   275→    return c;
+   276→     
+   277→  }, [slots, reservations, win.date, win.startTime]);
+   278→
+   279→  const activeSessions = React.useMemo(
+   280→    () =>
+   281→      reservations
+   282→        .filter((r) => r.status === "CHECKED_IN")
+   283→        .sort((a, b) => (b.checkedInAt ?? 0) - (a.checkedInAt ?? 0)),
+   284→    [reservations]
+   285→  );
+   286→
+   287→  const upcoming = React.useMemo(
+   288→    () =>
+   289→      reservations
+   290→        .filter((r) => r.status === "CONFIRMED" && r.date >= todayStr)
+   291→        .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`)),
+   292→    [reservations, todayStr]
+   293→  );
+   294→
+   295→  const completedToday = React.useMemo(
+   296→    () =>
+   297→      reservations
+   298→        .filter((r) => r.status === "COMPLETED" && r.date === todayStr && r.checkedOutAt)
+   299→        .sort((a, b) => (b.checkedOutAt ?? 0) - (a.checkedOutAt ?? 0)),
+   300→    [reservations, todayStr]
+   301→  );
+   302→
+   303→  const todayTxns = React.useMemo(
+   304→    () => transactions.filter((tx) => tx.createdAt >= dayStart),
+   305→    [transactions, dayStart]
+   306→  );
+   307→
+   308→  const revenue = React.useMemo(
+   309→    () =>
+   310→      todayTxns.reduce((sum, tx) => {
+   311→        if (tx.type === "TOP_UP" || tx.type === "REFUND") return sum;
+   312→        return sum + tx.amount;
+   313→      }, 0),
+   314→    [todayTxns]
+   315→  );
+   316→
+   317→  const hourlyRevenue = React.useMemo(() => hourBucketsRevenue(todayTxns), [todayTxns]);
+   318→
+   319→  const busyHist = React.useMemo(
+   320→    () => hourBucketsCheckins(reservations, Date.now() - WEEK_MS),
+   321→    [reservations]
+   322→  );
+   323→
+   324→  const shift = React.useMemo(() => {
+   325→    const ins = reservations.filter((r) => r.checkedInAt && r.checkedInAt >= dayStart);
+   326→    const outs = reservations.filter((r) => r.checkedOutAt && r.checkedOutAt >= dayStart);
+   327→    const durs = reservations
+   328→      .filter((r) => r.checkedInAt && r.checkedOutAt && r.checkedOutAt >= dayStart)
+   329→      .map((r) => (r.checkedOutAt ?? 0) - (r.checkedInAt ?? 0));
+   330→    const avg = durs.length ? durs.reduce((a, b) => a + b, 0) / durs.length : 0;
+   331→    return { ins: ins.length, outs: outs.length, avgMs: avg };
+   332→  }, [reservations, dayStart]);
+   333→
+   334→  const peak = React.useMemo(
+   335→    () => peakOccupancyToday(reservations, dayStart),
+   336→    [reservations, dayStart]
+   337→  );
+   338→
+   339→  const longest = React.useMemo(() => {
+   340→    let best: Reservation | null = null;
+   341→    let bestMs = 0;
+   342→    for (const r of reservations) {
+   343→      if (r.date !== todayStr || !r.checkedInAt) continue;
+   344→      const ms = (r.checkedOutAt ?? Date.now()) - r.checkedInAt;
+   345→      if (ms > bestMs) {
+   346→        bestMs = ms;
+   347→        best = r;
+   348→      }
+   349→    }
+   350→    return best ? { res: best, ms: bestMs } : null;
+   351→     
+   352→  }, [reservations, todayStr, tick]);
+   353→
+   354→  const feed = React.useMemo(
+   355→    () => buildFeed(reservations, transactions),
+   356→    [reservations, transactions]
+   357→  );
+   358→
+   359→  /** Live demand tier — drives the dynamic pricing strip. */
+   360→  const demand = React.useMemo(
+   361→    () => demandNow(slots, reservations),
+   362→    [slots, reservations, tick]
+   363→  );
+   364→
+   365→  const searchResults = React.useMemo(() => {
+   366→    const q = query.trim().toLowerCase();
+   367→    if (q.length < 2) return [];
+   368→    return reservations
+   369→      .filter(
+   370→        (r) =>
+   371→          r.vehiclePlate.toLowerCase().includes(q) ||
+   372→          r.driverName.toLowerCase().includes(q) ||
+   373→          r.slotNumber.toLowerCase().includes(q) ||
+   374→          r.code.toLowerCase().includes(q)
+   375→      )
+   376→      .sort((a, b) => b.createdAt - a.createdAt)
+   377→      .slice(0, 8);
+   378→  }, [query, reservations]);
+   379→
+   380→  // ── operator actions ──
+   381→  /** Campus-scoped operations report → CSV download (Excel-friendly, UTF-8 BOM). */
+   382→  function exportCsv() {
+   383→    const resByCode = new Map(reservations.map((r) => [r.code, r]));
+   384→    const esc = (v: string | number) => `"${String(v).replaceAll('"', '""')}"`;
+   385→    const dt = (ms: number) => {
+   386→      const d = new Date(ms);
+   387→      const p = (n: number) => String(n).padStart(2, "0");
+   388→      return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+   389→    };
+   390→    const loc = lang === "id" ? "id-ID" : "en-US";
+   391→    const id = lang === "id";
+   392→    const header = id
+   393→      ? ["Waktu", "Kode", "Kategori", "Slot", "Pengemudi", "Jumlah (Rp)"]
+   394→      : ["Time", "Code", "Category", "Slot", "Driver", "Amount (Rp)"];
+   395→    const rows = [...transactions]
+   396→      .sort((a, b) => b.createdAt - a.createdAt)
+   397→      .map((tx) => {
+   398→        const r = tx.note ? resByCode.get(tx.note) : undefined;
+   399→        return [
+   400→          dt(tx.createdAt),
+   401→          tx.note || "-",
+   402→          tr(lang, TXN_META[tx.type].labelKey),
+   403→          r?.slotNumber ?? "-",
+   404→          r?.driverName ?? "-",
+   405→          String(tx.amount),
+   406→        ];
+   407→      });
+   408→    // summary block
+   409→    const byType = {} as Record<Txn["type"], { n: number; total: number }>;
+   410→    for (const tx of transactions) {
+   411→      byType[tx.type] = byType[tx.type] ?? { n: 0, total: 0 };
+   412→      byType[tx.type].n++;
+   413→      byType[tx.type].total += tx.amount;
+   414→    }
+   415→    const revenue = (types: Txn["type"][]) =>
+   416→      types.reduce((s, ty) => s + (byType[ty]?.total ?? 0), 0);
+   417→    const nowStats = { AVAILABLE: 0, RESERVED: 0, OCCUPIED: 0, MAINTENANCE: 0 } as Record<SlotStatus, number>;
+   418→    slots.forEach((s) => nowStats[slotStatusForWindow(s, reservations, nowWindow())]++);
+   419→    const summary: (string | number)[][] = [
+   420→      ["", "", "", "", "", ""],
+   421→      [id ? "RINGKASAN" : "SUMMARY", "", "", "", "", ""],
+   422→      [id ? "Kategori" : "Category", id ? "Transaksi" : "Txns", id ? "Total (Rp)" : "Total (Rp)", "", "", ""],
+   423→      ...(Object.keys(TXN_META) as Txn["type"][]).map((ty) => [
+   424→        tr(lang, TXN_META[ty].labelKey),
+   425→        String(byType[ty]?.n ?? 0),
+   426→        String(byType[ty]?.total ?? 0),
+   427→        "",
+   428→        "",
+   429→        "",
+   430→      ]),
+   431→      [id ? "TOTAL PENDAPATAN" : "TOTAL REVENUE", "", String(revenue(["SERVICE_FEE", "PARKING_FEE", "OVERTIME"])), "", "", ""],
+   432→      ["", "", "", "", "", ""],
+   433→      [id ? "Sesi aktif" : "Active sessions", String(activeSessions.length), id ? "Okupansi" : "Occupancy", `${nowStats.OCCUPIED}/${slots.length}`, "", ""],
+   434→    ];
+   435→    const campusName = campusById(useParkir.getState().campusId).name;
+   436→    const meta = [
+   437→      [`${t("appName")} — ${t("csvExportTitle")}`],
+   438→      [id ? "Kampus" : "Campus", campusName, slotLocation(slots[0])],
+   439→      [id ? "Dibuat" : "Generated", new Date().toLocaleString(loc)],
+   440→      [""],
+   441→    ];
+   442→    const csv =
+   443→      "\uFEFF" +
+   444→      [...meta, header, ...rows, ...summary].map((r) => r.map(esc).join(",")).join("\r\n");
+   445→    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+   446→    const url = URL.createObjectURL(blob);
+   447→    const a = document.createElement("a");
+   448→    a.href = url;
+   449→    const stamp = (() => {
+   450→      const d = new Date();
+   451→      const p = (n: number) => String(n).padStart(2, "0");
+   452→      return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+   453→    })();
+   454→    a.download = `laporan-parkirbinus-${useParkir.getState().campusId}-${stamp}.csv`;
+   455→    document.body.appendChild(a);
+   456→    a.click();
+   457→    a.remove();
+   458→    URL.revokeObjectURL(url);
+   459→    toast(t("csvExported"), "success");
+   460→  }
+   461→
+   462→  function doForce(r: Reservation) {
+   463→    const out = forceCheckOut(r.id);
+   464→    toast(out.ok ? t("forceOk") : t("error"), out.ok ? "success" : "error");
+   465→  }
+   466→  function doExtend(r: Reservation) {
+   467→    const ok = extendSession(r.id, 1);
+   468→    toast(ok ? t("extendOk") : t("extendFail"), ok ? "success" : "error");
+   469→  }
+   470→  function doManualIn(r: Reservation) {
+   471→    if (manualCheckIn(r.id)) toast(t("manualInOk"), "success");
+   472→  }
+   473→  function doCancel(r: Reservation) {
+   474→    cancelReservation(r.id);
+   475→    toast(t("stCancelled"), "info");
+   476→  }
+   477→  function openSessionSlot(r: Reservation) {
+   478→    const slot = slots.find((s) => s.id === r.slotId);
+   479→    if (slot) setDetail(slot);
+   480→  }
+   481→
+   482→  const statCards = [
+   483→    { label: t("inBuilding"), value: stats.OCCUPIED, cls: "border-red-400/25 bg-red-400/[0.06]", val: "text-red-300", icon: CarFront },
+   484→    { label: t("reservedNow"), value: stats.RESERVED, cls: "border-amber-400/25 bg-amber-400/[0.06]", val: "text-amber-300", icon: Clock3 },
+   485→    { label: t("available"), value: stats.AVAILABLE, cls: "border-emerald-400/25 bg-emerald-400/[0.06]", val: "text-emerald-300", icon: LogIn },
+   486→    { label: t("inMaintenance"), value: stats.MAINTENANCE, cls: "border-slate-500/25 bg-slate-500/[0.08]", val: "text-slate-300", icon: Wrench },
+   487→  ];
+   488→
+   489→  const tabs: { k: OpTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+   490→    { k: "monitor", label: t("opTabMonitor"), icon: Monitor },
+   491→    { k: "qr", label: t("opTabQr"), icon: QrCode },
+   492→    { k: "history", label: t("opTabHistory"), icon: HistoryIcon },
+   493→  ];
+   494→
+   495→  return (
+   496→    <div className="space-y-4">
+   497→      {/* ── command header ── */}
+   498→      <motion.section
+   499→        initial={{ opacity: 0, y: 12 }}
+   500→        animate={{ opacity: 1, y: 0 }}
+   501→        transition={{ duration: 0.4 }}
+   502→        className="glass glow-soft relative overflow-hidden rounded-3xl p-4 md:p-5"
+   503→      >
+   504→        <div
+   505→          aria-hidden
+   506→          className="pointer-events-none absolute inset-0 opacity-40"
+   507→          style={{
+   508→            backgroundImage: "radial-gradient(rgba(255,214,10,0.09) 1px, transparent 1px)",
+   509→            backgroundSize: "22px 22px",
+   510→          }}
+   511→        />
+   512→        <div
+   513→          aria-hidden
+   514→          className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-binus-bright/15 blur-3xl"
+   515→        />
+   516→        <div className="relative flex items-center gap-3.5">
+   517→          <div className="relative shrink-0">
+   518→            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-binus-blue to-binus-bright">
+   519→              <ShieldCheck className="h-5 w-5 text-white" />
+   520→            </div>
+   521→            <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-card bg-primary">
+   522→              <BadgeCheck className="h-3 w-3 text-primary-foreground" />
+   523→            </span>
+   524→          </div>
+   525→          <div className="min-w-0 flex-1">
+   526→            <div className="flex items-center gap-2">
+   527→              <p className="truncate font-display text-base font-bold leading-tight md:text-lg">{user.name}</p>
+   528→              <span className="shrink-0 rounded-full bg-binus-bright/15 px-2 py-0.5 text-[8px] font-black tracking-wider text-binus-bright">
+   529→                {t("operatorBadge")}
+   530→              </span>
+   531→            </div>
+   532→            <p className="truncate text-[11px] text-muted-foreground">{t("operatorShift")}</p>
+   533→          </div>
+   534→          <LiveClock />
+   535→        </div>
+   536→
+   537→        {/* stat chips */}
+   538→        <div className="relative mt-4 grid grid-cols-4 gap-2">
+   539→          {statCards.map((s) => (
+   540→            <div key={s.label} className={cn("rounded-xl border p-2 text-center", s.cls)}>
+   541→              <s.icon className={cn("mx-auto h-3.5 w-3.5", s.val)} />
+   542→              <p className={cn("tnum mt-1 font-display text-lg font-bold leading-none", s.val)}>{s.value}</p>
+   543→              <p className="mt-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
+   544→                {s.label}
+   545→              </p>
+   546→            </div>
+   547→          ))}
+   548→        </div>
+   549→
+   550→        {/* revenue strip */}
+   551→        <div className="relative mt-2.5 flex items-center gap-3 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/[0.09] to-transparent px-3.5 py-2.5">
+   552→          <Banknote className="h-5 w-5 shrink-0 text-primary" />
+   553→          <div className="min-w-0 flex-1">
+   554→            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+   555→              {t("revenueToday")}
+   556→            </p>
+   557→            <p className="tnum font-display text-xl font-bold leading-tight text-gradient-gold">{rupiah(revenue)}</p>
+   558→          </div>
+   559→          <div className="shrink-0 rounded-xl border border-border bg-card/50 px-3 py-1.5 text-center">
+   560→            <p className="tnum font-display text-sm font-bold leading-none">{todayTxns.length}</p>
+   561→            <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
+   562→              {t("txnsToday")}
+   563→            </p>
+   564→          </div>
+   565→        </div>
+   566→      </motion.section>
+   567→
+   568→      {/* ── segmented tabs ── */}
+   569→      <div className="glass grid grid-cols-3 gap-1 rounded-2xl p-1">
+   570→        {tabs.map(({ k, label, icon: Icon }) => (
+   571→          <button
+   572→            key={k}
+   573→            onClick={() => setTab(k)}
+   574→            aria-current={tab === k ? "page" : undefined}
+   575→            className={cn(
+   576→              "relative flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition",
+   577→              tab === k ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+   578→            )}
+   579→          >
+   580→            {tab === k && (
+   581→              <motion.span
+   582→                layoutId="op-tab-pill"
+   583→                transition={{ type: "spring", stiffness: 480, damping: 34 }}
+   584→                className="glow-primary absolute inset-0 rounded-xl bg-primary"
+   585→              />
+   586→            )}
+   587→            <Icon className="relative h-3.5 w-3.5" />
+   588→            <span className="relative">{label}</span>
+   589→          </button>
+   590→        ))}
+   591→      </div>
+   592→
+   593→      {/* ── search (monitor tab) ── */}
+   594→      {tab === "monitor" && (
+   595→        <div className="space-y-2">
+   596→          <div className="glass flex items-center gap-2.5 rounded-2xl px-3.5 py-2.5">
+   597→            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+   598→            <input
+   599→              value={query}
+   600→              onChange={(e) => setQuery(e.target.value)}
+   601→              placeholder={t("opSearchPh")}
+   602→              className="tnum min-w-0 flex-1 bg-transparent text-[13px] font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/60 focus:outline-none"
+   603→            />
+   604→            {query && (
+   605→              <button
+   606→                onClick={() => setQuery("")}
+   607→                aria-label={t("close")}
+   608→                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:text-foreground"
+   609→              >
+   610→                <X className="h-3 w-3" />
+   611→              </button>
+   612→            )}
+   613→          </div>
+   614→          {query.trim().length >= 2 && (
+   615→            <motion.section
+   616→              initial={{ opacity: 0, y: 6 }}
+   617→              animate={{ opacity: 1, y: 0 }}
+   618→              className="glass rounded-2xl p-2"
+   619→            >
+   620→              <p className="px-2 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground/70">
+   621→                {t("opSearchResults")} · {searchResults.length}
+   622→              </p>
+   623→              {searchResults.length === 0 ? (
+   624→                <p className="px-2 py-3 text-center text-xs text-muted-foreground">{t("opSearchNone")}</p>
+   625→              ) : (
+   626→                <div className="space-y-1">
+   627→                  {searchResults.map((r) => (
+   628→                    <button
+   629→                      key={r.id}
+   630→                      onClick={() => openSessionSlot(r)}
+   631→                      className="flex w-full items-center gap-3 rounded-xl border border-border bg-card/40 px-3 py-2 text-left transition hover:bg-card/70 active:scale-[0.99]"
+   632→                    >
+   633→                      <span className="tnum flex h-8 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-display text-xs font-bold text-primary">
+   634→                        {r.slotNumber}
+   635→                      </span>
+   636→                      <span className="min-w-0 flex-1">
+   637→                        <span className="block truncate text-[12.5px] font-bold leading-tight">{r.driverName}</span>
+   638→                        <span className="tnum block truncate text-[10px] text-muted-foreground">
+   639→                          {r.vehiclePlate} · {r.date} {r.startTime}–{r.endTime}
+   640→                        </span>
+   641→                      </span>
+   642→                      <ResStatusPill status={r.status} />
+   643→                    </button>
+   644→                  ))}
+   645→                </div>
+   646→              )}
+   647→            </motion.section>
+   648→          )}
+   649→        </div>
+   650→      )}
+   651→
+   652→      {/* ── tab content ── */}
+   653→      <AnimatePresence mode="wait">
+   654→        {tab === "monitor" && (
+   655→          <motion.div
+   656→            key="tab-monitor"
+   657→            initial={{ opacity: 0, y: 10 }}
+   658→            animate={{ opacity: 1, y: 0 }}
+   659→            exit={{ opacity: 0, y: -8 }}
+   660→            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+   661→            className="grid gap-4 md:grid-cols-12"
+   662→          >
+   663→            <PricingCard className="md:col-span-12" lang={lang} demand={demand} />
+   664→            <OccupancyCard className="md:col-span-5" lang={lang} stats={stats} total={slots.length} shift={shift} />
+   665→            <RevenueCard className="md:col-span-7" lang={lang} data={hourlyRevenue} total={revenue} />
+   666→            <SlotMonitorCard className="md:col-span-7" lang={lang} slots={slots} reservations={reservations} stats={stats} onSlot={setDetail} />
+   667→            <SessionsCard
+   668→              className="md:col-span-5"
+   669→              lang={lang}
+   670→              sessions={activeSessions}
+   671→              onOpen={openSessionSlot}
+   672→              onForce={doForce}
+   673→              onExtend={doExtend}
+   674→            />
+   675→            <BusyCard className="md:col-span-5" lang={lang} hist={busyHist} />
+   676→            <UpcomingCard
+   677→              className="md:col-span-7"
+   678→              lang={lang}
+   679→              list={upcoming}
+   680→              onIn={doManualIn}
+   681→              onCancel={doCancel}
+   682→              onExtend={doExtend}
+   683→              onOpen={openSessionSlot}
+   684→            />
+   685→            <FeedCard className="md:col-span-12" lang={lang} events={feed} />
+   686→          </motion.div>
+   687→        )}
+   688→
+   689→        {tab === "qr" && (
+   690→          <motion.section
+   691→            key="tab-qr"
+   692→            initial={{ opacity: 0, y: 10 }}
+   693→            animate={{ opacity: 1, y: 0 }}
+   694→            exit={{ opacity: 0, y: -8 }}
+   695→            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+   696→            className="glass rounded-3xl p-4"
+   697→          >
+   698→            <div className="mb-1 flex items-center justify-between gap-2">
+   699→              <h3 className="flex items-center gap-1.5 font-display text-sm font-bold tracking-tight">
+   700→                <QrCode className="h-4 w-4 text-primary" />
+   701→                {t("qrSlotsTitle")}
+   702→              </h3>
+   703→              <span className="tnum rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">
+   704→                {slots.length}
+   705→              </span>
+   706→            </div>
+   707→            <p className="mb-3 text-[10.5px] leading-relaxed text-muted-foreground">
+   708→              {t("qrSlotsSub").replace("{n}", String(slots.length))}
+   709→            </p>
+   710→
+   711→            <button
+   712→              onClick={() => window.print()}
+   713→              className="glow-primary flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-primary-foreground transition active:scale-[0.98]"
+   714→            >
+   715→              <Printer className="h-4 w-4" />
+   716→              {t("qrPrintAll")}
+   717→              <span className="font-semibold opacity-70">
+   718→                · {t("qrPrintHint").replace("{p}", String(Math.ceil(slots.length / 8)))}
+   719→              </span>
+   720→            </button>
+   721→
+   722→            <div className="mt-3 grid grid-cols-3 gap-2 md:grid-cols-4 lg:grid-cols-6">
+   723→              {slots.map((s) => (
+   724→                <button
+   725→                  key={s.id}
+   726→                  onClick={() => setQrSlot(s)}
+   727→                  className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card/40 p-2 transition hover:bg-card/70 active:scale-95"
+   728→                >
+   729→                  <span className="rounded-lg bg-white p-1.5 shadow-sm">
+   730→                    <QRCodeSVG
+   731→                      value={slotQrPayload(s)}
+   732→                      size={62}
+   733→                      bgColor="#ffffff"
+   734→                      fgColor="#0b1226"
+   735→                      level="M"
+   736→                      marginSize={0}
+   737→                    />
+   738→                  </span>
+   739→                  <span className="tnum font-display text-[11px] font-bold">{s.slotNumber}</span>
+   740→                </button>
+   741→              ))}
+   742→            </div>
+   743→          </motion.section>
+   744→        )}
+   745→
+   746→        {tab === "history" && (
+   747→          <motion.div
+   748→            key="tab-history"
+   749→            initial={{ opacity: 0, y: 10 }}
+   750→            animate={{ opacity: 1, y: 0 }}
+   751→            exit={{ opacity: 0, y: -8 }}
+   752→            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+   753→            className="grid gap-4 md:grid-cols-12"
+   754→          >
+   755→            <RecapCard
+   756→              className="md:col-span-5"
+   757→              lang={lang}
+   758→              revenue={revenue}
+   759→              txns={todayTxns.length}
+   760→              vehicles={shift.ins}
+   761→              peak={peak}
+   762→              total={slots.length}
+   763→              longest={longest}
+   764→            />
+   765→            <CompletedCard className="md:col-span-7" lang={lang} list={completedToday} />
+   766→            <TxnLogCard
+   767→              className="md:col-span-12"
+   768→              lang={lang}
+   769→              txns={todayTxns}
+   770→              onExport={() => exportCsv()}
+   771→            />
+   772→          </motion.div>
+   773→        )}
+   774→      </AnimatePresence>
+   775→
+   776→      {/* ── sign out ── */}
+   777→      <button
+   778→        onClick={signOut}
+   779→        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-400/25 bg-red-400/[0.06] py-3.5 text-sm font-bold text-red-400 transition hover:bg-red-400/10"
+   780→      >
+   781→        <LogOut className="h-4 w-4" />
+   782→        {t("signOut")}
+   783→      </button>
+   784→
+   785→      {/* ── slot detail dialog ── */}
+   786→      <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
+   787→        <DialogContent className="max-w-[380px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
+   788→          {detail && <SlotDetailDialog slot={detail} onClose={() => setDetail(null)} />}
+   789→        </DialogContent>
+   790→      </Dialog>
+   791→
+   792→      {/* ── slot QR dialog ── */}
+   793→      <Dialog open={!!qrSlot} onOpenChange={(v) => !v && setQrSlot(null)}>
+   794→        <DialogContent className="max-w-[380px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
+   795→          {qrSlot && <QrSlotDetailDialog slot={qrSlot} onClose={() => setQrSlot(null)} />}
+   796→        </DialogContent>
+   797→      </Dialog>
+   798→
+   799→      {/* ── print-only sheet: campus QR cards · A4 · 8 cards/page (2×4) ── */}
+   800→      <div id="qr-print-sheet" className="hidden">
+   801→        <div className="mb-[4mm] flex items-end justify-between border-b-[0.3mm] border-slate-300 pb-[2mm]">
+   802→          <div>
+   803→            <p className="text-[13pt] font-black leading-tight text-[#070B16]">
+   804→              {t("appName")} — {t("qrSlotsTitle")}
+   805→            </p>
+   806→            <p className="text-[8pt] text-slate-600">
+   807→              {t("qrPrintBrand")} · {(slots[0] && slotLocation(slots[0])) || ""} ·{" "}
+   808→              {new Date().toLocaleDateString(lang === "id" ? "id-ID" : "en-US", {
+   809→                day: "numeric",
+   810→                month: "long",
+   811→                year: "numeric",
+   812→              })}
+   813→            </p>
+   814→          </div>
+   815→          <p className="tnum shrink-0 text-[8pt] font-bold text-slate-500">
+   816→            {slots.length} QR · PB-A-01 … PB-B-14
+   817→          </p>
+   818→        </div>
+   819→        {Array.from({ length: Math.ceil(slots.length / 8) }, (_, p) => (
+   820→          <div
+   821→            key={p}
+   822→            className={cn(
+   823→              "grid grid-cols-2 gap-[4mm]",
+   824→              p < Math.ceil(slots.length / 8) - 1 && "break-after-page"
+   825→            )}
+   826→          >
+   827→            {slots.slice(p * 8, p * 8 + 8).map((s) => (
+   828→              <QrPrintCard key={s.id} slot={s} />
+   829→            ))}
+   830→          </div>
+   831→        ))}
+   832→      </div>
+   833→    </div>
+   834→  );
+   835→}
+   836→
+   837→// ───────────────────────── monitor tab cards ─────────────────────────
+   838→
+   839→/** Live dynamic-pricing strip — active tier, running prices, occupancy gauge. */
+   840→function PricingCard({
+   841→  className,
+   842→  lang,
+   843→  demand,
+   844→}: {
+   845→  className?: string;
+   846→  lang: string;
+   847→  demand: DemandInfo;
+   848→}) {
+   849→  const t = (k: Parameters<typeof tr>[1]) => tr(lang as "id" | "en", k);
+   850→  const pricing = DEMAND_TIERS[demand.tier];
+   851→  const meta = {
+   852→    LOW: {
+   853→      label: t("dynLow"),
+   854→      icon: TrendingDown,
+   855→      chip: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+   856→      bar: "bg-emerald-400",
+   857→      next: t("dynNextLow"),
+   858→    },
+   859→    NORMAL: {
+   860→      label: t("dynNormal"),
+   861→      icon: Activity,
+   862→      chip: "border-sky-400/30 bg-sky-400/10 text-sky-300",
+   863→      bar: "bg-sky-400",
+   864→      next: t("dynNextNormal"),
+   865→    },
+   866→    HIGH: {
+   867→      label: t("dynHigh"),
+   868→      icon: TrendingUp,
+   869→      chip: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+   870→      bar: "bg-gradient-to-r from-amber-400 to-red-400",
+   871→      next: t("dynNextHigh"),
+   872→    },
+   873→  }[demand.tier];
+   874→
+   875→  return (
+   876→    <motion.section
+   877→      initial={{ opacity: 0, y: 12 }}
+   878→      animate={{ opacity: 1, y: 0 }}
+   879→      transition={{ duration: 0.35 }}
+   880→      className={cn("glass rounded-3xl p-4", className)}
+   881→    >
+   882→      <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-5">
+   883→        {/* tier identity */}
+   884→        <div className="flex min-w-0 items-center gap-3 md:w-[212px] md:shrink-0">
+   885→          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/[0.08]">
+   886→            <Zap className="h-4.5 w-4.5 text-primary" />
+   887→          </span>
+   888→          <div className="min-w-0">
+   889→            <h3 className="font-display text-sm font-bold leading-tight tracking-tight">
+   890→              {t("dynTitle")}
+   891→            </h3>
+   892→            <span
+   893→              className={cn(
+   894→                "mt-1 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider",
+   895→                meta.chip
+   896→              )}
+   897→            >
+   898→              <span className="relative flex h-1.5 w-1.5">
+   899→                <span className="absolute h-full w-full animate-ping rounded-full bg-current opacity-60" />
+   900→                <span className="relative h-1.5 w-1.5 rounded-full bg-current" />
+   901→              </span>
+   902→              {meta.label}
+   903→            </span>
+   904→          </div>
+   905→        </div>
+   906→
+   907→        {/* running prices */}
+   908→        <div className="flex flex-1 items-stretch gap-2.5">
+   909→          <div className="flex-1 rounded-xl border border-border bg-card/50 px-3 py-2 text-center">
+   910→            <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">
+   911→              {t("dynReserve")}
+   912→            </p>
+   913→            <p className="tnum mt-0.5 font-display text-lg font-bold leading-tight text-primary">
+   914→              {rupiah(pricing.advanceFee)}
+   915→            </p>
+   916→          </div>
+   917→          <div className="flex-1 rounded-xl border border-border bg-card/50 px-3 py-2 text-center">
+   918→            <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">
+   919→              {t("dynWalkin")}
+   920→            </p>
+   921→            <p className="tnum mt-0.5 font-display text-lg font-bold leading-tight">
+   922→              {rupiah(pricing.walkInFee)}
+   923→            </p>
+   924→          </div>
+   925→          <div className="hidden w-[104px] shrink-0 rounded-xl border border-border bg-card/50 px-3 py-2 text-center sm:block">
+   926→            <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">
+   927→              {t("dynOvertime")}
+   928→            </p>
+   929→            <p className="tnum mt-0.5 font-display text-lg font-bold leading-tight text-muted-foreground">
+   930→              {rupiah(TARIFF.overtimeFeePerHour)}
+   931→              <span className="text-[10px] font-semibold">{lang === "id" ? "/jam" : "/h"}</span>
+   932→            </p>
+   933→          </div>
+   934→        </div>
+   935→
+   936→        {/* occupancy gauge with tier thresholds */}
+   937→        <div className="md:w-[210px] md:shrink-0">
+   938→          <div className="flex items-baseline justify-between">
+   939→            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+   940→              {t("dynOccupiedPct")}
+   941→            </p>
+   942→            <p className="tnum text-sm font-bold">{demand.pct}%</p>
+   943→          </div>
+   944→          <div className="relative mt-1.5 h-2.5 overflow-hidden rounded-full bg-white/[0.06]">
+   945→            <span aria-hidden className="absolute inset-y-0 left-[40%] z-10 w-px bg-white/20" />
+   946→            <span aria-hidden className="absolute inset-y-0 left-[75%] z-10 w-px bg-white/20" />
+   947→            <motion.div
+   948→              initial={{ width: 0 }}
+   949→              animate={{ width: `${demand.pct}%` }}
+   950→              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+   951→              className={cn("h-full rounded-full", meta.bar)}
+   952→            />
+   953→          </div>
+   954→          <p className="mt-1.5 truncate text-[9px] text-muted-foreground/70">
+   955→            {meta.next} · {t("dynAutoNote")}
+   956→          </p>
+   957→        </div>
+   958→      </div>
+   959→    </motion.section>
+   960→  );
+   961→}
+   962→
+   963→const RING_COLORS: Record<Exclude<SlotStatus, never>, string> = {
+   964→  OCCUPIED: "#f87171",
+   965→  RESERVED: "#fbbf24",
+   966→  MAINTENANCE: "#64748b",
+   967→  AVAILABLE: "#34d399",
+   968→};
+   969→
+   970→/** Donut occupancy ring + per-status legend + shift statistics. */
+   971→function OccupancyCard({
+   972→  className,
+   973→  lang,
+   974→  stats,
+   975→  total,
+   976→  shift,
+   977→}: {
+   978→  className?: string;
+   979→  lang: string;
+   980→  stats: Record<SlotStatus, number>;
+   981→  total: number;
+   982→  shift: { ins: number; outs: number; avgMs: number };
+   983→}) {
+   984→  const t = (k: Parameters<typeof tr>[1]) => tr(lang as "id" | "en", k);
+   985→  const pct = Math.round((stats.OCCUPIED / Math.max(1, total)) * 100);
+   986→  const R = 44;
+   987→  const C = 2 * Math.PI * R;
+   988→  const segs: { key: SlotStatus; color: string }[] = [
+   989→    { key: "OCCUPIED", color: RING_COLORS.OCCUPIED },
+   990→    { key: "RESERVED", color: RING_COLORS.RESERVED },
+   991→    { key: "MAINTENANCE", color: RING_COLORS.MAINTENANCE },
+   992→    { key: "AVAILABLE", color: RING_COLORS.AVAILABLE },
+   993→  ];
+   994→  const legend: { key: SlotStatus; label: string; dot: string; text: string }[] = [
+   995→    { key: "OCCUPIED", label: t("inBuilding"), dot: "bg-red-400", text: "text-red-300" },
+   996→    { key: "RESERVED", label: t("reservedNow"), dot: "bg-amber-400", text: "text-amber-300" },
+   997→    { key: "MAINTENANCE", label: t("inMaintenance"), dot: "bg-slate-500", text: "text-slate-400" },
+   998→    { key: "AVAILABLE", label: t("available"), dot: "bg-emerald-400", text: "text-emerald-300" },
+   999→  ];
+  1000→  let acc = 0;
+  1001→
+  1002→  return (
+  1003→    <motion.section
+  1004→      initial={{ opacity: 0, y: 12 }}
+  1005→      animate={{ opacity: 1, y: 0 }}
+  1006→      transition={{ duration: 0.35 }}
+  1007→      className={cn("glass rounded-3xl p-4", className)}
+  1008→    >
+  1009→      <div className="mb-3 flex items-center justify-between">
+  1010→        <h3 className="flex items-center gap-1.5 font-display text-sm font-bold tracking-tight">
+  1011→          <Gauge className="h-4 w-4 text-primary" />
+  1012→          {t("occupancyTitle")}
+  1013→        </h3>
+  1014→        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
+  1015→          <Activity className="h-3 w-3" />
+  1016→          {t("floorLabel").split("—")[0].trim()}
+  1017→        </span>
+  1018→      </div>
+  1019→
+  1020→      <div className="flex items-center gap-4">
+  1021→        <div className="relative h-28 w-28 shrink-0">
+  1022→          <svg viewBox="0 0 112 112" className="h-full w-full -rotate-90">
+  1023→            <circle cx="56" cy="56" r={R} fill="none" stroke="currentColor" strokeWidth="12" className="text-white/[0.06]" />
+  1024→            {segs.map((s) => {
+  1025→              const n = stats[s.key];
+  1026→              const len = (n / Math.max(1, total)) * C;
+  1027→              const gap = n > 0 ? Math.min(3, len) : 0;
+  1028→              const offset = -acc;
+  1029→              acc += len;
+  1030→              return (
+  1031→                <circle
+  1032→                  key={s.key}
+  1033→                  cx="56"
+  1034→                  cy="56"
+  1035→                  r={R}
+  1036→                  fill="none"
+  1037→                  stroke={s.color}
+  1038→                  strokeWidth="12"
+  1039→                  strokeDasharray={`${Math.max(0, len - gap)} ${C - Math.max(0, len - gap)}`}
+  1040→                  strokeDashoffset={offset}
+  1041→                  opacity={n > 0 ? 1 : 0}
+  1042→                  className="transition-all duration-700"
+  1043→                />
+  1044→              );
+  1045→            })}
+  1046→          </svg>
+  1047→          <div className="absolute inset-0 flex flex-col items-center justify-center">
+  1048→            <p className="tnum font-display text-2xl font-bold leading-none">{pct}%</p>
+  1049→            <p className="tnum mt-1 text-[9px] font-semibold text-muted-foreground">
+  1050→              {stats.OCCUPIED}/{total} {t("occupancyFilled")}
+  1051→            </p>
+  1052→          </div>
+  1053→        </div>
+  1054→
+  1055→        <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-2">
+  1056→          {legend.map((l) => (
+  1057→            <div key={l.key} className="flex items-center gap-2">
+  1058→              <span className={cn("h-2 w-2 shrink-0 rounded-full", l.dot)} />
+  1059→              <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-muted-foreground">{l.label}</span>
+  1060→              <span className={cn("tnum text-[13px] font-bold", l.text)}>{stats[l.key]}</span>
+  1061→            </div>
+  1062→          ))}
+  1063→        </div>
+  1064→      </div>
+  1065→
+  1066→      <div className="mt-3.5 grid grid-cols-3 gap-2 border-t border-border/60 pt-3">
+  1067→        <div className="flex items-center gap-2.5">
+  1068→          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-emerald-400/25 bg-emerald-400/[0.07]">
+  1069→            <LogIn className="h-3.5 w-3.5 text-emerald-400" />
+  1070→          </span>
+  1071→          <div className="min-w-0">
+  1072→            <p className="tnum font-display text-base font-bold leading-none">{shift.ins}</p>
+  1073→            <p className="mt-0.5 truncate text-[8.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+  1074→              {t("shiftCheckins")}
+  1075→            </p>
+  1076→          </div>
+  1077→        </div>
+  1078→        <div className="flex items-center gap-2.5">
+  1079→          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-sky-400/25 bg-sky-400/[0.07]">
+  1080→            <LogOut className="h-3.5 w-3.5 text-sky-400" />
+  1081→          </span>
+  1082→          <div className="min-w-0">
+  1083→            <p className="tnum font-display text-base font-bold leading-none">{shift.outs}</p>
+  1084→            <p className="mt-0.5 truncate text-[8.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+  1085→              {t("shiftCheckouts")}
+  1086→            </p>
+  1087→          </div>
+  1088→        </div>
+  1089→        <div className="flex items-center gap-2.5">
+  1090→          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/[0.08]">
+  1091→            <Timer className="h-3.5 w-3.5 text-primary" />
+  1092→          </span>
+  1093→          <div className="min-w-0">
+  1094→            <p className="tnum font-display text-base font-bold leading-none">{fmtDuration(shift.avgMs)}</p>
+  1095→            <p className="mt-0.5 truncate text-[8.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+  1096→              {t("shiftAvgStay")}
+  1097→            </p>
+  1098→          </div>
+  1099→        </div>
+  1100→      </div>
+
+[showing lines 1-1100 of 2121; use offset=1101 with limit to continue reading]
