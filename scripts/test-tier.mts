@@ -1,5 +1,5 @@
 /** Boundary test for dynamic pricing tier logic + demandNow against a fake slot list. */
-import { demandTierFor, demandNow, DEMAND_TIERS, buildSlots } from "../src/lib/parking-data";
+import { demandTierFor, demandNow, DEMAND_TIERS, buildSlots, TARIFF, walkInPriceFor } from "../src/lib/parking-data";
 
 let pass = 0;
 let fail = 0;
@@ -25,7 +25,14 @@ check("100% → HIGH", demandTierFor(100) === "HIGH");
 console.log("price ladder:");
 check("LOW 15K/25K", DEMAND_TIERS.LOW.advanceFee === 15000 && DEMAND_TIERS.LOW.walkInFee === 25000);
 check("NORMAL mirrors TARIFF 20K/30K", DEMAND_TIERS.NORMAL.advanceFee === 20000 && DEMAND_TIERS.NORMAL.walkInFee === 30000);
-check("HIGH 30K/35K", DEMAND_TIERS.HIGH.advanceFee === 30000 && DEMAND_TIERS.HIGH.walkInFee === 35000);
+check("HIGH 30K/40K (v22)", DEMAND_TIERS.HIGH.advanceFee === 30000 && DEMAND_TIERS.HIGH.walkInFee === 40000);
+console.log("v22 walk-in surcharge (flat +10K, structural):");
+check(
+  "walkInPriceFor = advance + 10K untuk SEMUA tier",
+  (["LOW", "NORMAL", "HIGH"] as const).every(
+    (t) => DEMAND_TIERS[t].walkInFee === walkInPriceFor(t) && DEMAND_TIERS[t].walkInFee === DEMAND_TIERS[t].advanceFee + TARIFF.walkInSurcharge
+  )
+);
 
 console.log("demandNow on synthetic worlds:");
 const slots = buildSlots(); // 32 slots, 2 maintenance → 30 active
@@ -44,7 +51,6 @@ const mkRes = (slotId: string, i: number) => ({
   endTime,
   status: "CHECKED_IN" as const,
   serviceFee: 25000,
-  parkingFee: 0,
   overtimeFee: 0,
   refundAmount: 0,
   vehiclePlate: "B 1234 TST",
