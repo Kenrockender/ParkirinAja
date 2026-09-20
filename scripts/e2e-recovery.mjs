@@ -366,10 +366,15 @@ await page.locator("[data-live-pill='off']").first().click();
 await page.waitForTimeout(5000);
 const pillText = await page.locator("[data-live-pill='on']").first().innerText();
 check("pill LIVE di header operator", pillText.includes("LIVE"));
-await page.waitForTimeout(4000);
-const opGuests = await page.locator("[data-op-guests]").count();
+// tamu probabilistik — polling hingga minimal 1 tamu parkir
+let opGuests = 0;
+let guestTileOp = 0;
+for (let i = 0; i < 10 && opGuests === 0; i++) {
+  opGuests = await page.locator("[data-op-guests]").count();
+  guestTileOp = await page.locator("[data-live-guest]").count();
+  if (opGuests === 0) await page.waitForTimeout(3600);
+}
 check("chip TAMU di slot monitor", opGuests > 0);
-const guestTileOp = await page.locator("[data-live-guest]").count();
 check("tile tamu di grid operator", guestTileOp > 0, `${guestTileOp}`);
 await shot("operator-monitor-live");
 
