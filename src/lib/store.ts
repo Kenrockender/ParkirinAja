@@ -1,30 +1,40 @@
 "use client";
 /**
  * Parkir Binus preview store — client-side simulation of the full product loop:
- * auth → browse availability → book → check-in (scan) → check-out (scan or ticket) → fees/refund.
+ * auth → browse availability → book → check-in (scan) → check-out (scan or ticket) → fines/refund.
+ *
+ * v22: NO parking fee — check-out charges only the late fine (denda keterlambatan).
+ * v23: every action is instrumented into an append-only audit trail; a live gate
+ *      stream simulator runs guests that NEVER touch reservations/txns/ledger.
+ * v26: top-up records the payment channel; avatar upload; profile editing.
  */
 import { create } from "zustand";
 import {
   buildAlamSuteraSlots,
   buildBekasiSlots,
   buildSlots,
-  type Notif,
   dateStr,
   demandNow,
   DEMAND_TIERS,
   overlaps,
   overtimeFee,
-  parkingFee,
   refundAmount,
   resCode,
   rupiah,
+  slotStatusForWindow,
   TARIFF,
   timeStr,
   toMinutes,
   fromMinutes,
   uid,
+  type AuditAction,
+  type AuditEntry,
   type CampusId,
   type Lang,
+  type LiveConnStatus,
+  type LiveEvent,
+  type LiveGuest,
+  type Notif,
   type Reservation,
   type ResStatus,
   type ResType,
@@ -42,12 +52,22 @@ const DAY = 24 * HOUR;
 /** Max concurrent CHECKED_IN sessions per user ("sedang parkir"). */
 const MAX_ACTIVE_PARKING = 2;
 
+/** Browser-session id — shared by every audit entry of one page load. */
+export const SESSION_ID = `sess-${uid().slice(0, 10)}`;
+
+/** Audit log cap (append-only, last 250 kept). */
+const AUDIT_CAP = 250;
+
 export interface User {
   name: string;
   email: string;
   isBinusian: boolean;
   memberSince: string;
   role: "USER" | "OPERATOR";
+  phone?: string;
+  nim?: string;
+  /** data-URL of the uploaded profile photo (null → initials fallback). */
+  avatar?: string | null;
 }
 
 interface Toast {
@@ -66,7 +86,7 @@ interface ParkirState {
   vehicles: Vehicle[];
   /** Slots of the active campus (mirrors slotsByCampus[campusId]). */
   slots: Slot[];
-  /** Per-campus slot worlds — Anggrek building lot & Alam Sutera open lot. */
+  /** Per-campus slot worlds — Anggrek building lot & open lots. */
   slotsByCampus: Record<CampusId, Slot[]>;
   reservations: Reservation[];
   transactions: Txn[];
@@ -75,8 +95,20 @@ interface ParkirState {
   /** Customer notification center (structured — rendered per-language at display time). */
   notifications: Notif[];
   viewWindow: TimeWindow;
-  /** Active campus — Coming Soon campuses are selectable but gated in the UI. */
+  /** Active campus. */
   campusId: CampusId;
+
+  // ── audit trail (v23) ──
+  auditLog: AuditEntry[];
+
+  // ── live gate stream (v23) ──
+  liveOn: boolean;
+  liveStatus: LiveConnStatus;
+  liveEvents: LiveEvent[];
+  liveGuests: LiveGuest[];
+  liveLatency: number;
+  liveReconnects: number;
+  liveUptimeStart: number;
 
   selectCampus: (id: CampusId) => void;
   setLang: (l: Lang) => void;
@@ -91,12 +123,19 @@ interface ParkirState {
   signIn: (kind: "student" | "general" | "operator" | "microsoft") => void;
   signOut: () => void;
 
-  addVehicle: (v: { nickname: string; licensePlate: string; brand: string | null; model: string | null; color: string | null }) => void;
-  updateVehicle: (id: string, v: { nickname: string; licensePlate: string; brand: string | null; model: string | null; color: string | null }) => void;
+  /** v25/v26 — edit personal data + profile photo. */
+  updateProfile: (patch: { name: string; email: string; phone?: string; nim?: string }) => void;
+  setAvatar: (dataUrl: string | null) => void;
+
+  addVehicle: (v: { nickname: string; licensePlate: string; brand: string | null; model: string | null; color: string | null; bodyType?: string | null }) => void;
+  updateVehicle: (id: string, v: { nickname: string; licensePlate: string; brand: string | null; model: string | null; color: string | null; bodyType?: string | null }) => void;
   removeVehicle: (id: string) => void;
 
   /** Operator: toggle a slot between ACTIVE and MAINTENANCE */
   setSlotStatus: (slotId: string, status: Slot["status"]) => void;
+
+  /** Operator: broadcast a campus promo to users. */
+  broadcastPromo: () => void;
 
   book: (args: {
     slotId: string;
@@ -113,9 +152,9 @@ interface ParkirState {
   /** CONFIRMED → CHECKED_IN. Returns false when blocked (already 2 active sessions). */
   checkIn: (id: string) => boolean;
 
-  /** End an active session — charges parking + overtime fees from wallet */
-  checkOut: (id: string) =>
-    | { ok: true; parkingFee: number; overtimeFee: number }
+  /** End an active session — v22: charges ONLY the late fine. `via` feeds the audit trail. */
+  checkOut: (id: string, via?: "ticket" | "scan") =>
+    | { ok: true; overtimeFee: number }
     | { ok: false; reason: "not_found" | "insufficient" };
 
   /** Scan a slot QR → walk-in start, check-in, or check-out depending on state */
@@ -123,19 +162,43 @@ interface ParkirState {
     | { ok: true; kind: "walkin" | "checkin" | "checkout"; reservation?: Reservation }
     | { ok: false; reason: "unknown" | "busy" | "maintenance" | "no_reservation" | "insufficient" | "max_active" };
 
-  /** Operator: end any active session on the spot — fees recorded as on-site payment */
+  /** Operator: end any active session on the spot — fine recorded as on-site payment */
   forceCheckOut: (id: string) =>
-    | { ok: true; parkingFee: number; overtimeFee: number }
+    | { ok: true; overtimeFee: number }
     | { ok: false; reason: "not_found" };
 
-  /** Operator: extend a session/booking window by N hours (capped at closing time) */
+  /** Extend a session/booking window by N hours (capped at closing time) */
   extendSession: (id: string, hours: number) => boolean;
 
   /** Operator: manual check-in for a confirmed reservation (bypasses customer limits) */
   manualCheckIn: (id: string) => boolean;
 
-  topUp: (amount: number) => void;
+  /** v26: top up — `note` records the payment channel (VA BCA / Kartu •••• 4242 / QRIS). */
+  topUp: (amount: number, note?: string) => void;
+
+  /** v23: toggle the simulated gate WebSocket stream. */
+  liveToggle: () => void;
+  /** v23: one simulated gate tick (interval-driven). */
+  liveStep: () => void;
 }
+
+// ───────────────────────── audit helpers ─────────────────────────
+
+function hashStr(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return h >>> 0;
+}
+
+/** Deterministic fake IP per actor+role — 10.20.x.x operator, 114.10.x.x user, 127.0.0.1 system. */
+function fakeIp(role: AuditEntry["role"], actor: string): string {
+  if (role === "SYSTEM") return "127.0.0.1";
+  const h = hashStr(`${actor}|${role}`);
+  if (role === "OPERATOR") return `10.20.${(h % 200) + 1}.${((h >> 8) % 250) + 1}`;
+  return `114.10.${(h % 200) + 1}.${((h >> 8) % 250) + 1}`;
+}
+
+// ─────────────────────── seed worlds ───────────────────────
 
 /** Seed a believable world relative to "now" */
 function seedReservations(now: number): Reservation[] {
@@ -152,11 +215,10 @@ function seedReservations(now: number): Reservation[] {
     type: "ADVANCE",
     demandTier: "NORMAL",
     serviceFee: TARIFF.advanceFee,
-    parkingFee: 0,
     overtimeFee: 0,
     refundAmount: 0,
     vehiclePlate: "B 2143 RWZ",
-    vehicleName: "Honda Vario 160",
+    vehicleName: "Honda HR-V",
     driverName: "Rizky Pratama",
     createdAt: now - 2 * HOUR,
     ...r,
@@ -194,7 +256,7 @@ function seedReservations(now: number): Reservation[] {
       createdAt: now - 3 * DAY,
       vehiclePlate: "B 2143 RWZ",
     }),
-    // Completed yesterday with parking + overtime
+    // Completed yesterday with a late fine (20 min past the window)
     mk({
       slotId: "slot-B-2",
       slotNumber: "B-02",
@@ -204,8 +266,7 @@ function seedReservations(now: number): Reservation[] {
       status: "COMPLETED",
       createdAt: now - 2 * DAY,
       checkedInAt: now - DAY - 4 * HOUR,
-      checkedOutAt: now - DAY - 90 * MIN,
-      parkingFee: TARIFF.parkFirstHoursFee,
+      checkedOutAt: now - DAY - 100 * MIN,
       overtimeFee: TARIFF.overtimeFeePerHour,
     }),
     // Cancelled last week (50% refund received)
@@ -253,12 +314,11 @@ function defaultWindow(): TimeWindow {
 
 function seedTxns(now: number): Txn[] {
   return [
-    { id: uid(), type: "TOP_UP", amount: 100000, createdAt: now - 9 * DAY, note: "" },
+    { id: uid(), type: "TOP_UP", amount: 100000, createdAt: now - 9 * DAY, note: "VA BCA" },
     { id: uid(), type: "SERVICE_FEE", amount: TARIFF.advanceFee, createdAt: now - 8 * DAY, note: "PB-KLM8241" },
     { id: uid(), type: "REFUND", amount: TARIFF.advanceFee / 2, createdAt: now - 7 * DAY, note: "PB-KLM8241" },
-    { id: uid(), type: "TOP_UP", amount: 150000, createdAt: now - 3 * DAY, note: "" },
+    { id: uid(), type: "TOP_UP", amount: 150000, createdAt: now - 3 * DAY, note: "QRIS" },
     { id: uid(), type: "SERVICE_FEE", amount: TARIFF.advanceFee, createdAt: now - 2 * DAY, note: "PB-QRT3310" },
-    { id: uid(), type: "PARKING_FEE", amount: TARIFF.parkFirstHoursFee, createdAt: now - 90 * MIN, note: "PB-QRT3310" },
     { id: uid(), type: "OVERTIME", amount: TARIFF.overtimeFeePerHour, createdAt: now - 88 * MIN, note: "PB-QRT3310" },
     { id: uid(), type: "SERVICE_FEE", amount: TARIFF.advanceFee, createdAt: now - 4 * MIN, note: "PB-JHD5527" },
   ];
@@ -278,20 +338,34 @@ function mulberry32(seed: number) {
   };
 }
 
-/** Drivers that "fill" the parking building while the operator is on shift. */
+/** Drivers that "fill" the parking building while the operator is on shift — CARS only (v25). */
 const OP_PEOPLE: { name: string; plate: string; vehicle: string }[] = [
-  { name: "Alya Ramadhani", plate: "B 2741 AKL", vehicle: "Honda Beat" },
-  { name: "Bagus Prasetyo", plate: "B 1877 TRK", vehicle: "Yamaha NMAX" },
+  { name: "Alya Ramadhani", plate: "B 2741 AKL", vehicle: "Honda Brio" },
+  { name: "Bagus Prasetyo", plate: "B 1877 TRK", vehicle: "Toyota Innova Zenix" },
   { name: "Citra Dewi", plate: "B 5512 MNH", vehicle: "Toyota Calya" },
-  { name: "Daffa Hakim", plate: "B 1680 PQW", vehicle: "Honda Vario 125" },
+  { name: "Daffa Hakim", plate: "B 1680 PQW", vehicle: "Honda HR-V" },
   { name: "Elang Satria", plate: "B 8625 JKT", vehicle: "Suzuki Ertiga" },
-  { name: "Farah Nabila", plate: "B 3908 KLM", vehicle: "Honda Scoopy" },
+  { name: "Farah Nabila", plate: "B 3908 KLM", vehicle: "Daihatsu Rocky" },
   { name: "Gilang Ramadhan", plate: "B 6634 BVN", vehicle: "Toyota Avanza" },
-  { name: "Hana Salsabila", plate: "B 4419 QWE", vehicle: "Yamaha Mio" },
-  { name: "Iqbal Maulana", plate: "B 7230 RTY", vehicle: "Honda CB150" },
+  { name: "Hana Salsabila", plate: "B 4419 QWE", vehicle: "Suzuki Baleno" },
+  { name: "Iqbal Maulana", plate: "B 7230 RTY", vehicle: "Mitsubishi Xpander" },
   { name: "Jihan Aprilia", plate: "B 9023 UIO", vehicle: "Honda Brio" },
-  { name: "Kevin Wijaya", plate: "B 1123 PAS", vehicle: "Yamaha Lexi" },
+  { name: "Kevin Wijaya", plate: "B 1123 PAS", vehicle: "Nissan Livina" },
   { name: "Luna Maharani", plate: "B 7856 GHD", vehicle: "Daihatsu Ayla" },
+];
+
+/** v23 — guest car pool for the live gate simulator (never touches real state). */
+const LIVE_PEOPLE: { name: string; plate: string; vehicle: string }[] = [
+  { name: "Raka Aditya", plate: "B 2914 KJD", vehicle: "Toyota Raize" },
+  { name: "Sinta Maharani", plate: "B 1892 PLM", vehicle: "Honda Civic" },
+  { name: "Toni Saputra", plate: "B 3355 QWE", vehicle: "Mitsubishi Pajero Sport" },
+  { name: "Vina Anggraini", plate: "B 7412 ASD", vehicle: "Hyundai Stargazer" },
+  { name: "Wahyu Nugroho", plate: "B 5567 ZXV", vehicle: "Toyota Yaris" },
+  { name: "Xenia Putri", plate: "B 8890 BNM", vehicle: "Kia Sonet" },
+  { name: "Yoga Pratama", plate: "B 2233 CFG", vehicle: "Wuling Almaz" },
+  { name: "Zahra Amelia", plate: "B 6678 HJK", vehicle: "Honda BR-V" },
+  { name: "Dimas Prakoso", plate: "B 9103 LOP", vehicle: "Volkswagen Tiguan" },
+  { name: "Nadia Rahma", plate: "B 4821 MKO", vehicle: "MG ZS" },
 ];
 
 /** slotNumber → {slotId, slotNumber} pair matching buildSlots() id format. */
@@ -331,8 +405,7 @@ function seedAlamSuteraWorld(now: number): { reservations: Reservation[]; transa
     code: resCode(),
     type: "WALK_IN",
     demandTier: "NORMAL",
-    serviceFee: TARIFF.walkInFee,
-    parkingFee: 0,
+    serviceFee: DEMAND_TIERS.NORMAL.walkInFee,
     overtimeFee: 0,
     refundAmount: 0,
     date: today,
@@ -371,7 +444,7 @@ function seedAlamSuteraWorld(now: number): { reservations: Reservation[]; transa
       checkedInAt: inAt,
     });
     res.push(r);
-    txns.push({ id: uid(), type: "SERVICE_FEE", amount: TARIFF.walkInFee, createdAt: inAt, note: r.code });
+    txns.push({ id: uid(), type: "SERVICE_FEE", amount: DEMAND_TIERS.NORMAL.walkInFee, createdAt: inAt, note: r.code });
   }
 
   const holds: { off: number; hrs: number; p: number; slot: string }[] = [
@@ -404,8 +477,7 @@ function seedAlamSuteraWorld(now: number): { reservations: Reservation[]; transa
 
 /**
  * Bekasi live world — other parkers only, so the open lot opens at a
- * believable ~42% occupancy (20 of 48 active bays) → NORMAL demand tier:
- * 17 walk-in sessions active now + 3 advance holds overlapping now.
+ * believable ~42% occupancy (20 of 48 active bays) → NORMAL demand tier.
  */
 function seedBekasiWorld(now: number): { reservations: Reservation[]; transactions: Txn[] } {
   const nowD = new Date(now);
@@ -421,8 +493,7 @@ function seedBekasiWorld(now: number): { reservations: Reservation[]; transactio
     code: resCode(),
     type: "WALK_IN",
     demandTier: "NORMAL",
-    serviceFee: TARIFF.walkInFee,
-    parkingFee: 0,
+    serviceFee: DEMAND_TIERS.NORMAL.walkInFee,
     overtimeFee: 0,
     refundAmount: 0,
     date: today,
@@ -465,7 +536,7 @@ function seedBekasiWorld(now: number): { reservations: Reservation[]; transactio
       checkedInAt: inAt,
     });
     res.push(r);
-    txns.push({ id: uid(), type: "SERVICE_FEE", amount: TARIFF.walkInFee, createdAt: inAt, note: r.code });
+    txns.push({ id: uid(), type: "SERVICE_FEE", amount: DEMAND_TIERS.NORMAL.walkInFee, createdAt: inAt, note: r.code });
   }
 
   const holds: { off: number; hrs: number; p: number; slot: string }[] = [
@@ -525,8 +596,7 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
     code: resCode(),
     type: "WALK_IN",
     demandTier: "NORMAL",
-    serviceFee: TARIFF.walkInFee,
-    parkingFee: 0,
+    serviceFee: DEMAND_TIERS.NORMAL.walkInFee,
     overtimeFee: 0,
     refundAmount: 0,
     createdAt: now,
@@ -562,14 +632,14 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
       checkedInAt: inAt,
     });
     res.push(r);
-    addTxn("SERVICE_FEE", TARIFF.walkInFee, inAt, r.code);
+    addTxn("SERVICE_FEE", r.serviceFee, inAt, r.code);
   }
 
-  // ── 7 completed visits earlier today (one with overtime) ──
+  // ── 7 completed visits earlier today (one with a late fine) ──
   const done: { off: number; dur: number; planned: number; p: number; slot: string; advance: boolean }[] = [
     { off: 390, dur: 95, planned: 2, p: 2, slot: "B-02", advance: false },
     { off: 330, dur: 55, planned: 2, p: 4, slot: "A-06", advance: true },
-    { off: 300, dur: 185, planned: 2, p: 7, slot: "B-08", advance: false }, // overtime
+    { off: 300, dur: 185, planned: 2, p: 7, slot: "B-08", advance: false }, // late
     { off: 268, dur: 140, planned: 3, p: 1, slot: "A-10", advance: false },
     { off: 205, dur: 45, planned: 1, p: 5, slot: "B-05", advance: false },
     { off: 115, dur: 70, planned: 2, p: 10, slot: "A-13", advance: true },
@@ -584,7 +654,7 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
     const r = mk({
       ...opSlot(d.slot),
       type: d.advance ? "ADVANCE" : "WALK_IN",
-      serviceFee: d.advance ? TARIFF.advanceFee : TARIFF.walkInFee,
+      serviceFee: d.advance ? TARIFF.advanceFee : DEMAND_TIERS.NORMAL.walkInFee,
       date: today,
       startTime: timeStr(inD),
       endTime: addH(timeStr(inD), d.planned),
@@ -592,7 +662,6 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
       driverName: person.name,
       vehiclePlate: person.plate,
       vehicleName: person.vehicle,
-      parkingFee: parkingFee(d.dur),
       overtimeFee: overtimeFee(lateMin),
       createdAt: d.advance ? Math.max(t0, inAt - 40 * MIN) : inAt,
       checkedInAt: inAt,
@@ -600,7 +669,6 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
     });
     res.push(r);
     addTxn("SERVICE_FEE", r.serviceFee, r.createdAt, r.code);
-    addTxn("PARKING_FEE", r.parkingFee, outAt, r.code);
     if (r.overtimeFee > 0) addTxn("OVERTIME", r.overtimeFee, outAt, r.code);
   }
 
@@ -644,7 +712,7 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
     { off: 130, amount: 50000 },
     { off: 260, amount: 150000 },
   ];
-  for (const tp of tops) addTxn("TOP_UP", tp.amount, Math.max(t0, now - tp.off * MIN), "");
+  for (const tp of tops) addTxn("TOP_UP", tp.amount, Math.max(t0, now - tp.off * MIN), "QRIS");
 
   // ── 7 days × 8 historical check-ins → peak-hours chart ──
   for (let d = 1; d <= 7; d++) {
@@ -658,6 +726,7 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
       const durMin = Math.max(15, Math.round((outAt - inAt) / MIN));
       const person = OP_PEOPLE[Math.floor(rnd() * OP_PEOPLE.length)];
       const slot = OP_HIST_SLOTS[Math.floor(rnd() * OP_HIST_SLOTS.length)];
+      const late = Math.max(0, durMin - 150);
       res.push(
         mk({
           ...opSlot(slot),
@@ -668,7 +737,7 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
           driverName: person.name,
           vehiclePlate: person.plate,
           vehicleName: person.vehicle,
-          parkingFee: parkingFee(durMin),
+          overtimeFee: overtimeFee(late),
           createdAt: inAt,
           checkedInAt: inAt,
           checkedOutAt: outAt,
@@ -681,499 +750,786 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
   return { reservations: res, transactions: txns };
 }
 
-export const useParkir = create<ParkirState>((set, get) => ({
-  lang: "id",
-  signedIn: false,
-  user: {
-    name: "Rizky Pratama",
-    email: "rizky.pratama@binus.ac.id",
-    isBinusian: true,
-    memberSince: "Sep 2024",
-    role: "USER" as const,
-  },
-  vehicles: [
-    {
-      id: "veh-1",
-      nickname: "Vario Harian",
-      licensePlate: "B 2143 RWZ",
-      brand: "Honda",
-      model: "Vario 160",
-      color: "Hitam",
+/** v23 — derive a believable audit history from the seeded worlds. */
+function seedAuditLog(
+  worlds: { reservations: Reservation[]; transactions: Txn[] }[],
+  slotsByCampus: Record<CampusId, Slot[]>,
+  operatorName: string
+): AuditEntry[] {
+  const out: AuditEntry[] = [];
+  const mkEntry = (
+    at: number,
+    actor: string,
+    role: AuditEntry["role"],
+    action: AuditAction,
+    severity: AuditEntry["severity"],
+    target?: string,
+    detail?: string
+  ): AuditEntry => ({
+    id: uid(),
+    sessionId: SESSION_ID,
+    at,
+    actor,
+    role,
+    action,
+    severity,
+    target,
+    detail,
+    ip: fakeIp(role, actor),
+  });
+
+  for (const w of worlds) {
+    for (const r of w.reservations) {
+      out.push(mkEntry(r.createdAt, r.driverName, "USER", "BOOKING_CREATED", "info", r.slotNumber, r.code));
+      if (r.checkedInAt) out.push(mkEntry(r.checkedInAt, r.driverName, "USER", r.type === "WALK_IN" ? "WALK_IN_STARTED" : "CHECK_IN", "info", r.slotNumber, `via scan · ${r.code}`));
+      if (r.checkedOutAt) out.push(mkEntry(r.checkedOutAt, r.driverName, "USER", "CHECK_OUT", "info", r.slotNumber, r.code));
+    }
+    for (const tx of w.transactions) {
+      if (tx.type === "TOP_UP") {
+        const actor = OP_PEOPLE[hashStr(tx.id) % OP_PEOPLE.length].name;
+        out.push(mkEntry(tx.createdAt, actor, "USER", "TOP_UP", "info", undefined, rupiah(tx.amount)));
+      }
+    }
+  }
+
+  // maintenance slots → warnings by the operator
+  const op = operatorName;
+  for (const list of Object.values(slotsByCampus)) {
+    for (const s of list) {
+      if (s.status === "MAINTENANCE") {
+        out.push(mkEntry(Date.now() - 5 * HOUR, op, "OPERATOR", "SLOT_MAINTENANCE", "warning", s.slotNumber));
+      }
+    }
+  }
+
+  // one SYSTEM entry
+  out.push(mkEntry(Date.now() - 3 * HOUR, "Sistem Parkir", "SYSTEM", "PROMO_BROADCAST", "info", "promo", "128 penerima"));
+
+  out.sort((a, b) => a.at - b.at);
+  return out.slice(-AUDIT_CAP);
+}
+
+// ───────────────────────── live engine ─────────────────────────
+
+let liveTimer: ReturnType<typeof setInterval> | null = null;
+let liveTickN = 0;
+
+export const useParkir = create<ParkirState>((set, get) => {
+  /** Append-only audit — capped, never rewrites history. */
+  const audit = (
+    action: AuditAction,
+    opts: {
+      actor?: string;
+      role?: AuditEntry["role"];
+      severity?: AuditEntry["severity"];
+      target?: string;
+      detail?: string;
+      at?: number;
+    } = {}
+  ) => {
+    const s = get();
+    const actor = opts.actor ?? s.user.name;
+    const role = opts.role ?? s.user.role;
+    const entry: AuditEntry = {
+      id: uid(),
+      sessionId: SESSION_ID,
+      at: opts.at ?? Date.now(),
+      actor,
+      role,
+      action,
+      severity: opts.severity ?? "info",
+      target: opts.target,
+      detail: opts.detail,
+      ip: fakeIp(role, actor),
+    };
+    set({ auditLog: [...s.auditLog, entry].slice(-AUDIT_CAP) });
+  };
+
+  return {
+    lang: "id",
+    signedIn: false,
+    user: {
+      name: "Rizky Pratama",
+      email: "rizky.pratama@binus.ac.id",
+      isBinusian: true,
+      memberSince: "Sep 2024",
+      role: "USER" as const,
     },
-    {
-      id: "veh-2",
-      nickname: "Avanza Keluarga",
-      licensePlate: "B 8712 KLM",
-      brand: "Toyota",
-      model: "Avanza",
-      color: "Putih",
+    vehicles: [
+      {
+        id: "veh-1",
+        nickname: "HRV Harian",
+        licensePlate: "B 2143 RWZ",
+        brand: "Honda",
+        model: "HR-V",
+        color: "Hitam",
+        bodyType: "SUV",
+      },
+      {
+        id: "veh-2",
+        nickname: "Avanza Keluarga",
+        licensePlate: "B 8712 KLM",
+        brand: "Toyota",
+        model: "Avanza",
+        color: "Putih",
+        bodyType: "MPV",
+      },
+    ],
+    slotsByCampus: {
+      anggrek: buildSlots(),
+      alamsutera: buildAlamSuteraSlots(),
+      bekasi: buildBekasiSlots(),
     },
-  ],
-  slotsByCampus: {
-    anggrek: buildSlots(),
-    alamsutera: buildAlamSuteraSlots(),
-    bekasi: buildBekasiSlots(),
-  },
-  slots: buildSlots(),
-  reservations: [],
-  transactions: [],
-  walletBalance: 0,
-  toasts: [],
-  notifications: [],
-  viewWindow: defaultWindow(),
-  campusId: "anggrek",
+    slots: buildSlots(),
+    reservations: [],
+    transactions: [],
+    walletBalance: 0,
+    toasts: [],
+    notifications: [],
+    viewWindow: defaultWindow(),
+    campusId: "anggrek",
+    auditLog: [],
+    liveOn: false,
+    liveStatus: "offline",
+    liveEvents: [],
+    liveGuests: [],
+    liveLatency: 0,
+    liveReconnects: 0,
+    liveUptimeStart: 0,
 
-  selectCampus: (id) =>
-    set((s) => ({ campusId: id, slots: s.slotsByCampus[id] ?? [] })),
-  setLang: (l) => set({ lang: l }),
-  setViewWindow: (w) => set({ viewWindow: w }),
+    selectCampus: (id) => {
+      set((s) => ({ campusId: id, slots: s.slotsByCampus[id] ?? [] }));
+      audit("CAMPUS_SWITCHED", { target: id });
+    },
+    setLang: (l) => set({ lang: l }),
+    setViewWindow: (w) => set({ viewWindow: w }),
 
-  toast: (message, tone = "info") => {
-    const id = uid();
-    set((s) => ({ toasts: [...s.toasts, { id, message, tone }] }));
-    setTimeout(() => {
-      set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
-    }, 3800);
-  },
-  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+    toast: (message, tone = "info") => {
+      const id = uid();
+      set((s) => ({ toasts: [...s.toasts, { id, message, tone }] }));
+      setTimeout(() => {
+        set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
+      }, 3800);
+    },
+    dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
-  pushNotif: (n) =>
-    set((s) => {
-      if (n.key && s.notifications.some((x) => x.key === n.key)) return s;
-      return {
-        notifications: [
-          {
-            id: uid(),
-            key: n.key,
-            kind: n.kind,
-            params: n.params,
-            createdAt: n.createdAt ?? Date.now(),
-            read: n.read ?? false,
+    pushNotif: (n) =>
+      set((s) => {
+        if (n.key && s.notifications.some((x) => x.key === n.key)) return s;
+        return {
+          notifications: [
+            {
+              id: uid(),
+              key: n.key,
+              kind: n.kind,
+              params: n.params,
+              createdAt: n.createdAt ?? Date.now(),
+              read: n.read ?? false,
+            },
+            ...s.notifications,
+          ],
+        };
+      }),
+
+    markNotifsRead: () => set((s) => ({ notifications: s.notifications.map((n) => ({ ...n, read: true })) })),
+
+    clearNotifs: () => set({ notifications: [] }),
+
+    signIn: (kind) => {
+      const now = Date.now();
+      if (kind === "operator") {
+        const world = seedOperatorWorld(now);
+        const asWorld = seedAlamSuteraWorld(now);
+        const bkWorld = seedBekasiWorld(now);
+        const slotsByCampus = get().slotsByCampus;
+        set({
+          signedIn: true,
+          user: {
+            name: "Andi Wijaya",
+            email: "operator.anggrek@binus.ac.id",
+            isBinusian: true,
+            memberSince: "Feb 2024",
+            role: "OPERATOR",
           },
-          ...s.notifications,
-        ],
+          reservations: [...world.reservations, ...asWorld.reservations, ...bkWorld.reservations],
+          transactions: [...world.transactions, ...asWorld.transactions, ...bkWorld.transactions],
+          walletBalance: 230000,
+          auditLog: seedAuditLog([world, asWorld, bkWorld], slotsByCampus, "Andi Wijaya"),
+        });
+        audit("SIGN_IN", { actor: "Andi Wijaya", role: "OPERATOR", detail: "SSO Microsoft · shift pagi" });
+        return;
+      }
+      const profiles: Record<"student" | "general" | "microsoft", Omit<User, "role">> = {
+        student: {
+          name: "Rizky Pratama",
+          email: "rizky.pratama@binus.ac.id",
+          isBinusian: true,
+          memberSince: "Sep 2024",
+          phone: "+62 812 3456 7890",
+          nim: "2540123456",
+        },
+        microsoft: {
+          name: "Alya Ramadhani",
+          email: "alya.ramadhani@binus.ac.id",
+          isBinusian: true,
+          memberSince: "Feb 2025",
+        },
+        general: {
+          name: "Dimas Saputra",
+          email: "dimas.saputra@gmail.com",
+          isBinusian: false,
+          memberSince: "Jan 2026",
+        },
       };
-    }),
-
-  markNotifsRead: () => set((s) => ({ notifications: s.notifications.map((n) => ({ ...n, read: true })) })),
-
-  clearNotifs: () => set({ notifications: [] }),
-
-  signIn: (kind) => {
-    const now = Date.now();
-    if (kind === "operator") {
-      const world = seedOperatorWorld(now);
-      const asWorld = seedAlamSuteraWorld(now);
-      const bkWorld = seedBekasiWorld(now);
+      const mine = [
+        ...seedReservations(now),
+        ...seedAlamSuteraWorld(now).reservations,
+        ...seedBekasiWorld(now).reservations,
+      ];
+      // Believable notification inbox, derived from the seeded world.
+      const me = profiles[kind].name;
+      const activeOwn = mine.find((r) => r.driverName === me && r.status === "CHECKED_IN");
+      const upcomingOwn = mine.find((r) => r.driverName === me && r.status === "CONFIRMED" && r.date >= dateStr(new Date(now)));
+      const completedOwn = [...mine]
+        .filter((r) => r.driverName === me && r.status === "COMPLETED" && r.checkedOutAt)
+        .sort((a, b) => (b.checkedOutAt ?? 0) - (a.checkedOutAt ?? 0))[0];
+      const seedNotifs: Notif[] = [
+        ...(activeOwn
+          ? [{
+              id: uid(), key: `seed-start:${activeOwn.id}`, kind: "session_start" as const,
+              params: { slot: activeOwn.slotNumber, end: activeOwn.endTime },
+              createdAt: activeOwn.checkedInAt ?? now, read: true,
+            }]
+          : []),
+        ...(upcomingOwn
+          ? [{
+              id: uid(), key: `seed-book:${upcomingOwn.id}`, kind: "booking" as const,
+              params: { slot: upcomingOwn.slotNumber, code: upcomingOwn.code },
+              createdAt: upcomingOwn.createdAt, read: true,
+            }]
+          : []),
+        ...(completedOwn
+          ? [{
+              id: uid(), kind: "receipt" as const,
+              params: {
+                slot: completedOwn.slotNumber,
+                total: rupiah(completedOwn.serviceFee + completedOwn.overtimeFee),
+              },
+              createdAt: completedOwn.checkedOutAt ?? now - DAY, read: true,
+            }]
+          : []),
+        {
+          id: uid(), key: "seed-promo", kind: "promo" as const,
+          params: {}, createdAt: now - 3 * HOUR, read: false,
+        },
+        {
+          id: uid(), key: "seed-welcome", kind: "welcome" as const,
+          params: {}, createdAt: now - 26 * HOUR, read: true,
+        },
+      ];
       set({
         signedIn: true,
-        user: {
-          name: "Andi Wijaya",
-          email: "operator.anggrek@binus.ac.id",
-          isBinusian: true,
-          memberSince: "Feb 2024",
-          role: "OPERATOR",
-        },
-        reservations: [...world.reservations, ...asWorld.reservations, ...bkWorld.reservations],
-        transactions: [...world.transactions, ...asWorld.transactions, ...bkWorld.transactions],
+        user: { ...profiles[kind], role: "USER" },
+        reservations: mine,
+        transactions: seedTxns(now),
         walletBalance: 230000,
+        notifications: seedNotifs,
+        auditLog: [],
       });
-      return;
-    }
-    const profiles: Record<"student" | "general" | "microsoft", Omit<User, "role">> = {
-      student: {
-        name: "Rizky Pratama",
-        email: "rizky.pratama@binus.ac.id",
-        isBinusian: true,
-        memberSince: "Sep 2024",
-      },
-      microsoft: {
-        name: "Alya Ramadhani",
-        email: "alya.ramadhani@binus.ac.id",
-        isBinusian: true,
-        memberSince: "Feb 2025",
-      },
-      general: {
-        name: "Dimas Saputra",
-        email: "dimas.saputra@gmail.com",
-        isBinusian: false,
-        memberSince: "Jan 2026",
-      },
-    };
-    const mine = [
-      ...seedReservations(now),
-      ...seedAlamSuteraWorld(now).reservations,
-      ...seedBekasiWorld(now).reservations,
-    ];
-    // Believable notification inbox, derived from the seeded world.
-    const me = profiles[kind].name;
-    const activeOwn = mine.find((r) => r.driverName === me && r.status === "CHECKED_IN");
-    const upcomingOwn = mine.find((r) => r.driverName === me && r.status === "CONFIRMED" && r.date >= dateStr(new Date(now)));
-    const completedOwn = [...mine]
-      .filter((r) => r.driverName === me && r.status === "COMPLETED" && r.checkedOutAt)
-      .sort((a, b) => (b.checkedOutAt ?? 0) - (a.checkedOutAt ?? 0))[0];
-    const seedNotifs: Notif[] = [
-      ...(activeOwn
-        ? [{
-            id: uid(), key: `seed-start:${activeOwn.id}`, kind: "session_start" as const,
-            params: { slot: activeOwn.slotNumber, end: activeOwn.endTime },
-            createdAt: activeOwn.checkedInAt ?? now, read: true,
-          }]
-        : []),
-      ...(upcomingOwn
-        ? [{
-            id: uid(), key: `seed-book:${upcomingOwn.id}`, kind: "booking" as const,
-            params: { slot: upcomingOwn.slotNumber, code: upcomingOwn.code },
-            createdAt: upcomingOwn.createdAt, read: true,
-          }]
-        : []),
-      ...(completedOwn
-        ? [{
-            id: uid(), kind: "receipt" as const,
-            params: {
-              slot: completedOwn.slotNumber,
-              total: rupiah(completedOwn.parkingFee + completedOwn.overtimeFee + completedOwn.serviceFee),
-            },
-            createdAt: completedOwn.checkedOutAt ?? now - DAY, read: true,
-          }]
-        : []),
-      {
-        id: uid(), key: "seed-promo", kind: "promo" as const,
-        params: {}, createdAt: now - 3 * HOUR, read: false,
-      },
-      {
-        id: uid(), key: "seed-welcome", kind: "welcome" as const,
-        params: {}, createdAt: now - 26 * HOUR, read: true,
-      },
-    ];
-    set({
-      signedIn: true,
-      user: { ...profiles[kind], role: "USER" },
-      reservations: mine,
-      transactions: seedTxns(now),
-      walletBalance: 230000,
-      notifications: seedNotifs,
-    });
-  },
+      audit("SIGN_IN", { detail: kind === "microsoft" ? "SSO Microsoft" : "akun demo" });
+    },
 
-  signOut: () =>
-    set({ signedIn: false, reservations: [], transactions: [], walletBalance: 0, notifications: [] }),
+    signOut: () => {
+      audit("SIGN_OUT");
+      if (liveTimer) {
+        clearInterval(liveTimer);
+        liveTimer = null;
+      }
+      liveTickN = 0;
+      set({
+        signedIn: false,
+        reservations: [],
+        transactions: [],
+        walletBalance: 0,
+        notifications: [],
+        liveOn: false,
+        liveStatus: "offline",
+        liveEvents: [],
+        liveGuests: [],
+        liveLatency: 0,
+        liveReconnects: 0,
+        liveUptimeStart: 0,
+      });
+    },
 
-  addVehicle: (v) =>
-    set((s) => ({
-      vehicles: [...s.vehicles, { id: uid(), ...v }],
-    })),
+    updateProfile: (patch) => {
+      set((s) => ({
+        user: {
+          ...s.user,
+          name: patch.name,
+          email: patch.email,
+          phone: patch.phone || undefined,
+          nim: patch.nim || undefined,
+        },
+      }));
+      audit("PROFILE_UPDATE", { detail: `${patch.name} <${patch.email}>` });
+    },
 
-  updateVehicle: (id, v) =>
-    set((s) => ({
-      vehicles: s.vehicles.map((veh) => (veh.id === id ? { ...veh, ...v } : veh)),
-    })),
+    setAvatar: (dataUrl) => {
+      set((s) => ({ user: { ...s.user, avatar: dataUrl } }));
+      audit("PROFILE_UPDATE", { detail: dataUrl ? "foto profil diubah" : "foto profil dihapus" });
+    },
 
-  removeVehicle: (id) => set((s) => ({ vehicles: s.vehicles.filter((v) => v.id !== id) })),
+    addVehicle: (v) =>
+      set((s) => ({
+        vehicles: [...s.vehicles, { id: uid(), ...v }],
+      })),
 
-  setSlotStatus: (slotId, status) =>
-    set((s) => {
+    updateVehicle: (id, v) =>
+      set((s) => ({
+        vehicles: s.vehicles.map((veh) => (veh.id === id ? { ...veh, ...v } : veh)),
+      })),
+
+    removeVehicle: (id) => set((s) => ({ vehicles: s.vehicles.filter((v) => v.id !== id) })),
+
+    setSlotStatus: (slotId, status) => {
+      const s = get();
+      const slot = s.slots.find((x) => x.id === slotId);
       const next = s.slots.map((sl) => (sl.id === slotId ? { ...sl, status } : sl));
-      return {
+      set({
         slots: next,
         slotsByCampus: { ...s.slotsByCampus, [s.campusId]: next },
+      });
+      audit(status === "MAINTENANCE" ? "SLOT_MAINTENANCE" : "SLOT_REACTIVATED", {
+        severity: status === "MAINTENANCE" ? "warning" : "info",
+        target: slot?.slotNumber ?? slotId,
+      });
+    },
+
+    broadcastPromo: () => {
+      get().pushNotif({ key: `promo:${Date.now()}`, kind: "promo", params: {} });
+      audit("PROMO_BROADCAST", { detail: "promo kampus dikirim ke semua pengguna aktif" });
+    },
+
+    book: ({ slotId, slotNumber, type, date, startTime, endTime, vehiclePlate, vehicleName }) => {
+      const { walletBalance } = get();
+      // Dynamic pricing — the service fee follows the live demand tier.
+      const demand = demandNow(get().slots, get().reservations);
+      const fee = type === "ADVANCE" ? DEMAND_TIERS[demand.tier].advanceFee : DEMAND_TIERS[demand.tier].walkInFee;
+      if (walletBalance < fee) {
+        return null;
+      }
+      const now = Date.now();
+      const res: Reservation = {
+        id: uid(),
+        code: resCode(),
+        type,
+        demandTier: demand.tier,
+        slotId,
+        slotNumber,
+        date,
+        startTime,
+        endTime,
+        status: "CONFIRMED",
+        serviceFee: fee,
+        overtimeFee: 0,
+        refundAmount: 0,
+        vehiclePlate,
+        vehicleName,
+        driverName: get().user.name,
+        createdAt: now,
       };
-    }),
+      const txn: Txn = {
+        id: uid(),
+        type: "SERVICE_FEE",
+        amount: fee,
+        createdAt: now,
+        note: res.code,
+      };
+      set((s) => ({
+        reservations: [res, ...s.reservations],
+        transactions: [txn, ...s.transactions],
+        walletBalance: s.walletBalance - fee,
+      }));
+      get().pushNotif({ kind: "booking", params: { slot: slotNumber, code: res.code } });
+      audit("BOOKING_CREATED", { target: slotNumber, detail: `${res.code} · ${rupiah(fee)}` });
+      return res;
+    },
 
-  book: ({ slotId, slotNumber, type, date, startTime, endTime, vehiclePlate, vehicleName }) => {
-    const { walletBalance, lang } = get();
-    // Dynamic pricing — the service fee follows the live demand tier.
-    const demand = demandNow(get().slots, get().reservations);
-    const fee = type === "ADVANCE" ? DEMAND_TIERS[demand.tier].advanceFee : DEMAND_TIERS[demand.tier].walkInFee;
-    if (walletBalance < fee) {
-      return null;
-    }
-    const now = Date.now();
-    const res: Reservation = {
-      id: uid(),
-      code: resCode(),
-      type,
-      demandTier: demand.tier,
-      slotId,
-      slotNumber,
-      date,
-      startTime,
-      endTime,
-      status: "CONFIRMED",
-      serviceFee: fee,
-      parkingFee: 0,
-      overtimeFee: 0,
-      refundAmount: 0,
-      vehiclePlate,
-      vehicleName,
-      driverName: get().user.name,
-      createdAt: now,
-    };
-    const txn: Txn = {
-      id: uid(),
-      type: "SERVICE_FEE",
-      amount: fee,
-      createdAt: now,
-      note: res.code,
-    };
-    set((s) => ({
-      reservations: [res, ...s.reservations],
-      transactions: [txn, ...s.transactions],
-      walletBalance: s.walletBalance - fee,
-    }));
-    get().pushNotif({ kind: "booking", params: { slot: slotNumber, code: res.code } });
-    void lang;
-    return res;
-  },
-
-  cancelReservation: (id) => {
-    const now = Date.now();
-    const { reservations, lang } = get();
-    const target = reservations.find((r) => r.id === id);
-    if (!target || target.status !== "CONFIRMED") return;
-    const startMs = new Date(`${target.date}T${target.startTime}:00`).getTime();
-    const refund = refundAmount(target.serviceFee, startMs, now, target.createdAt);
-    set((s) => ({
-      reservations: s.reservations.map((r) =>
-        r.id === id ? { ...r, status: "CANCELLED" as ResStatus, refundAmount: refund } : r
-      ),
-      walletBalance: s.walletBalance + refund,
-      transactions: [
-        { id: uid(), type: "REFUND", amount: refund, createdAt: now, note: target.code },
-        ...s.transactions,
-      ],
-    }));
-    if (refund > 0) get().pushNotif({ kind: "refund", params: { amount: rupiah(refund), code: target.code } });
-    void lang;
-  },
-
-  checkIn: (id) => {
-    const now = Date.now();
-    const { reservations } = get();
-    const target = reservations.find((r) => r.id === id && r.status === "CONFIRMED");
-    if (!target) return false;
-    const me = get().user.name;
-    const activeNow = reservations.filter((r) => r.status === "CHECKED_IN" && r.driverName === me).length;
-    if (activeNow >= MAX_ACTIVE_PARKING) return false;
-    set((s) => ({
-      reservations: s.reservations.map((r) =>
-        r.id === id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
-      ),
-    }));
-    get().pushNotif({ kind: "session_start", params: { slot: target.slotNumber, end: target.endTime } });
-    return true;
-  },
-
-  checkOut: (id) => {
-    const now = Date.now();
-    const { reservations, walletBalance } = get();
-    const active = reservations.find((r) => r.id === id && r.status === "CHECKED_IN");
-    if (!active) return { ok: false as const, reason: "not_found" as const };
-
-    const inAt = active.checkedInAt ?? now;
-    const minutes = Math.max(1, Math.round((now - inAt) / MIN));
-    const pFee = parkingFee(minutes);
-    const plannedEnd = new Date(`${active.date}T${active.endTime}:00`).getTime();
-    const lateMin = Math.max(0, Math.round((now - plannedEnd) / MIN));
-    const oFee = overtimeFee(lateMin);
-    const total = pFee + oFee;
-    if (walletBalance < total) return { ok: false as const, reason: "insufficient" as const };
-
-    set((s) => ({
-      reservations: s.reservations.map((r) =>
-        r.id === active.id
-          ? {
-              ...r,
-              status: "COMPLETED" as ResStatus,
-              checkedOutAt: now,
-              parkingFee: pFee,
-              overtimeFee: oFee,
-            }
-          : r
-      ),
-      walletBalance: s.walletBalance - total,
-      transactions: [
-        ...(oFee
-          ? [{ id: uid(), type: "OVERTIME" as TxnType, amount: oFee, createdAt: now, note: active.code }]
-          : []),
-        { id: uid(), type: "PARKING_FEE" as TxnType, amount: pFee, createdAt: now, note: active.code },
-        ...s.transactions,
-      ],
-    }));
-    get().pushNotif({
-      kind: "receipt",
-      params: { slot: active.slotNumber, total: rupiah(pFee + oFee) },
-    });
-    return { ok: true as const, parkingFee: pFee, overtimeFee: oFee };
-  },
-
-  scanSlot: (slotNumberRaw) => {
-    const now = Date.now();
-    const { slots, reservations, walletBalance } = get();
-    const code = slotNumberRaw.trim().toUpperCase().replace(/^(PB|AS|BKS)-?/, "");
-    const slot = slots.find(
-      (s) => s.slotNumber === code || s.slotNumber === code.replace("-", "") || `slot-${code.replace("-", "-")}` === s.id
-    );
-    if (!slot) return { ok: false as const, reason: "unknown" as const };
-    if (slot.status === "MAINTENANCE") return { ok: false as const, reason: "maintenance" as const };
-
-    const me = get().user.name;
-    const activeNow = reservations.filter((r) => r.status === "CHECKED_IN" && r.driverName === me).length;
-
-    // Own active session on this slot → checkout (reuse checkOut for identical fee logic)
-    const active = reservations.find(
-      (r) => r.slotId === slot.id && r.status === "CHECKED_IN" && r.driverName === me
-    );
-    if (active) {
-      const out = get().checkOut(active.id);
-      return out.ok
-        ? { ok: true as const, kind: "checkout" as const, reservation: active }
-        : { ok: false as const, reason: "insufficient" as const };
-    }
-
-    // Own confirmed reservation on this slot → check in
-    const confirmed = reservations.find(
-      (r) => r.slotId === slot.id && r.status === "CONFIRMED" && r.driverName === me
-    );
-    if (confirmed) {
-      if (activeNow >= MAX_ACTIVE_PARKING)
-        return { ok: false as const, reason: "max_active" as const };
+    cancelReservation: (id) => {
+      const now = Date.now();
+      const { reservations } = get();
+      const target = reservations.find((r) => r.id === id);
+      if (!target || target.status !== "CONFIRMED") return;
+      const startMs = new Date(`${target.date}T${target.startTime}:00`).getTime();
+      const refund = refundAmount(target.serviceFee, startMs, now, target.createdAt);
       set((s) => ({
         reservations: s.reservations.map((r) =>
-          r.id === confirmed.id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
+          r.id === id ? { ...r, status: "CANCELLED" as ResStatus, refundAmount: refund } : r
+        ),
+        walletBalance: s.walletBalance + refund,
+        transactions: [
+          { id: uid(), type: "REFUND", amount: refund, createdAt: now, note: target.code },
+          ...s.transactions,
+        ],
+      }));
+      audit("BOOKING_CANCELLED", { target: target.slotNumber, detail: target.code });
+      if (refund > 0) {
+        get().pushNotif({ kind: "refund", params: { amount: rupiah(refund), code: target.code } });
+        audit("REFUND_ISSUED", { target: target.slotNumber, detail: `${rupiah(refund)} · ${target.code}` });
+      }
+    },
+
+    checkIn: (id) => {
+      const now = Date.now();
+      const { reservations } = get();
+      const target = reservations.find((r) => r.id === id && r.status === "CONFIRMED");
+      if (!target) return false;
+      const me = get().user.name;
+      const activeNow = reservations.filter((r) => r.status === "CHECKED_IN" && r.driverName === me).length;
+      if (activeNow >= MAX_ACTIVE_PARKING) return false;
+      set((s) => ({
+        reservations: s.reservations.map((r) =>
+          r.id === id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
         ),
       }));
-      return { ok: true as const, kind: "checkin" as const, reservation: confirmed };
-    }
+      get().pushNotif({ kind: "session_start", params: { slot: target.slotNumber, end: target.endTime } });
+      audit("CHECK_IN", { target: target.slotNumber, detail: `${target.code} · via tiket` });
+      return true;
+    },
 
-    // Any other active/confirmed overlapping right now → busy
-    const busy = reservations.find(
-      (r) =>
-        r.slotId === slot.id &&
-        ["CONFIRMED", "CHECKED_IN"].includes(r.status) &&
-        r.date === dateStr(new Date(now))
-    );
-    if (busy) return { ok: false as const, reason: "busy" as const };
+    checkOut: (id, via = "ticket") => {
+      const now = Date.now();
+      const { reservations, walletBalance } = get();
+      const active = reservations.find((r) => r.id === id && r.status === "CHECKED_IN");
+      if (!active) return { ok: false as const, reason: "not_found" as const };
 
-    // Free slot → walk-in session, charged at the live dynamic walk-in rate
-    if (activeNow >= MAX_ACTIVE_PARKING)
-      return { ok: false as const, reason: "max_active" as const };
-    const demand = demandNow(slots, reservations);
-    const walkInFee = DEMAND_TIERS[demand.tier].walkInFee;
-    if (walletBalance < walkInFee)
-      return { ok: false as const, reason: "insufficient" as const };
+      // v22 — NO parking fee. Only the late fine (per STARTED hour past the
+      // booked window, rounded up, uncapped). On-time exit = zero charge.
+      const plannedEnd = new Date(`${active.date}T${active.endTime}:00`).getTime();
+      const lateMin = Math.max(0, Math.round((now - plannedEnd) / MIN));
+      const oFee = overtimeFee(lateMin);
+      if (oFee > 0 && walletBalance < oFee) return { ok: false as const, reason: "insufficient" as const };
 
-    const nowD = new Date(now);
-    const res: Reservation = {
-      id: uid(),
-      code: resCode(),
-      type: "WALK_IN",
-      demandTier: demand.tier,
-      slotId: slot.id,
-      slotNumber: slot.slotNumber,
-      date: dateStr(nowD),
-      startTime: timeStr(nowD),
-      endTime: addH(timeStr(nowD), 2),
-      status: "CHECKED_IN",
-      serviceFee: walkInFee,
-      parkingFee: 0,
-      overtimeFee: 0,
-      refundAmount: 0,
-      vehiclePlate: get().vehicles[0]?.licensePlate ?? "B 2143 RWZ",
-      vehicleName: get().vehicles[0]?.model ?? "Honda Vario 160",
-      driverName: get().user.name,
-      createdAt: now,
-      checkedInAt: now,
-    };
-    set((s) => ({
-      reservations: [res, ...s.reservations],
-      walletBalance: s.walletBalance - walkInFee,
-      transactions: [
-        { id: uid(), type: "SERVICE_FEE", amount: walkInFee, createdAt: now, note: res.code },
-        ...s.transactions,
-      ],
-    }));
-    get().pushNotif({ kind: "session_start", params: { slot: slot.slotNumber, end: res.endTime } });
-    return { ok: true as const, kind: "walkin" as const, reservation: res };
-  },
+      set((s) => ({
+        reservations: s.reservations.map((r) =>
+          r.id === active.id
+            ? {
+                ...r,
+                status: "COMPLETED" as ResStatus,
+                checkedOutAt: now,
+                overtimeFee: oFee,
+              }
+            : r
+        ),
+        walletBalance: s.walletBalance - oFee,
+        transactions: [
+          ...(oFee
+            ? [{ id: uid(), type: "OVERTIME" as TxnType, amount: oFee, createdAt: now, note: active.code }]
+            : []),
+          ...s.transactions,
+        ],
+      }));
+      get().pushNotif({
+        kind: "receipt",
+        params: { slot: active.slotNumber, total: rupiah(oFee) },
+      });
+      audit("CHECK_OUT", { target: active.slotNumber, detail: `${active.code} · via ${via} · ${rupiah(oFee)}` });
+      return { ok: true as const, overtimeFee: oFee };
+    },
 
-  forceCheckOut: (id) => {
-    const now = Date.now();
-    const active = get().reservations.find((r) => r.id === id && r.status === "CHECKED_IN");
-    if (!active) return { ok: false as const, reason: "not_found" as const };
+    scanSlot: (slotNumberRaw) => {
+      const now = Date.now();
+      const { slots, reservations, walletBalance } = get();
+      const code = slotNumberRaw.trim().toUpperCase().replace(/^(PB|AS|BKS)-?/, "");
+      const slot = slots.find(
+        (s) => s.slotNumber === code || s.slotNumber === code.replace("-", "") || `slot-${code.replace("-", "-")}` === s.id
+      );
+      if (!slot) return { ok: false as const, reason: "unknown" as const };
+      if (slot.status === "MAINTENANCE") return { ok: false as const, reason: "maintenance" as const };
 
-    const inAt = active.checkedInAt ?? now;
-    const minutes = Math.max(1, Math.round((now - inAt) / MIN));
-    const pFee = parkingFee(minutes);
-    const plannedEnd = new Date(`${active.date}T${active.endTime}:00`).getTime();
-    const lateMin = Math.max(0, Math.round((now - plannedEnd) / MIN));
-    const oFee = overtimeFee(lateMin);
+      const me = get().user.name;
+      const activeNow = reservations.filter((r) => r.status === "CHECKED_IN" && r.driverName === me).length;
 
-    set((s) => ({
-      reservations: s.reservations.map((r) =>
-        r.id === id
-          ? { ...r, status: "COMPLETED" as ResStatus, checkedOutAt: now, parkingFee: pFee, overtimeFee: oFee }
-          : r
-      ),
-      transactions: [
-        ...(oFee
-          ? [{ id: uid(), type: "OVERTIME" as TxnType, amount: oFee, createdAt: now, note: active.code }]
-          : []),
-        { id: uid(), type: "PARKING_FEE" as TxnType, amount: pFee, createdAt: now, note: active.code },
-        ...s.transactions,
-      ],
-    }));
-    return { ok: true as const, parkingFee: pFee, overtimeFee: oFee };
-  },
+      // Own active session on this slot → checkout (reuse checkOut for identical fee logic)
+      const active = reservations.find(
+        (r) => r.slotId === slot.id && r.status === "CHECKED_IN" && r.driverName === me
+      );
+      if (active) {
+        const out = get().checkOut(active.id, "scan");
+        return out.ok
+          ? { ok: true as const, kind: "checkout" as const, reservation: active }
+          : { ok: false as const, reason: "insufficient" as const };
+      }
 
-  extendSession: (id, hours) => {
-    const target = get().reservations.find(
-      (r) => r.id === id && ["CHECKED_IN", "CONFIRMED"].includes(r.status)
-    );
-    if (!target) return false;
-    const endMin = toMinutes(target.endTime);
-    const next = Math.min(endMin + hours * 60, TARIFF.closeHour * 60);
-    if (next <= endMin) return false;
-    // Conflict guard — don't extend into another reservation's window on the same slot.
-    const nextWin: TimeWindow = { date: target.date, startTime: target.endTime, endTime: fromMinutes(next) };
-    const clash = get().reservations.some(
-      (r) =>
-        r.id !== id &&
-        r.slotId === target.slotId &&
-        (r.status === "CONFIRMED" || r.status === "CHECKED_IN") &&
-        overlaps(
-          { date: r.date, startTime: r.startTime, endTime: r.endTime },
-          nextWin
-        )
-    );
-    if (clash) return false;
-    set((s) => ({
-      reservations: s.reservations.map((r) => (r.id === id ? { ...r, endTime: fromMinutes(next) } : r)),
-    }));
-    get().pushNotif({
-      kind: "extended",
-      params: { slot: target.slotNumber, end: fromMinutes(next) },
-    });
-    return true;
-  },
+      // Own confirmed reservation on this slot → check in
+      const confirmed = reservations.find(
+        (r) => r.slotId === slot.id && r.status === "CONFIRMED" && r.driverName === me
+      );
+      if (confirmed) {
+        if (activeNow >= MAX_ACTIVE_PARKING)
+          return { ok: false as const, reason: "max_active" as const };
+        set((s) => ({
+          reservations: s.reservations.map((r) =>
+            r.id === confirmed.id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
+          ),
+        }));
+        audit("CHECK_IN", { target: slot.slotNumber, detail: `${confirmed.code} · via scan` });
+        return { ok: true as const, kind: "checkin" as const, reservation: confirmed };
+      }
 
-  manualCheckIn: (id) => {
-    const target = get().reservations.find((r) => r.id === id && r.status === "CONFIRMED");
-    if (!target) return false;
-    const now = Date.now();
-    set((s) => ({
-      reservations: s.reservations.map((r) =>
-        r.id === id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
-      ),
-    }));
-    return true;
-  },
+      // Any other active/confirmed overlapping right now → busy
+      const busy = reservations.find(
+        (r) =>
+          r.slotId === slot.id &&
+          ["CONFIRMED", "CHECKED_IN"].includes(r.status) &&
+          r.date === dateStr(new Date(now))
+      );
+      if (busy) return { ok: false as const, reason: "busy" as const };
 
-  topUp: (amount) => {
-    const now = Date.now();
-    set((s) => ({
-      walletBalance: s.walletBalance + amount,
-      transactions: [{ id: uid(), type: "TOP_UP", amount, createdAt: now, note: "" }, ...s.transactions],
-    }));
-  },
-}));
+      // Free slot → walk-in session, charged at the live dynamic walk-in rate
+      if (activeNow >= MAX_ACTIVE_PARKING)
+        return { ok: false as const, reason: "max_active" as const };
+      const demand = demandNow(slots, reservations);
+      const walkInFee = DEMAND_TIERS[demand.tier].walkInFee;
+      if (walletBalance < walkInFee)
+        return { ok: false as const, reason: "insufficient" as const };
+
+      const nowD = new Date(now);
+      const res: Reservation = {
+        id: uid(),
+        code: resCode(),
+        type: "WALK_IN",
+        demandTier: demand.tier,
+        slotId: slot.id,
+        slotNumber: slot.slotNumber,
+        date: dateStr(nowD),
+        startTime: timeStr(nowD),
+        endTime: addH(timeStr(nowD), 2),
+        status: "CHECKED_IN",
+        serviceFee: walkInFee,
+        overtimeFee: 0,
+        refundAmount: 0,
+        vehiclePlate: get().vehicles[0]?.licensePlate ?? "B 2143 RWZ",
+        vehicleName: get().vehicles[0]?.model ?? "Honda HR-V",
+        driverName: get().user.name,
+        createdAt: now,
+        checkedInAt: now,
+      };
+      set((s) => ({
+        reservations: [res, ...s.reservations],
+        walletBalance: s.walletBalance - walkInFee,
+        transactions: [
+          { id: uid(), type: "SERVICE_FEE", amount: walkInFee, createdAt: now, note: res.code },
+          ...s.transactions,
+        ],
+      }));
+      get().pushNotif({ kind: "session_start", params: { slot: slot.slotNumber, end: res.endTime } });
+      audit("WALK_IN_STARTED", { target: slot.slotNumber, detail: `${res.code} · ${rupiah(walkInFee)}` });
+      return { ok: true as const, kind: "walkin" as const, reservation: res };
+    },
+
+    forceCheckOut: (id) => {
+      const now = Date.now();
+      const active = get().reservations.find((r) => r.id === id && r.status === "CHECKED_IN");
+      if (!active) return { ok: false as const, reason: "not_found" as const };
+
+      // v22 — only the late fine is recorded.
+      const plannedEnd = new Date(`${active.date}T${active.endTime}:00`).getTime();
+      const lateMin = Math.max(0, Math.round((now - plannedEnd) / MIN));
+      const oFee = overtimeFee(lateMin);
+
+      set((s) => ({
+        reservations: s.reservations.map((r) =>
+          r.id === id
+            ? { ...r, status: "COMPLETED" as ResStatus, checkedOutAt: now, overtimeFee: oFee }
+            : r
+        ),
+        transactions: [
+          ...(oFee
+            ? [{ id: uid(), type: "OVERTIME" as TxnType, amount: oFee, createdAt: now, note: active.code }]
+            : []),
+          ...s.transactions,
+        ],
+      }));
+      audit("FORCE_CHECKOUT", {
+        severity: "warning",
+        target: active.slotNumber,
+        detail: `${active.code} · ${active.driverName} · ${rupiah(oFee)}`,
+      });
+      return { ok: true as const, overtimeFee: oFee };
+    },
+
+    extendSession: (id, hours) => {
+      const target = get().reservations.find(
+        (r) => r.id === id && ["CHECKED_IN", "CONFIRMED"].includes(r.status)
+      );
+      if (!target) return false;
+      const endMin = toMinutes(target.endTime);
+      const next = Math.min(endMin + hours * 60, TARIFF.closeHour * 60);
+      if (next <= endMin) return false;
+      // Conflict guard — don't extend into another reservation's window on the same slot.
+      const nextWin: TimeWindow = { date: target.date, startTime: target.endTime, endTime: fromMinutes(next) };
+      const clash = get().reservations.some(
+        (r) =>
+          r.id !== id &&
+          r.slotId === target.slotId &&
+          (r.status === "CONFIRMED" || r.status === "CHECKED_IN") &&
+          overlaps(
+            { date: r.date, startTime: r.startTime, endTime: r.endTime },
+            nextWin
+          )
+      );
+      if (clash) return false;
+      set((s) => ({
+        reservations: s.reservations.map((r) => (r.id === id ? { ...r, endTime: fromMinutes(next) } : r)),
+      }));
+      get().pushNotif({
+        kind: "extended",
+        params: { slot: target.slotNumber, end: fromMinutes(next) },
+      });
+      audit("SESSION_EXTENDED", { target: target.slotNumber, detail: `${target.code} → ${fromMinutes(next)}` });
+      return true;
+    },
+
+    manualCheckIn: (id) => {
+      const target = get().reservations.find((r) => r.id === id && r.status === "CONFIRMED");
+      if (!target) return false;
+      const now = Date.now();
+      set((s) => ({
+        reservations: s.reservations.map((r) =>
+          r.id === id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
+        ),
+      }));
+      audit("MANUAL_CHECKIN", { severity: "warning", target: target.slotNumber, detail: target.code });
+      return true;
+    },
+
+    topUp: (amount, note) => {
+      const now = Date.now();
+      set((s) => ({
+        walletBalance: s.walletBalance + amount,
+        transactions: [{ id: uid(), type: "TOP_UP", amount, createdAt: now, note: note ?? "" }, ...s.transactions],
+      }));
+      audit("TOP_UP", { detail: `${rupiah(amount)}${note ? ` · ${note}` : ""}` });
+    },
+
+    // ── live gate stream (v23) — guests NEVER touch reservations/txns/ledger ──
+    liveToggle: () => {
+      const on = !get().liveOn;
+      if (on) {
+        set({
+          liveOn: true,
+          liveStatus: "connecting",
+          liveEvents: [],
+          liveGuests: [],
+          liveLatency: 0,
+          liveReconnects: 0,
+          liveUptimeStart: Date.now(),
+        });
+        setTimeout(() => {
+          if (get().liveOn) set({ liveStatus: "live" });
+        }, 900);
+        if (liveTimer) clearInterval(liveTimer);
+        liveTimer = setInterval(() => get().liveStep(), 3400);
+      } else {
+        if (liveTimer) {
+          clearInterval(liveTimer);
+          liveTimer = null;
+        }
+        liveTickN = 0;
+        set({ liveOn: false, liveStatus: "offline", liveEvents: [], liveGuests: [] });
+      }
+    },
+
+    liveStep: () => {
+      const s = get();
+      if (!s.liveOn || s.liveStatus !== "live") return;
+      liveTickN++;
+
+      // reconnect every 11th tick (1.3s connecting blip)
+      if (liveTickN % 11 === 0) {
+        set({ liveStatus: "connecting" });
+        setTimeout(() => {
+          if (get().liveOn) set({ liveStatus: "live", liveReconnects: get().liveReconnects + 1 });
+        }, 1300);
+        return;
+      }
+
+      const latency = 8 + Math.floor(Math.random() * 34); // 8–41 ms
+      const now = Date.now();
+
+      // occupancy-weighted direction: busy lot → more exits than entries
+      const win: TimeWindow = {
+        date: dateStr(new Date(now)),
+        startTime: timeStr(new Date(now - 60_000)),
+        endTime: timeStr(new Date(now + 60_000)),
+      };
+      let active = 0;
+      let taken = 0;
+      for (const sl of s.slots) {
+        if (sl.status === "MAINTENANCE") continue;
+        active++;
+        const st = slotStatusForWindow(sl, s.reservations, win);
+        if (st !== "AVAILABLE") taken++;
+      }
+      const occPct = active ? (taken / active) * 100 : 0;
+      const pOut = occPct > 70 ? 0.68 : 0.42;
+      const wantOut = s.liveGuests.length > 0 && Math.random() < pOut;
+
+      let events = s.liveEvents;
+      let guests = s.liveGuests;
+
+      if (wantOut) {
+        const idx = Math.floor(Math.random() * guests.length);
+        const g = guests[idx];
+        guests = guests.filter((x) => x.id !== g.id);
+        events = [
+          { id: uid(), at: now, kind: "out" as const, plate: g.plate, vehicle: g.vehicle, slotNumber: g.slotNumber, guestId: g.id },
+          ...events,
+        ];
+      } else {
+        // pick a slot that is FREE right now and not taken by another guest
+        const free = s.slots.filter(
+          (sl) =>
+            sl.status === "ACTIVE" &&
+            slotStatusForWindow(sl, s.reservations, win) === "AVAILABLE" &&
+            !guests.some((g) => g.slotId === sl.id)
+        );
+        if (free.length > 0) {
+          const pool = LIVE_PEOPLE.filter((p) => !guests.some((g) => g.plate === p.plate));
+          if (pool.length > 0) {
+            const person = pool[Math.floor(Math.random() * pool.length)];
+            const slot = free[Math.floor(Math.random() * free.length)];
+            const guest: LiveGuest = {
+              id: uid(),
+              plate: person.plate,
+              vehicle: person.vehicle,
+              name: person.name,
+              slotId: slot.id,
+              slotNumber: slot.slotNumber,
+              since: now,
+            };
+            guests = [...guests, guest];
+            events = [
+              { id: uid(), at: now, kind: "in" as const, plate: person.plate, vehicle: person.vehicle, slotNumber: slot.slotNumber, guestId: guest.id },
+              ...events,
+            ];
+          }
+        }
+      }
+
+      set({ liveEvents: events.slice(0, 40), liveGuests: guests, liveLatency: latency });
+    },
+  };
+});
+
+// ── e2e hook — expose the store on window for Playwright ──
+if (typeof window !== "undefined") {
+  (window as unknown as { __parkir?: unknown }).__parkir = {
+    getState: useParkir.getState,
+    setState: useParkir.setState,
+    api: useParkir.getState(),
+    SESSION_ID,
+  };
+}
