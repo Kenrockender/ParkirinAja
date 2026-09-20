@@ -158,11 +158,14 @@ export interface CashPosition {
   netIncome: number;
 }
 
-/** Invariant: cash − liability === netIncome (the accounting equation). */
+/** Invariant: cash − NET liability === netIncome (the accounting equation).
+ * When Utang flips to a DEBIT balance (fees collected exceed top-ups), the
+ * net is negative — economically a receivable — and the equation still holds. */
 export function cashPosition(entries: JournalEntry[]): CashPosition {
   const tb = trialBalance(entries);
   const cash = tb.rows.find((r) => r.account === KAS)?.dr ?? 0;
-  const liability = tb.rows.find((r) => r.account === UTANG)?.cr ?? 0;
+  const utangRow = tb.rows.find((r) => r.account === UTANG);
+  const liability = (utangRow?.cr ?? 0) - (utangRow?.dr ?? 0);
   const pl = profitAndLoss(entries);
   return { cash, liability, netIncome: pl.netIncome };
 }

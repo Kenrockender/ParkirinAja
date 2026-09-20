@@ -248,7 +248,14 @@ export function FinanceView() {
             </div>
           </div>
           <p className="mt-2 rounded-xl border border-border bg-card/50 px-3 py-2 text-[10px] leading-snug text-muted-foreground">
-            {t("finEquation")}: <span className="tnum font-bold text-foreground">{rupiahShort(cash.cash)} − {rupiahShort(cash.liability)} = {rupiahShort(cash.netIncome)}</span>
+            {cash.liability >= 0
+              ? `${t("finEquation")}: `
+              : `${lang === "id" ? "Persamaan akuntansi: Kas + Piutang bersih = Laba" : "Accounting equation: Cash + Net receivable = Profit"}: `}
+            <span className="tnum font-bold text-foreground">
+              {cash.liability >= 0
+                ? `${rupiahShort(cash.cash)} − ${rupiahShort(cash.liability)} = ${rupiahShort(cash.netIncome)}`
+                : `${rupiahShort(cash.cash)} + ${rupiahShort(Math.abs(cash.liability))} = ${rupiahShort(cash.netIncome)}`}
+            </span>
           </p>
         </motion.section>
       </div>

@@ -91,6 +91,19 @@ check(
   `${cp.cash} − ${cp.liability} = ${cp.netIncome}`
 );
 
+console.log("— persamaan saat Utang flip ke debit (receivable) —");
+const txnsFlip = [
+  T("f1", "TOP_UP", 300000),
+  T("f2", "SERVICE_FEE", 1200000),
+  T("f3", "OVERTIME", 100000),
+];
+const cpFlip = cashPosition(buildJournal(txnsFlip));
+check(
+  "utang bersih negatif → persamaan tetap: Kas − UtangNet = NI",
+  cpFlip.cash - cpFlip.liability === cpFlip.netIncome && cpFlip.liability < 0,
+  `Kas ${cpFlip.cash} − UtangNet ${cpFlip.liability} = NI ${cpFlip.netIncome}`
+);
+
 console.log("— P&L —");
 const pl = profitAndLoss(journal);
 check("service 100K", pl.service === 100000);
