@@ -115,14 +115,12 @@ export function trialBalance(entries: JournalEntry[]): TrialBalance {
       sums.set(l.account, cur);
     }
   }
-  // Netted balances on each account's normal side (classic neraca saldo):
-  // Kas 300K Dr / Utang nets to 245K Cr after debits — Dr total === Cr total.
+  // Netted balances (classic neraca saldo): net = dr − cr; a positive net sits
+  // in the DR column, a negative net sits in the CR column. Dr total === Cr total.
   const rows = COA.map((a) => {
     const s = sums.get(a.code) ?? { dr: 0, cr: 0 };
     const net = s.dr - s.cr;
-    return a.normal === "DR"
-      ? { account: a.code, name: a.name, dr: Math.max(0, net), cr: Math.max(0, -net) }
-      : { account: a.code, name: a.name, dr: Math.max(0, -net), cr: Math.max(0, net) };
+    return { account: a.code, name: a.name, dr: Math.max(0, net), cr: Math.max(0, -net) };
   });
   const totalDr = rows.reduce((x, r) => x + r.dr, 0);
   const totalCr = rows.reduce((x, r) => x + r.cr, 0);
