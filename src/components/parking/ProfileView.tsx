@@ -34,7 +34,7 @@ import { VehicleModal } from "./VehicleModal";
 import { cn } from "@/lib/utils";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const PHONE_RE = /^\+?\d[\d\s-]{7,14}$/;
+const PHONE_RE = /^\+?\d[\d\s-]{7,16}$/;
 const NIM_RE = /^\d{8,10}$/;
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp"];
