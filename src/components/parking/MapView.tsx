@@ -1,17 +1,27 @@
 "use client";
-/** MapView — full-screen immersive parking map overlay. */
+/** MapView — full-screen immersive parking map overlay + live gate pill & ticker (v23). */
 import React from "react";
 import { motion } from "framer-motion";
-import { Building2, ChevronRight, MoveHorizontal, X } from "lucide-react";
+import { Building2, ChevronRight, MoveHorizontal, Radio, X } from "lucide-react";
 import { MapLegend, ParkingMap, useMapCounts } from "./ParkingMap";
 import { useParkir } from "@/lib/store";
 import {
   campusById,
   campusLabel,
+  maskPlate,
   slotStatusForWindow,
   tr,
   type Slot,
 } from "@/lib/parking-data";
+import { cn } from "@/lib/utils";
+
+function timeAgoShort(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  return `${Math.floor(m / 60)}h`;
+}
 
 export function MapView({
   open,
@@ -27,9 +37,22 @@ export function MapView({
   const reservations = useParkir((s) => s.reservations);
   const win = useParkir((s) => s.viewWindow);
   const campus = campusById(useParkir((s) => s.campusId));
+  const liveOn = useParkir((s) => s.liveOn);
+  const liveStatus = useParkir((s) => s.liveStatus);
+  const liveEvents = useParkir((s) => s.liveEvents);
+  const liveLatency = useParkir((s) => s.liveLatency);
+  const liveToggle = useParkir((s) => s.liveToggle);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const { free, total } = useMapCounts();
   const [showHint, setShowHint] = React.useState(true);
+  const [, tickNow] = React.useReducer((x: number) => x + 1, 0);
+
+  // time-ago ticker refresh
+  React.useEffect(() => {
+    if (!open || !liveOn) return;
+    const id = setInterval(tickNow, 5000);
+    return () => clearInterval(id);
+  }, [open, liveOn]);
 
   if (!open) return null;
 
@@ -42,20 +65,20 @@ export function MapView({
       className="fixed inset-0 z-40 flex flex-col bg-background/95 backdrop-blur-xl"
     >
       {/* header */}
-      <div className="flex items-center justify-between px-4 pb-3 pt-5">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-5">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             onClick={onClose}
             aria-label={t("close")}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card/60 transition hover:border-primary/40"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card/60 transition hover:border-primary/40"
           >
             <X className="h-4.5 w-4.5" />
           </button>
-          <div>
+          <div className="min-w-0">
             <h2 className="font-display text-base font-bold leading-tight tracking-tight">
               {t("parkingMap")}
             </h2>
-            <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <p className="flex items-center gap-1.5 truncate text-[10px] text-muted-foreground">
               {campus.available
                 ? campus.building
                   ? `${campus.location} · ${campusLabel(campus)}`
@@ -69,14 +92,62 @@ export function MapView({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {campus.available && (
-            <span className="tnum rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-xs font-bold text-emerald-300">
+            <span className="tnum hidden rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-xs font-bold text-emerald-300 sm:inline">
               {free}/{total} {t("slotWord")}
             </span>
           )}
+          {/* live pill — click to connect/disconnect the gate stream */}
+          <button
+            onClick={liveToggle}
+            aria-label={liveOn ? t("liveDisconnect") : t("liveToggle")}
+            data-live-pill={liveOn ? "on" : "off"}
+            className={cn(
+              "flex h-9 items-center gap-1.5 rounded-full border px-3 text-[10px] font-black uppercase tracking-wider transition",
+              liveOn && liveStatus === "live"
+                ? "border-red-400/40 bg-red-400/10 text-red-400"
+                : liveOn
+                  ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
+                  : "border-border bg-card/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+            )}
+          >
+            <Radio className="h-3.5 w-3.5" />
+            {liveOn ? (liveStatus === "live" ? t("liveOffline").replace("OFF", "LIVE") : t("liveConnecting")) : t("liveOffline")}
+            {liveOn && liveStatus === "live" && (
+              <span className="tnum rounded-full bg-red-400/15 px-1.5 py-0.5 text-[9px] font-bold text-red-300">
+                {liveLatency}ms
+              </span>
+            )}
+          </button>
         </div>
       </div>
+
+      {/* live ticker — privacy-masked plates, newest first */}
+      {liveOn && liveEvents.length > 0 && (
+        <div data-live-ticker className="mx-4 mb-2 overflow-hidden rounded-2xl border border-amber-400/25 bg-amber-400/[0.05]">
+          <div className="flex gap-2 overflow-x-auto px-3 py-2 slim-scroll">
+            {liveEvents.slice(0, 8).map((e) => (
+              <span
+                key={e.id}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold",
+                  e.kind === "in"
+                    ? "border-emerald-400/30 bg-emerald-400/[0.08] text-emerald-600 dark:text-emerald-300"
+                    : "border-sky-400/30 bg-sky-400/[0.08] text-sky-600 dark:text-sky-300"
+                )}
+              >
+                <span className={cn("h-1.5 w-1.5 rounded-full", e.kind === "in" ? "bg-emerald-400" : "bg-sky-400")} />
+                <span className="tnum">{maskPlate(e.plate)}</span>
+                <span className="text-muted-foreground">
+                  {e.kind === "in" ? t("liveTickerIn") : t("liveTickerOut")} {e.slotNumber}
+                </span>
+                <span className="text-muted-foreground/60">{timeAgoShort(Date.now() - e.at)}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* map */}
       <div className="slim-scroll flex-1 overflow-y-auto px-4 pb-4">

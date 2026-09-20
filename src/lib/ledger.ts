@@ -189,7 +189,7 @@ export function breakEven(args: { fixed: number; variable: number; arpu: number;
   const safetyPct =
     Number.isFinite(bepSessions) && bepSessions > 0
       ? ((args.runRateSessions - bepSessions) / bepSessions) * 100
-      : Number.Negative_INFINITY;
+      : Number.NEGATIVE_INFINITY;
   return { cm, bepSessions, safetyPct };
 }
 

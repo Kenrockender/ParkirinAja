@@ -14,15 +14,16 @@ import {
   ChevronDown,
   Clock,
   Coffee,
-  Gauge,
   MapPin,
   Maximize2,
   PartyPopper,
   Search,
   SearchX,
   Sparkles,
+  TimerReset,
   TrendingDown,
   TrendingUp,
+  TriangleAlert,
 } from "lucide-react";
 import {
   Dialog,
@@ -95,11 +96,6 @@ export function HomeView({
   const greet =
     hour < 11 ? t("goodMorning") : hour < 18 ? t("goodAfternoon") : t("goodEvening");
 
-  /** Sedang parkir (max 2) — live counter (own sessions only) */
-  const activeCount = reservations.filter(
-    (r) => r.status === "CHECKED_IN" && r.driverName === user.name
-  ).length;
-
   const levelKey = pct > 66 ? "high" : pct > 33 ? "medium" : "low";
   const levelTone: Record<string, string> = {
     low: "text-emerald-400",
@@ -129,21 +125,10 @@ export function HomeView({
             {user.name.split(" ")[0]} 👋
           </h2>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {activeCount > 0 && (
-            <span className="tnum inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary">
-              <CarFront className="h-3 w-3" />
-              {activeCount}/2 {t("activeSessions")}
-            </span>
-          )}
-          {campus.available && (
-            <span className="tnum inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
-              <Gauge className="h-3 w-3 text-primary" />
-              {free}/{total} {t("slotsFree")}
-            </span>
-          )}
-        </div>
       </motion.div>
+
+      {/* v26 — ending-soon banner (own active session ≤ 30 min left) */}
+      <EndingSoonBanner />
 
       {/* ── campus bar ── */}
       <CampusBar campus={campus} lang={lang} onOpen={() => setPickerOpen(true)} />
@@ -375,6 +360,69 @@ export function HomeView({
       {/* ── campus picker ── */}
       <CampusPickerDialog open={pickerOpen} onClose={() => setPickerOpen(false)} />
     </div>
+  );
+}
+
+// ────────────────────────── ending soon (v26) ──────────────────────────
+
+/** Amber banner when the user's own active session has ≤ 30 minutes left. */
+function EndingSoonBanner() {
+  const lang = useParkir((s) => s.lang);
+  const user = useParkir((s) => s.user);
+  const reservations = useParkir((s) => s.reservations);
+  const extendSession = useParkir((s) => s.extendSession);
+  const toast = useParkir((s) => s.toast);
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+  const [, tick] = React.useReducer((x: number) => x + 1, 0);
+
+  React.useEffect(() => {
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const now = Date.now();
+  const soon = reservations.find((r) => {
+    if (r.status !== "CHECKED_IN" || r.driverName !== user.name) return false;
+    const left = Math.round((new Date(`${r.date}T${r.endTime}:00`).getTime() - now) / 60_000);
+    return left > 0 && left <= 30;
+  });
+  if (!soon) return null;
+
+  const minsLeft = Math.max(
+    1,
+    Math.round((new Date(`${soon.date}T${soon.endTime}:00`).getTime() - now) / 60_000)
+  );
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      data-home-endsoon
+      className="flex items-center gap-3 rounded-2xl border border-amber-400/50 bg-gradient-to-r from-amber-400/[0.16] to-amber-400/[0.05] px-4 py-3"
+    >
+      <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-amber-400/20">
+        <TriangleAlert className="h-4.5 w-4.5 animate-pulse text-amber-500 dark:text-amber-300" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[12px] font-black leading-tight text-amber-600 dark:text-amber-300">
+          {t("endSoonTitle")} · {minsLeft}m
+        </p>
+        <p className="mt-0.5 truncate text-[10.5px] leading-snug text-amber-700/80 dark:text-amber-200/70">
+          {t("endSoonBody").replace("{slot}", soon.slotNumber).replace("{minutes}", String(minsLeft))}
+        </p>
+      </div>
+      <button
+        onClick={() => {
+          const ok = extendSession(soon.id, 1);
+          toast(ok ? t("extendOk") : t("extendFail"), ok ? "success" : "error");
+        }}
+        data-home-endsoon-extend
+        className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-400/20 px-3 text-[11px] font-black text-amber-700 transition hover:bg-amber-400/30 active:scale-95 dark:text-amber-200"
+      >
+        <TimerReset className="h-3.5 w-3.5" />
+        +1h
+      </button>
+    </motion.div>
   );
 }
 

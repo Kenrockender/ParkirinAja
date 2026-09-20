@@ -2,9 +2,13 @@
 /**
  * ParkingMap — site plan of the active campus, theme-aware.
  * Two layouts:
- *  · "building" (Anggrek)  — walled deck: pillars every 3 bays, LIFT/WC, right-side entrance/exit + ramp.
- *  · "openlot"  (Alam Sutera) — open lot: A(20) · drive lane · B(20), no pillars/walls,
- *    thin paint-line bay dividers, ENTRANCE gate at the left lane end, EXIT gate at the right.
+ *  · "building" (Anggrek)  — walled deck: pillars every 3 bays, LIFT/WC,
+ *    right-side entrance/exit + the big seamless L2 RAMP BLOCK (v25): one
+ *    monolithic wall·ramp·wall child — no gaps, no dark slits.
+ *  · "openlot"  (Alam Sutera) — open lot: A(20) · drive lane · B(20).
+ *
+ * v23: when the live gate stream is connected, guest cars appear as amber
+ * ringing tiles (overlay only — never in reservations/transactions).
  */
 import React from "react";
 import { cn } from "@/lib/utils";
@@ -20,13 +24,17 @@ import {
 } from "lucide-react";
 import {
   ROW_B_LEFT,
+  L2RAMP_BLOCK_W,
+  L2RAMP_WALL_W,
+  L2RAMP_GAP,
   campusById,
   slotStatusForWindow,
+  tr,
+  type LiveGuest,
   type Slot,
   type SlotStatus,
   type TimeWindow,
   type Reservation,
-  tr,
 } from "@/lib/parking-data";
 import { useParkir } from "@/lib/store";
 
@@ -65,18 +73,41 @@ const OPENLOT_FILL: Record<SlotStatus, string> = {
   MAINTENANCE: "bg-slate-100 dark:bg-slate-500/[0.08]",
 };
 
+// ───────────────────── live guest overlay (v23) ─────────────────────
+
+/** slotId → guest map, only when live is on AND the view window covers "now". */
+export function useGuestMap(): Map<string, LiveGuest> {
+  const liveOn = useParkir((s) => s.liveOn);
+  const guests = useParkir((s) => s.liveGuests);
+  const win = useParkir((s) => s.viewWindow);
+  return React.useMemo(() => {
+    if (!liveOn) return new Map();
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const hhmm = Number(`${now.getHours()}${String(now.getMinutes()).padStart(2, "0")}`);
+    const coversNow =
+      win.date === today &&
+      Number(win.startTime.replace(":", "")) <= hhmm + 1 &&
+      hhmm <= Number(win.endTime.replace(":", "")) + 1;
+    if (!coversNow) return new Map(); // future windows never show guests
+    return new Map(guests.map((g) => [g.slotId, g]));
+  }, [liveOn, guests, win.date, win.startTime, win.endTime]);
+}
+
 function SlotBay({
   slot,
   status,
   onSlotPress,
   compact,
   openlot,
+  live,
 }: {
   slot: Slot;
   status: SlotStatus;
   onSlotPress?: (s: Slot) => void;
   compact?: boolean;
   openlot?: boolean;
+  live?: LiveGuest;
 }) {
   const st = STYLE[status];
   const disabled = status !== "AVAILABLE";
@@ -86,18 +117,26 @@ function SlotBay({
       disabled={disabled || !onSlotPress}
       onClick={() => onSlotPress?.(slot)}
       aria-label={`Slot ${slot.slotNumber} — ${status}`}
-      title={`${slot.slotNumber} · ${status}`}
+      title={live ? `${slot.slotNumber} · ${live.vehicle} (tamu live)` : `${slot.slotNumber} · ${status}`}
+      data-live-guest={live ? slot.slotNumber : undefined}
       className={cn(
         "group relative flex shrink-0 flex-col items-center justify-center gap-1 transition-all duration-200",
         compact ? "h-12 w-11" : "h-16 w-[52px]",
         openlot
           ? cn("rounded-none", OPENLOT_FILL[status])
           : cn("rounded-xl border", st.box),
+        live && "ring-2 ring-amber-400 ring-offset-1 ring-offset-white dark:ring-offset-[#0a0f1e]",
         disabled && "cursor-default",
         !disabled && "active:scale-95"
       )}
     >
-      {status === "AVAILABLE" && (
+      {live && (
+        <span className="absolute -right-0.5 -top-0.5 flex h-2 w-2">
+          <span className="absolute h-full w-full animate-ping rounded-full bg-amber-400 opacity-70" />
+          <span className="relative h-2 w-2 rounded-full bg-amber-400" />
+        </span>
+      )}
+      {status === "AVAILABLE" && !live && (
         <span className={cn("absolute right-1.5 top-1.5 h-1 w-1 rounded-full", st.dot)} />
       )}
       {status === "OCCUPIED" && <CarFront className={cn("h-3 w-3 text-red-400 opacity-80 dark:opacity-60", compact ? "hidden" : "block")} />}
@@ -107,7 +146,7 @@ function SlotBay({
         className={cn(
           "tnum font-display font-semibold tracking-tight",
           compact ? "text-[9.5px]" : "text-[11px]",
-          st.num
+          live ? "text-amber-600 dark:text-amber-300" : st.num
         )}
       >
         {slot.slotNumber}
@@ -123,6 +162,72 @@ function Pillar({ h }: { h: number }) {
       className="w-1.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.07] dark:via-white/[0.13] dark:to-white/[0.07]"
       style={{ minHeight: h }}
     />
+  );
+}
+
+/** Tembok — wall strip after the last slot of a row (v20/v25, aligned A↔B). */
+function WallStrip({ h }: { h: number }) {
+  return (
+    <div
+      aria-hidden
+      className="w-2.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]"
+      style={{ minHeight: h }}
+    />
+  );
+}
+
+/**
+ * RampBlockBox (v25) — the L2 down-ramp as ONE seamless child: integrated 8px
+ * wall edge strips on both sides + the blue ramp body with chevrons. Replaces
+ * the old wall·ramp·wall triple — no dark slit can appear between the walls
+ * and the ramp anymore.
+ */
+function RampBlockBox({ compact, h }: { compact: boolean; h: number }) {
+  const lang = useParkir((s) => s.lang);
+  const blockW = compact ? L2RAMP_BLOCK_W.compact : L2RAMP_BLOCK_W.full;
+  return (
+    <div
+      data-map-el="ramp-l2"
+      aria-label="Ramp turun Lantai 2"
+      className="flex shrink-0 items-stretch overflow-hidden rounded-xl border border-slate-300 dark:border-white/[0.12]"
+      style={{ width: blockW, height: h }}
+    >
+      {/* integrated wall edge — left */}
+      <div
+        aria-hidden
+        className="h-full bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]"
+        style={{ width: L2RAMP_WALL_W }}
+      />
+      <div aria-hidden style={{ width: L2RAMP_GAP }} />
+      {/* ramp body */}
+      <div className="relative flex h-full flex-1 flex-col items-center justify-center gap-1 bg-gradient-to-b from-sky-100 to-blue-50 dark:from-binus-blue/35 dark:to-binus-blue/20">
+        <span
+          aria-hidden
+          className="absolute inset-y-1 left-0.5 flex flex-col justify-around"
+          style={{ opacity: 0.45 }}
+        >
+          {[0, 1, 2, 3].map((i) => (
+            <svg key={i} viewBox="0 0 10 6" className="h-[6px] w-[10px] text-blue-500 dark:text-binus-bright" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <path d="M1 1l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ))}
+        </span>
+        <ArrowDown className="h-4 w-4 text-blue-600 dark:text-binus-bright" />
+        <span className="text-[7.5px] font-black leading-none tracking-wider text-blue-700 dark:text-binus-bright/90">
+          {lang === "id" ? "RAMP" : "RAMP"}
+        </span>
+        <span className="rounded-sm bg-blue-600/90 px-1 text-[6.5px] font-black leading-[10px] text-white dark:bg-binus-bright/90 dark:text-[#0b1226]">
+          L2 ↓
+        </span>
+      </div>
+      <div aria-hidden style={{ width: L2RAMP_GAP }} />
+      {/* integrated wall edge — right */}
+      <div
+        aria-hidden
+        className="h-full bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]"
+        style={{ width: L2RAMP_WALL_W }}
+      />
+    </div>
   );
 }
 
@@ -142,6 +247,7 @@ function RowSlots({
   const lang = useParkir((s) => s.lang);
   const reservations = useParkir((s) => s.reservations);
   const win = useParkir((s) => s.viewWindow);
+  const guestMap = useGuestMap();
   const slotH = compact ? 48 : 64;
 
   // Open lot — one continuous strip of bays divided by thin paint lines.
@@ -156,6 +262,7 @@ function RowSlots({
             onSlotPress={onSlotPress}
             compact={compact}
             openlot
+            live={guestMap.get(s.id)}
           />
         ))}
       </div>
@@ -173,6 +280,7 @@ function RowSlots({
         status={slotStatusForWindow(s, reservations, win)}
         onSlotPress={onSlotPress}
         compact={compact}
+        live={guestMap.get(s.id)}
       />
     );
     const isLast = i === slots.length - 1;
@@ -232,6 +340,8 @@ export function ParkingMap({
   const reservations = useParkir((s) => s.reservations);
   const win = useParkir((s) => s.viewWindow);
   const campus = campusById(useParkir((s) => s.campusId));
+  const liveOn = useParkir((s) => s.liveOn);
+  const guests = useParkir((s) => s.liveGuests);
   const openlot = campus.layout === "openlot";
 
   const rowA = slots.filter((s) => s.rowLabel === "A");
@@ -262,9 +372,16 @@ export function ParkingMap({
         <span className="text-[9px] font-bold tracking-[0.18em] text-slate-400 dark:text-muted-foreground">
           {tr(lang, openlot ? "floorLabelOpen" : "floorLabel")}
         </span>
-        <span className="tnum rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300">
-          {free}/{total} {tr(lang, "slotWord")}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {liveOn && guests.length > 0 && (
+            <span className="tnum rounded-full border border-amber-400/40 bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-300">
+              {guests.length} {tr(lang, "opGuests")}
+            </span>
+          )}
+          <span className="tnum rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300">
+            {free}/{total} {tr(lang, "slotWord")}
+          </span>
+        </div>
       </div>
 
       <div className="relative">
@@ -316,14 +433,15 @@ export function ParkingMap({
               <RowSlots slots={rowB} onSlotPress={onSlotPress} compact={compact} openlot />
             </div>
           ) : (
-            /* ── building deck (Anggrek): walls, pillars, facilities, right-side gates ── */
+            /* ── building deck (Anggrek): walls, pillars, facilities, gates, L2 ramp block ── */
             <>
           {/* top wall */}
           <div className="mb-1.5 h-1.5 rounded-full bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]" />
 
-          {/* Row A + entrance */}
+          {/* Row A + tembok A + entrance */}
           <div className="flex items-stretch gap-1.5">
             <RowSlots slots={rowA} onSlotPress={onSlotPress} compact={compact} />
+            <WallStrip h={slotH} />
             <div
               className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-emerald-400 bg-emerald-50 px-2 dark:border-emerald-400/40 dark:bg-emerald-400/[0.06]"
               style={{ width: compact ? 64 : 84, height: slotH }}
@@ -348,9 +466,10 @@ export function ParkingMap({
             </span>
           </div>
 
-          {/* Row B + ramp/exit */}
+          {/* Row B + tembok B + exit + seamless L2 ramp block */}
           <div className="flex items-stretch gap-1.5">
             <RowSlots slots={rowB} onSlotPress={onSlotPress} compact={compact} liftWC />
+            <WallStrip h={slotH} />
             <div
               className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-2 dark:border-slate-400/30 dark:bg-white/[0.03]"
               style={{ width: compact ? 52 : 64, height: slotH }}
@@ -360,15 +479,7 @@ export function ParkingMap({
                 {tr(lang, "exitLabel")}
               </span>
             </div>
-            <div
-              className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-1.5 dark:border-binus-bright/25 dark:bg-binus-blue/20"
-              style={{ width: compact ? 34 : 42, height: slotH }}
-            >
-              <ArrowDown className={cn("text-blue-600 dark:text-binus-bright", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
-              <span className="text-[7px] font-bold text-blue-600 dark:text-binus-bright/90 [writing-mode:vertical-rl]">
-                {tr(lang, "rampLabel")}
-              </span>
-            </div>
+            <RampBlockBox compact={!!compact} h={slotH} />
           </div>
 
           {/* bottom wall */}
@@ -392,6 +503,11 @@ export function ParkingMap({
       {!compact && (
         <p className="mt-3 text-center text-[10px] leading-snug text-slate-400 dark:text-muted-foreground/70">
           {tr(lang, openlot ? "mapNoteOpen" : "mapNote")}
+          {liveOn && guests.length > 0 && (
+            <span className="ml-1 font-semibold text-amber-500 dark:text-amber-300/80">
+              · {tr(lang, "liveMapNote")}
+            </span>
+          )}
         </p>
       )}
     </div>
@@ -419,11 +535,13 @@ export function MapLegend() {
   );
 }
 
-/** Count helper for headers */
-export function useMapCounts(): { free: number; total: number; pct: number } {
+/** Count helper for headers — includes live guests when the stream is on. */
+export function useMapCounts(): { free: number; total: number; pct: number; guests: number } {
   const slots = useParkir((s) => s.slots);
   const reservations = useParkir((s) => s.reservations);
   const win = useParkir((s) => s.viewWindow);
+  const guests = useParkir((s) => s.liveGuests);
+  const liveOn = useParkir((s) => s.liveOn);
   return React.useMemo(() => {
     let free = 0;
     let taken = 0;
@@ -432,8 +550,13 @@ export function useMapCounts(): { free: number; total: number; pct: number } {
       if (st === "AVAILABLE") free++;
       else if (st !== "MAINTENANCE") taken++;
     });
-    return { free, total: slots.length, pct: Math.round((taken / Math.max(1, slots.length)) * 100) };
-  }, [slots, reservations, win]);
+    return {
+      free,
+      total: slots.length,
+      pct: Math.round((taken / Math.max(1, slots.length)) * 100),
+      guests: liveOn ? guests.length : 0,
+    };
+  }, [slots, reservations, win, guests, liveOn]);
 }
 
-export type { Slot, Reservation };
+export type { Slot, Reservation, TimeWindow };

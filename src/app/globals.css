@@ -299,6 +299,29 @@
   right: -9px;
 }
 
+/* v25 — dark perforation notches for the ivory boarding pass */
+.ticket-perf-dark {
+  position: relative;
+}
+.ticket-perf-dark::before,
+.ticket-perf-dark::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--background);
+  transform: translateY(-50%);
+  z-index: 1;
+}
+.ticket-perf-dark::before {
+  left: -9px;
+}
+.ticket-perf-dark::after {
+  right: -9px;
+}
+
 /* ═══════════════════════════════════════════════════════════
    KEYFRAME ANIMATIONS
    ═══════════════════════════════════════════════════════════ */

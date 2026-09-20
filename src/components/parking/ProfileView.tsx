@@ -1,9 +1,13 @@
 "use client";
-/** ProfileView — identity, garage (add/remove vehicles), preferences. */
+/**
+ * ProfileView — identity (with v26 avatar upload), garage, preferences.
+ * v25: full profile editing (name/email/phone/NIM with validation).
+ */
 import React from "react";
 import { motion } from "framer-motion";
 import {
   BadgeCheck,
+  Camera,
   Car,
   Languages,
   LogOut,
@@ -13,13 +17,27 @@ import {
   Sun,
   Trash2,
   UserRound,
+  X,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useTheme } from "next-themes";
 import { useParkir } from "@/lib/store";
 import { rupiah, tr, type Vehicle } from "@/lib/parking-data";
 import { VehicleModal } from "./VehicleModal";
 import { cn } from "@/lib/utils";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const PHONE_RE = /^\+?\d[\d\s-]{7,14}$/;
+const NIM_RE = /^\d{8,10}$/;
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 export function ProfileView() {
   const lang = useParkir((s) => s.lang);
@@ -30,6 +48,7 @@ export function ProfileView() {
   const reservations = useParkir((s) => s.reservations);
   const signOut = useParkir((s) => s.signOut);
   const removeVehicle = useParkir((s) => s.removeVehicle);
+  const setAvatar = useParkir((s) => s.setAvatar);
   const toast = useParkir((s) => s.toast);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const { theme, setTheme } = useTheme();
@@ -40,6 +59,8 @@ export function ProfileView() {
     vehicle?: Vehicle;
   }>({ open: false });
   const [confirmRemove, setConfirmRemove] = React.useState<string | null>(null);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => setMounted(true), []);
 
   const initials = user.name
@@ -49,10 +70,32 @@ export function ProfileView() {
     .join("")
     .toUpperCase();
 
-  const sessions = reservations.filter(
-    (r) =>
-      ["COMPLETED", "CHECKED_IN"].includes(r.status) && r.driverName === user.name
-  ).length;
+  const own = reservations.filter((r) => r.driverName === user.name);
+  const sessions = own.filter((r) => ["COMPLETED", "CHECKED_IN"].includes(r.status)).length;
+  // v22 — personal spend = service fees + late fines of own sessions
+  const spend = own
+    .filter((r) => r.status === "COMPLETED")
+    .reduce((a, r) => a + r.serviceFee + r.overtimeFee, 0);
+
+  function onAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!AVATAR_TYPES.includes(file.type)) {
+      toast(t("avatarBadType"), "error");
+      return;
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      toast(t("avatarTooBig"), "error");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAvatar(String(reader.result));
+      toast(t("profileSaved"), "success");
+    };
+    reader.readAsDataURL(file);
+  }
 
   return (
     <div className="space-y-4">
@@ -69,14 +112,46 @@ export function ProfileView() {
           aria-hidden
           className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-binus-bright/15 blur-3xl"
         />
+        {/* edit pill (v25) */}
+        <button
+          onClick={() => setEditOpen(true)}
+          data-edit-profile-btn
+          aria-label={t("editProfile")}
+          className="absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary/20 active:scale-95"
+        >
+          <Pencil className="h-3 w-3" />
+          {t("editProfile")}
+        </button>
+
         <div className="relative flex items-center gap-4">
-          <div className="relative">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-binus-blue to-binus-bright font-display text-xl font-bold text-white">
-              {initials}
-            </div>
+          {/* avatar (v26) — click to upload a photo */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => fileRef.current?.click()}
+              data-avatar-btn
+              aria-label={t("avatarChange")}
+              className="group relative block h-16 w-16 overflow-hidden rounded-2xl"
+            >
+              {user.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  className="h-full w-full object-cover"
+                  data-avatar-img
+                />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-binus-blue to-binus-bright font-display text-xl font-bold text-white">
+                  {initials}
+                </span>
+              )}
+              <span className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition group-hover:opacity-100">
+                <Camera className="h-5 w-5 text-white" />
+              </span>
+            </button>
+            {/* persistent camera badge */}
             <span
               className={cn(
-                "absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card",
+                "pointer-events-none absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card",
                 user.isBinusian ? "bg-primary" : "bg-muted"
               )}
             >
@@ -86,10 +161,38 @@ export function ProfileView() {
                 <UserRound className="h-3 w-3 text-muted-foreground" />
               )}
             </span>
+            {/* remove photo — only when a custom photo exists */}
+            {user.avatar && (
+              <button
+                onClick={() => {
+                  setAvatar(null);
+                  toast(t("avatarRemove"), "info");
+                }}
+                data-avatar-remove
+                aria-label={t("avatarRemove")}
+                className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-card bg-red-500 text-white transition hover:bg-red-400 active:scale-90"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={onAvatarFile}
+              className="hidden"
+              aria-hidden
+            />
           </div>
+
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-lg font-bold leading-tight">{user.name}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+            {(user.nim || user.phone) && (
+              <p className="tnum mt-0.5 truncate text-[11px] text-muted-foreground/80">
+                {[user.nim, user.phone].filter(Boolean).join(" · ")}
+              </p>
+            )}
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {user.isBinusian ? (
                 <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-black tracking-wider text-primary">
@@ -121,12 +224,15 @@ export function ProfileView() {
             </p>
           </div>
           <div>
-            <p className="tnum font-display text-lg font-bold">{rupiah(walletBalance)}</p>
+            <p className="tnum font-display text-lg font-bold text-gradient-gold">{rupiah(spend)}</p>
             <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {t("walletTitle")}
+              {lang === "id" ? "Total belanja" : "Total spend"}
             </p>
           </div>
         </div>
+        <p className="tnum mt-2 text-center text-[10px] text-muted-foreground/70">
+          {t("walletTitle")}: {rupiah(walletBalance)}
+        </p>
       </motion.section>
 
       {/* vehicles */}
@@ -150,6 +256,7 @@ export function ProfileView() {
                 <p className="text-sm font-bold leading-tight">{v.nickname}</p>
                 <p className="text-[11px] text-muted-foreground">
                   {v.brand} {v.model} · {v.color}
+                  {v.bodyType ? ` · ${v.bodyType}` : ""}
                 </p>
               </div>
               <span className="shrink-0 overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm">
@@ -268,6 +375,156 @@ export function ProfileView() {
         onOpenChange={(v) => setVehicleModal((m) => ({ ...m, open: v }))}
         vehicle={vehicleModal.vehicle ?? null}
       />
+
+      <EditProfileModal open={editOpen} onOpenChange={setEditOpen} />
     </div>
+  );
+}
+
+// ───────────────────── EditProfileModal (v25) ─────────────────────
+
+function EditProfileModal({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const lang = useParkir((s) => s.lang);
+  const user = useParkir((s) => s.user);
+  const updateProfile = useParkir((s) => s.updateProfile);
+  const toast = useParkir((s) => s.toast);
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+  const [name, setName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [nim, setNim] = React.useState("");
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    if (open) {
+      setName(user.name);
+      setEmail(user.email);
+      setPhone(user.phone ?? "");
+      setNim(user.nim ?? "");
+      setErrors({});
+    }
+  }, [open, user]);
+
+  function save() {
+    const errs: Record<string, string> = {};
+    if (!name.trim()) errs.name = t("epNameReq");
+    if (!email.trim()) errs.email = t("epEmailReq");
+    else if (!EMAIL_RE.test(email.trim())) errs.email = t("epEmailInvalid");
+    if (phone.trim() && !PHONE_RE.test(phone.trim())) errs.phone = t("epPhoneInvalid");
+    if (nim.trim() && !NIM_RE.test(nim.trim())) errs.nim = t("epNimInvalid");
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
+    updateProfile({
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim() || undefined,
+      nim: nim.trim() || undefined,
+    });
+    toast(t("profileSaved"), "success");
+    onOpenChange(false);
+  }
+
+  const inputCls = (bad?: string) =>
+    `h-11 w-full rounded-xl border bg-white/[0.04] px-3.5 text-[13px] font-medium placeholder:text-muted-foreground/50 focus:outline-none transition ${
+      bad ? "border-red-400/60 focus:border-red-400" : "border-border focus:border-primary/50"
+    }`;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[380px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
+        <DialogHeader className="space-y-1.5">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15">
+            <Pencil className="h-5.5 w-5.5 text-primary" />
+          </div>
+          <DialogTitle className="text-center font-display text-lg font-bold tracking-tight">
+            {t("editProfileTitle")}
+          </DialogTitle>
+          <DialogDescription className="text-center text-xs text-muted-foreground">
+            {t("profileTitle")}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="mt-4 space-y-3">
+          <div>
+            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              {t("epName")} <span className="text-red-400">*</span>
+            </p>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              data-ep-name
+              className={inputCls(errors.name)}
+            />
+            {errors.name && <p className="mt-1 text-[10px] font-semibold text-red-400">{errors.name}</p>}
+          </div>
+          <div>
+            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              {t("epEmail")} <span className="text-red-400">*</span>
+            </p>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              inputMode="email"
+              data-ep-email
+              className={inputCls(errors.email)}
+            />
+            {errors.email && <p className="mt-1 text-[10px] font-semibold text-red-400">{errors.email}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                {t("epPhone")}
+              </p>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                inputMode="tel"
+                placeholder="+62 812 …"
+                data-ep-phone
+                className={`tnum ${inputCls(errors.phone)}`}
+              />
+              {errors.phone && <p className="mt-1 text-[10px] font-semibold text-red-400">{errors.phone}</p>}
+            </div>
+            <div>
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                {t("epNim")}
+              </p>
+              <input
+                value={nim}
+                onChange={(e) => setNim(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                inputMode="numeric"
+                placeholder="2540…"
+                data-ep-nim
+                className={`tnum ${inputCls(errors.nim)}`}
+              />
+              {errors.nim && <p className="mt-1 text-[10px] font-semibold text-red-400">{errors.nim}</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 flex gap-2.5">
+          <button
+            onClick={() => onOpenChange(false)}
+            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-white/[0.03] text-sm font-bold text-muted-foreground transition hover:bg-white/[0.06] active:scale-[0.98]"
+          >
+            <X className="h-4 w-4" />
+            {t("cancel")}
+          </button>
+          <button
+            onClick={save}
+            data-ep-save
+            className="glow-primary flex h-12 flex-[1.6] items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground transition active:scale-[0.98]"
+          >
+            {t("save")}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

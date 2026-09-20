@@ -1,9 +1,8 @@
 "use client";
 /**
  * OperatorView — parking officer command center.
- * Live slot monitor, occupancy & revenue analytics, peak-hours chart, live
- * activity feed, session control (force check-out / extend / manual check-in),
- * reservation management, slot QR codes and a daily recap — in 3 tabs.
+ * 8 tabs: Monitor · Harga · QR · Riwayat · Analitik · Keuangan · Audit · Sistem.
+ * v22 fees (service + fines only), v23 live gate stream + audit, v24 system docs.
  */
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -21,12 +20,17 @@ import {
   Download,
   Gauge,
   History as HistoryIcon,
+  LineChart,
   LogIn,
   LogOut,
+  Megaphone,
   Monitor,
+  Network,
   Plus,
   Printer,
   QrCode,
+  Radio,
+  ScanLine,
   Search,
   ShieldCheck,
   Timer,
@@ -46,6 +50,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ResStatusPill } from "./Brand";
+import { AnalyticsView } from "./AnalyticsView";
+import { FinanceView } from "./FinanceView";
+import { AuditView } from "./AuditView";
+import { SystemView } from "./SystemView";
+import { ArchCard, ChangelogCard, ErdCard, StackCard } from "./SystemCards";
 import { useParkir } from "@/lib/store";
 import {
   campusById,
@@ -60,6 +69,7 @@ import {
   timeStr,
   tr,
   type DemandInfo,
+  type LiveGuest,
   type Reservation,
   type Slot,
   type SlotStatus,
@@ -73,7 +83,7 @@ const WEEK_MS = 7 * 24 * 3600_000;
 const DAY_START_H = 6;
 const DAY_END_H = 23;
 
-type OpTab = "monitor" | "qr" | "history";
+type OpTab = "monitor" | "harga" | "qr" | "riwayat" | "analitik" | "keuangan" | "audit" | "sistem";
 
 /** Window covering "right now" — operator always sees live state */
 function nowWindow() {
@@ -231,6 +241,225 @@ function LiveClock() {
   );
 }
 
+// ───────────────────────── live stream (v23) ─────────────────────────
+
+/** Header pill — click to connect/disconnect the simulated gate WebSocket. */
+function LiveStatusPill({
+  liveOn,
+  liveStatus,
+  latency,
+  onToggle,
+}: {
+  liveOn: boolean;
+  liveStatus: string;
+  latency: number;
+  onToggle: () => void;
+}) {
+  const lang = useParkir((s) => s.lang);
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+  return (
+    <button
+      onClick={onToggle}
+      data-live-pill={liveOn ? "on" : "off"}
+      aria-label={liveOn ? t("liveDisconnect") : t("liveToggle")}
+      className={cn(
+        "flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[10px] font-black uppercase tracking-wider transition",
+        liveOn && liveStatus === "live"
+          ? "border-red-400/40 bg-red-400/10 text-red-400"
+          : liveOn
+            ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
+            : "border-border bg-card/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+      )}
+    >
+      <Radio className="h-3.5 w-3.5" />
+      {liveOn ? (liveStatus === "live" ? "LIVE" : t("liveConnecting")) : t("liveOffline")}
+      {liveOn && liveStatus === "live" && latency > 0 && (
+        <span className="tnum rounded-full bg-red-400/15 px-1.5 py-0.5 text-[9px] font-bold text-red-300">
+          {latency}ms
+        </span>
+      )}
+    </button>
+  );
+}
+
+/** Live ops card — connection stats + full-plate event stream (operator view). */
+function LiveOpsCard({
+  className,
+  liveOn,
+  liveStatus,
+  liveEvents,
+  liveGuests,
+  liveLatency,
+  liveReconnects,
+  liveUptimeStart,
+  onToggle,
+}: {
+  className?: string;
+  liveOn: boolean;
+  liveStatus: string;
+  liveEvents: import("@/lib/parking-data").LiveEvent[];
+  liveGuests: LiveGuest[];
+  liveLatency: number;
+  liveReconnects: number;
+  liveUptimeStart: number;
+  onToggle: () => void;
+}) {
+  const lang = useParkir((s) => s.lang);
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+  const [, tick] = React.useReducer((x: number) => x + 1, 0);
+
+  React.useEffect(() => {
+    if (!liveOn) return;
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [liveOn]);
+
+  const avgLatency =
+    liveEvents.length > 0 ? liveLatency : 0;
+  const uptimeMs = liveOn && liveUptimeStart ? Date.now() - liveUptimeStart : 0;
+  const upM = Math.floor(uptimeMs / 60_000);
+  const upS = Math.floor((uptimeMs % 60_000) / 1000);
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className={cn("glass rounded-3xl p-4", className)}
+    >
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="flex items-center gap-1.5 font-display text-sm font-bold tracking-tight">
+            <Radio className={cn("h-4 w-4", liveOn ? "text-red-400" : "text-muted-foreground")} />
+            {t("liveTitle")}
+          </h3>
+          <p className="mt-0.5 truncate text-[10px] leading-snug text-muted-foreground">{t("liveSub")}</p>
+        </div>
+        <button
+          onClick={onToggle}
+          data-live-toggle
+          className={cn(
+            "flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[10px] font-black uppercase tracking-wider transition active:scale-95",
+            liveOn
+              ? "border border-red-400/40 bg-red-400/10 text-red-400"
+              : "glow-primary bg-primary text-primary-foreground"
+          )}
+        >
+          <Radio className="h-3 w-3" />
+          {liveOn ? t("liveDisconnect") : t("liveToggle")}
+        </button>
+      </div>
+
+      {/* connection stats */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-live-stats>
+        <div className="rounded-xl border border-border bg-card/50 px-3 py-2">
+          <p className="truncate text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">{t("liveTransport")}</p>
+          <p className="mt-0.5 truncate text-[10px] font-bold text-primary">{t("liveTransportVal")}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card/50 px-3 py-2 text-center">
+          <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">{t("liveUptime")}</p>
+          <p className="tnum mt-0.5 text-sm font-bold">
+            {liveOn ? `${String(upM).padStart(2, "0")}:${String(upS).padStart(2, "0")}` : "—"}
+          </p>
+        </div>
+        <div className="rounded-xl border border-border bg-card/50 px-3 py-2 text-center">
+          <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">{t("liveEvents")}</p>
+          <p className="tnum mt-0.5 text-sm font-bold">{liveEvents.length}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card/50 px-3 py-2 text-center">
+          <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">{t("liveReconnects")}</p>
+          <p className="tnum mt-0.5 text-sm font-bold">{liveReconnects}</p>
+        </div>
+      </div>
+
+      {/* avg latency strip */}
+      <div className="mt-2 flex items-center justify-between rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] px-3.5 py-2">
+        <span className="text-[10px] font-semibold text-muted-foreground">{t("liveLatency")}</span>
+        <span className="tnum text-sm font-bold text-emerald-400">
+          {liveOn && liveStatus === "live" ? `${liveLatency || avgLatency} ms` : "—"}
+        </span>
+      </div>
+
+      {/* event stream — full plates for the operator */}
+      <p className="mb-1.5 mt-3 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground/70">
+        {t("liveStreamTitle")} · {t("opGuests")} {liveGuests.length}
+      </p>
+      <div className="max-h-[220px] space-y-1.5 overflow-y-auto pr-1" data-live-stream>
+        {liveEvents.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-[11px] text-muted-foreground">
+            {liveOn ? t("liveConnecting") : t("liveToggle")}
+          </p>
+        ) : (
+          liveEvents.slice(0, 6).map((e) => (
+            <div
+              key={e.id}
+              className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-card/30 px-2.5 py-2"
+            >
+              <span className="tnum w-[38px] shrink-0 text-[10px] font-bold text-muted-foreground/70">
+                {timeStr(new Date(e.at))}
+              </span>
+              <span
+                className={cn(
+                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border",
+                  e.kind === "in"
+                    ? "border-emerald-400/25 bg-emerald-400/[0.07] text-emerald-400"
+                    : "border-sky-400/25 bg-sky-400/[0.07] text-sky-400"
+                )}
+              >
+                {e.kind === "in" ? <LogIn className="h-3 w-3" /> : <LogOut className="h-3 w-3" />}
+              </span>
+              <p className="tnum min-w-0 flex-1 truncate text-[11.5px]">
+                <span className="font-bold">{e.plate}</span>{" "}
+                <span className="text-muted-foreground">
+                  {e.kind === "in" ? t("liveTickerIn") : t("liveTickerOut")} {e.slotNumber} · {e.vehicle}
+                </span>
+              </p>
+            </div>
+          ))
+        )}
+      </div>
+    </motion.section>
+  );
+}
+
+/** Promo broadcast card (v19) — sends a campus promo to every active user. */
+function PromoCard({ className, onSend }: { className?: string; onSend: () => void }) {
+  const lang = useParkir((s) => s.lang);
+  const toast = useParkir((s) => s.toast);
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: 0.05 }}
+      className={cn("glass rounded-3xl p-4", className)}
+    >
+      <div className="mb-2 flex items-center gap-1.5">
+        <Megaphone className="h-4 w-4 text-primary" />
+        <h3 className="font-display text-sm font-bold tracking-tight">{t("promoTitle")}</h3>
+      </div>
+      <p className="text-[10.5px] leading-relaxed text-muted-foreground">{t("promoSub")}</p>
+      <div className="mt-3 rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] p-3">
+        <p className="text-[12px] font-black">Kopi Rp15.000</p>
+        <p className="mt-0.5 text-[10.5px] text-muted-foreground">
+          Fusion Cafe — {lang === "id" ? "tunjukkan pass parkirmu" : "show your parking pass"}
+        </p>
+      </div>
+      <button
+        onClick={() => {
+          onSend();
+          toast(t("promoSent"), "success");
+        }}
+        data-promo-send
+        className="glow-primary mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-xs font-black text-primary-foreground transition active:scale-[0.98]"
+      >
+        <Megaphone className="h-4 w-4" />
+        {t("promoSend")}
+      </button>
+    </motion.section>
+  );
+}
+
 // ───────────────────────── main view ─────────────────────────
 
 export function OperatorView() {
@@ -256,6 +485,15 @@ export function OperatorView() {
   const manualCheckIn = useParkir((s) => s.manualCheckIn);
   const cancelReservation = useParkir((s) => s.cancelReservation);
   const signOut = useParkir((s) => s.signOut);
+  const broadcastPromo = useParkir((s) => s.broadcastPromo);
+  const liveOn = useParkir((s) => s.liveOn);
+  const liveStatus = useParkir((s) => s.liveStatus);
+  const liveEvents = useParkir((s) => s.liveEvents);
+  const liveGuests = useParkir((s) => s.liveGuests);
+  const liveLatency = useParkir((s) => s.liveLatency);
+  const liveReconnects = useParkir((s) => s.liveReconnects);
+  const liveUptimeStart = useParkir((s) => s.liveUptimeStart);
+  const liveToggle = useParkir((s) => s.liveToggle);
   const toast = useParkir((s) => s.toast);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
 
@@ -428,7 +666,7 @@ export function OperatorView() {
         "",
         "",
       ]),
-      [id ? "TOTAL PENDAPATAN" : "TOTAL REVENUE", "", String(revenue(["SERVICE_FEE", "PARKING_FEE", "OVERTIME"])), "", "", ""],
+      [id ? "TOTAL PENDAPATAN" : "TOTAL REVENUE", "", String(revenue(["SERVICE_FEE", "OVERTIME"])), "", "", ""],
       ["", "", "", "", "", ""],
       [id ? "Sesi aktif" : "Active sessions", String(activeSessions.length), id ? "Okupansi" : "Occupancy", `${nowStats.OCCUPIED}/${slots.length}`, "", ""],
     ];
@@ -488,8 +726,13 @@ export function OperatorView() {
 
   const tabs: { k: OpTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { k: "monitor", label: t("opTabMonitor"), icon: Monitor },
+    { k: "harga", label: t("opTabHarga"), icon: Zap },
     { k: "qr", label: t("opTabQr"), icon: QrCode },
-    { k: "history", label: t("opTabHistory"), icon: HistoryIcon },
+    { k: "riwayat", label: t("opTabHistory"), icon: HistoryIcon },
+    { k: "analitik", label: t("opTabAnalytics"), icon: BarChart3 },
+    { k: "keuangan", label: t("opTabFinance"), icon: LineChart },
+    { k: "audit", label: t("opTabAudit"), icon: ShieldCheck },
+    { k: "sistem", label: t("opTabSystem"), icon: Network },
   ];
 
   return (
@@ -531,6 +774,12 @@ export function OperatorView() {
             </div>
             <p className="truncate text-[11px] text-muted-foreground">{t("operatorShift")}</p>
           </div>
+          <LiveStatusPill
+            liveOn={liveOn}
+            liveStatus={liveStatus}
+            latency={liveLatency}
+            onToggle={liveToggle}
+          />
           <LiveClock />
         </div>
 
@@ -565,15 +814,15 @@ export function OperatorView() {
         </div>
       </motion.section>
 
-      {/* ── segmented tabs ── */}
-      <div className="glass grid grid-cols-3 gap-1 rounded-2xl p-1">
+      {/* ── segmented tabs (v23/v24: 8 tabs — vertical icon+label mobile, horizontal ≥sm) ── */}
+      <div className="glass grid grid-cols-4 gap-1 rounded-2xl p-1 sm:grid-cols-8">
         {tabs.map(({ k, label, icon: Icon }) => (
           <button
             key={k}
             onClick={() => setTab(k)}
             aria-current={tab === k ? "page" : undefined}
             className={cn(
-              "relative flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition",
+              "relative flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition sm:h-10 sm:gap-1.5",
               tab === k ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -584,8 +833,9 @@ export function OperatorView() {
                 className="glow-primary absolute inset-0 rounded-xl bg-primary"
               />
             )}
-            <Icon className="relative h-3.5 w-3.5" />
-            <span className="relative">{label}</span>
+            <Icon className="relative h-3.5 w-3.5 shrink-0" />
+            <span className="relative hidden sm:inline">{label}</span>
+            <span className="relative sm:hidden">{label.slice(0, 4)}</span>
           </button>
         ))}
       </div>
@@ -660,10 +910,9 @@ export function OperatorView() {
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="grid gap-4 md:grid-cols-12"
           >
-            <PricingCard className="md:col-span-12" lang={lang} demand={demand} />
-            <OccupancyCard className="md:col-span-5" lang={lang} stats={stats} total={slots.length} shift={shift} />
+            <OccupancyCard className="md:col-span-5" lang={lang} stats={stats} total={slots.length + liveGuests.length} shift={shift} />
             <RevenueCard className="md:col-span-7" lang={lang} data={hourlyRevenue} total={revenue} />
-            <SlotMonitorCard className="md:col-span-7" lang={lang} slots={slots} reservations={reservations} stats={stats} onSlot={setDetail} />
+            <SlotMonitorCard className="md:col-span-7" lang={lang} slots={slots} reservations={reservations} stats={stats} onSlot={setDetail} guests={liveOn ? liveGuests : []} />
             <SessionsCard
               className="md:col-span-5"
               lang={lang}
@@ -683,6 +932,31 @@ export function OperatorView() {
               onOpen={openSessionSlot}
             />
             <FeedCard className="md:col-span-12" lang={lang} events={feed} />
+          </motion.div>
+        )}
+
+        {tab === "harga" && (
+          <motion.div
+            key="tab-harga"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="grid gap-4 md:grid-cols-12"
+          >
+            <PricingCard className="md:col-span-12" lang={lang} demand={demand} />
+            <LiveOpsCard
+              className="md:col-span-7"
+              liveOn={liveOn}
+              liveStatus={liveStatus}
+              liveEvents={liveEvents}
+              liveGuests={liveGuests}
+              liveLatency={liveLatency}
+              liveReconnects={liveReconnects}
+              liveUptimeStart={liveUptimeStart}
+              onToggle={liveToggle}
+            />
+            <PromoCard className="md:col-span-5" onSend={broadcastPromo} />
           </motion.div>
         )}
 
@@ -743,9 +1017,9 @@ export function OperatorView() {
           </motion.section>
         )}
 
-        {tab === "history" && (
+        {tab === "riwayat" && (
           <motion.div
-            key="tab-history"
+            key="tab-riwayat"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
@@ -769,6 +1043,59 @@ export function OperatorView() {
               txns={todayTxns}
               onExport={() => exportCsv()}
             />
+          </motion.div>
+        )}
+
+        {tab === "analitik" && (
+          <motion.div
+            key="tab-analitik"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <AnalyticsView />
+          </motion.div>
+        )}
+
+        {tab === "keuangan" && (
+          <motion.div
+            key="tab-keuangan"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <FinanceView />
+          </motion.div>
+        )}
+
+        {tab === "audit" && (
+          <motion.div
+            key="tab-audit"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <AuditView />
+          </motion.div>
+        )}
+
+        {tab === "sistem" && (
+          <motion.div
+            key="tab-sistem"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="space-y-4"
+          >
+            <SystemView />
+            <ArchCard />
+            <ErdCard />
+            <StackCard />
+            <ChangelogCard />
           </motion.div>
         )}
       </AnimatePresence>
@@ -1170,7 +1497,7 @@ function RevenueCard({
   );
 }
 
-/** Live slot grid — tap a tile for detail & maintenance control. */
+/** Live slot grid — tap a tile for detail & maintenance control. v23: guest overlay. */
 function SlotMonitorCard({
   className,
   lang,
@@ -1178,6 +1505,7 @@ function SlotMonitorCard({
   reservations,
   stats,
   onSlot,
+  guests,
 }: {
   className?: string;
   lang: string;
@@ -1185,11 +1513,13 @@ function SlotMonitorCard({
   reservations: Reservation[];
   stats: Record<SlotStatus, number>;
   onSlot: (s: Slot) => void;
+  guests: LiveGuest[];
 }) {
   const t = (k: Parameters<typeof tr>[1]) => tr(lang as "id" | "en", k);
   const win = nowWindow();
   const rowA = slots.filter((s) => s.rowLabel === "A");
   const rowB = slots.filter((s) => s.rowLabel === "B");
+  const guestById = new Map(guests.map((g) => [g.slotId, g]));
   const legend = [
     { st: "OCCUPIED" as SlotStatus, label: t("inBuilding"), dot: "bg-red-400", n: stats.OCCUPIED },
     { st: "RESERVED" as SlotStatus, label: t("reservedNow"), dot: "bg-amber-400", n: stats.RESERVED },
@@ -1217,6 +1547,15 @@ function SlotMonitorCard({
               <span className="tnum font-bold text-foreground/80">{l.n}</span>
             </span>
           ))}
+          {guests.length > 0 && (
+            <span data-op-guests className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[9.5px] font-bold text-amber-300">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute h-full w-full animate-ping rounded-full bg-amber-400 opacity-70" />
+                <span className="relative h-1.5 w-1.5 rounded-full bg-amber-400" />
+              </span>
+              {t("liveGuestLegend")} +{guests.length}
+            </span>
+          )}
         </div>
       </div>
 
@@ -1230,22 +1569,32 @@ function SlotMonitorCard({
           </p>
           <div className="grid grid-cols-6 gap-1.5 md:grid-cols-9">
             {list.map((s) => {
-              const st = slotStatusForWindow(s, reservations, win);
+              const guest = guestById.get(s.id);
+              const st = guest ? "OCCUPIED" : slotStatusForWindow(s, reservations, win);
               const tile = TILE[st];
               return (
                 <button
                   key={s.id}
                   onClick={() => onSlot(s)}
+                  title={guest ? `${s.slotNumber} · tamu live (${guest.vehicle})` : `${s.slotNumber} · ${st}`}
+                  data-live-guest={guest ? s.slotNumber : undefined}
                   className={cn(
                     "tnum relative flex h-10 items-center justify-center rounded-xl border font-display text-[11px] font-bold transition active:scale-90 md:h-11",
                     tile.box,
-                    tile.num
+                    tile.num,
+                    guest && "ring-2 ring-amber-400"
                   )}
                 >
                   {s.slotNumber}
-                  {st === "MAINTENANCE" && <Wrench className="absolute right-1 top-1 h-2.5 w-2.5 opacity-60" />}
-                  {st === "OCCUPIED" && <CarFront className="absolute right-1 top-1 h-2.5 w-2.5 opacity-60" />}
-                  {st === "RESERVED" && <Clock3 className="absolute right-1 top-1 h-2.5 w-2.5 opacity-60" />}
+                  {guest && (
+                    <span className="absolute right-0.5 top-0.5 flex h-1.5 w-1.5">
+                      <span className="absolute h-full w-full animate-ping rounded-full bg-amber-400 opacity-70" />
+                      <span className="relative h-1.5 w-1.5 rounded-full bg-amber-400" />
+                    </span>
+                  )}
+                  {!guest && st === "MAINTENANCE" && <Wrench className="absolute right-1 top-1 h-2.5 w-2.5 opacity-60" />}
+                  {!guest && st === "OCCUPIED" && <CarFront className="absolute right-1 top-1 h-2.5 w-2.5 opacity-60" />}
+                  {!guest && st === "RESERVED" && <Clock3 className="absolute right-1 top-1 h-2.5 w-2.5 opacity-60" />}
                 </button>
               );
             })}
@@ -1729,7 +2078,7 @@ function CompletedCard({ className, lang, list }: { className?: string; lang: st
                 </p>
               </div>
               <p className="tnum shrink-0 text-[12.5px] font-bold text-primary">
-                {rupiah(r.parkingFee + r.overtimeFee)}
+                {rupiah(r.serviceFee + r.overtimeFee)}
               </p>
             </div>
           ))}
@@ -1745,7 +2094,6 @@ const TXN_META: Record<
 > = {
   TOP_UP: { icon: Plus, labelKey: "tTopUp", cls: "border-emerald-400/25 bg-emerald-400/[0.07] text-emerald-400" },
   SERVICE_FEE: { icon: QrCode, labelKey: "tServiceFee", cls: "border-primary/25 bg-primary/[0.07] text-primary" },
-  PARKING_FEE: { icon: Car, labelKey: "tParkingFee", cls: "border-sky-400/25 bg-sky-400/[0.07] text-sky-400" },
   OVERTIME: { icon: TimerReset, labelKey: "tOvertime", cls: "border-amber-400/25 bg-amber-400/[0.07] text-amber-400" },
   REFUND: { icon: LogOut, labelKey: "tRefund", cls: "border-red-400/25 bg-red-400/[0.07] text-red-400" },
 };

@@ -108,11 +108,21 @@ export function useSessionAlerts() {
             params: { slot: r.slotNumber },
           });
         } else if (minsLeft <= 30) {
+          // v26 — the FIRST time a session crosses the 30-min line, fire an
+          // in-app toast as well (the notification itself is deduped by key).
+          const firstCross = !useParkir.getState().notifications.some((n) => n.key === `end:${r.id}`);
           useParkir.getState().pushNotif({
             key: `end:${r.id}`,
             kind: "session_end_soon",
             params: { slot: r.slotNumber, minutes: minsLeft },
           });
+          if (firstCross) {
+            const msg = tpl(useParkir.getState().lang, "endSoonToast", {
+              slot: r.slotNumber,
+              minutes: minsLeft,
+            });
+            useParkir.getState().toast(msg, "error");
+          }
         }
       }
     };
