@@ -501,10 +501,10 @@ export function ParkingMap({
 
       {/* footer note */}
       {!compact && (
-        <p className="mt-3 text-center text-[10px] leading-snug text-slate-400 dark:text-muted-foreground/70">
+        <p className="mt-3 text-center text-[10px] leading-snug text-slate-500 dark:text-muted-foreground/70">
           {tr(lang, openlot ? "mapNoteOpen" : "mapNote")}
           {liveOn && guests.length > 0 && (
-            <span className="ml-1 font-semibold text-amber-500 dark:text-amber-300/80">
+            <span className="ml-1 font-semibold text-amber-600 dark:text-amber-300/80">
               · {tr(lang, "liveMapNote")}
             </span>
           )}

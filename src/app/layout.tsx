@@ -47,6 +47,16 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} antialiased bg-background text-foreground`}
       >
+        {/* Frost fix — Turbopack's Lightning CSS pass strips the standard
+            `backdrop-filter` declaration from every stylesheet rule (keeping
+            only the -webkit- form, which Chromium discards), so all .glass
+            surfaces rendered flat. An inline <style> bypasses the CSS
+            pipeline entirely and guarantees the frost in every browser. */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `.glass{--glass-fx:blur(20px) saturate(1.4);backdrop-filter:var(--glass-fx);-webkit-backdrop-filter:var(--glass-fx)}`,
+          }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

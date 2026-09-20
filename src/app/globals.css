@@ -147,11 +147,16 @@
    PREMIUM UTILITIES
    ═══════════════════════════════════════════════════════════ */
 
-/* Frosted glass surface */
-.glass {
+/* Frosted glass surface — declared as a Tailwind v4 custom @utility.
+   NOTE: as a plain unlayered class, Turbopack's Lightning CSS pass rewrites
+   the literal `backdrop-filter` into the -webkit- prefixed form only, which
+   Chromium drops entirely. Emitted through @utility (same path as Tailwind's
+   own backdrop-blur), both the standard and prefixed declarations survive. */
+@utility glass {
+  --glass-fx: blur(20px) saturate(1.4);
   background: color-mix(in srgb, var(--card) 80%, transparent);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: var(--glass-fx);
+  -webkit-backdrop-filter: var(--glass-fx);
   border: 1px solid color-mix(in srgb, var(--card) 50%, transparent);
 }
 .dark .glass {

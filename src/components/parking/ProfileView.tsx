@@ -130,6 +130,7 @@ export function ProfileView() {
               onClick={() => fileRef.current?.click()}
               data-avatar-btn
               aria-label={t("avatarChange")}
+              title={t("avatarChange")}
               className="group relative block h-16 w-16 overflow-hidden rounded-2xl"
             >
               {user.avatar ? (
@@ -148,18 +149,26 @@ export function ProfileView() {
                 <Camera className="h-5 w-5 text-white" />
               </span>
             </button>
-            {/* persistent camera badge */}
+            {/* binusian badge — top right */}
             <span
               className={cn(
-                "pointer-events-none absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card",
+                "pointer-events-none absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-card",
                 user.isBinusian ? "bg-primary" : "bg-muted"
               )}
             >
               {user.isBinusian ? (
-                <BadgeCheck className="h-3.5 w-3.5 text-primary-foreground" />
+                <BadgeCheck className="h-3 w-3 text-primary-foreground" />
               ) : (
-                <UserRound className="h-3 w-3 text-muted-foreground" />
+                <UserRound className="h-2.5 w-2.5 text-muted-foreground" />
               )}
+            </span>
+            {/* persistent camera chip — visible affordance on touch devices (no hover) */}
+            <span
+              aria-hidden
+              data-avatar-cam
+              className="pointer-events-none absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-binus-bright text-white shadow-sm"
+            >
+              <Camera className="h-3 w-3" />
             </span>
             {/* remove photo — only when a custom photo exists */}
             {user.avatar && (
@@ -188,6 +197,13 @@ export function ProfileView() {
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-lg font-bold leading-tight">{user.name}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="mt-0.5 inline-flex items-center gap-1 text-[10.5px] font-semibold text-primary/90 transition hover:text-primary"
+            >
+              <Camera className="h-3 w-3" />
+              {t("avatarChange")}
+            </button>
             {(user.nim || user.phone) && (
               <p className="tnum mt-0.5 truncate text-[11px] text-muted-foreground/80">
                 {[user.nim, user.phone].filter(Boolean).join(" · ")}
