@@ -120,6 +120,10 @@ interface ParkirState {
   markNotifsRead: () => void;
   clearNotifs: () => void;
 
+  /** Push notification permission — true when user granted and SW is registered. */
+  pushEnabled: boolean;
+  setPushEnabled: (v: boolean) => void;
+
   signIn: (kind: "student" | "general" | "operator" | "microsoft") => void;
   signOut: () => void;
 
@@ -890,6 +894,7 @@ export const useParkir = create<ParkirState>((set, get) => {
     campusId: "anggrek",
     auditLog: [],
     liveOn: false,
+    pushEnabled: false,
     liveStatus: "offline",
     liveEvents: [],
     liveGuests: [],
@@ -934,6 +939,8 @@ export const useParkir = create<ParkirState>((set, get) => {
     markNotifsRead: () => set((s) => ({ notifications: s.notifications.map((n) => ({ ...n, read: true })) })),
 
     clearNotifs: () => set({ notifications: [] }),
+
+    setPushEnabled: (v) => set({ pushEnabled: v }),
 
     signIn: (kind) => {
       const now = Date.now();

@@ -2,10 +2,13 @@
 /**
  * ParkingMap — site plan of the active campus, theme-aware.
  * Two layouts:
- *  · "building" (Anggrek)  — walled deck: pillars every 3 bays, LIFT/WC,
- *    right-side entrance/exit + the big seamless L2 RAMP BLOCK (v25): one
- *    monolithic wall·ramp·wall child — no gaps, no dark slits.
- *  · "openlot"  (Alam Sutera) — open lot: A(20) · drive lane · B(20).
+ *  · "building" (Anggrek/Kemanggisan) — walled deck with exact physical layout:
+ *    Row A: A-01…A-18, pillar every 3 slots, WallStrip, Entrance
+ *    Row B: B-01, RampL2↓ (spans A-02+A-03 width), B-02…B-04, WallStrip,
+ *            B-05…B-07, WallStrip, B-08, WallStrip, LIFT, WC, WallStrip,
+ *            B-09…B-11, WallStrip, B-12…B-14, WallStrip, RampUp, RampDown
+ *    Row A walls (pillars) and Row B WallStrips are pixel-aligned vertically.
+ *  · "openlot"  (Alam Sutera / Bekasi) — open lot: A(20/25) · drive lane · B(20/25).
  *
  * v23: when the live gate stream is connected, guest cars appear as amber
  * ringing tiles (overlay only — never in reservations/transactions).
@@ -16,17 +19,16 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
+  ArrowUp,
   CarFront,
   Clock3,
   DoorOpen,
   LogIn,
+  Accessibility,
+  Zap,
   Wrench,
 } from "lucide-react";
 import {
-  ROW_B_LEFT,
-  L2RAMP_BLOCK_W,
-  L2RAMP_WALL_W,
-  L2RAMP_GAP,
   campusById,
   slotStatusForWindow,
   tr,
@@ -37,6 +39,28 @@ import {
   type Reservation,
 } from "@/lib/parking-data";
 import { useParkir } from "@/lib/store";
+
+// ── layout constants (full / compact) ──────────────────────────────────────
+const SLOT_W   = { full: 52, compact: 44 } as const;
+const SLOT_H   = { full: 64, compact: 48 } as const;
+const GAP      = 6; // px — gap between every flex child
+const PILLAR_W = 6; // px — same as WallStrip width for alignment
+
+/**
+ * Compute the pixel width that B's left ramp must occupy so that B-02 aligns
+ * exactly with A-04.
+ *
+ * Row A left of pillar-1 (after A-03):
+ *   3 slots + 2 inner gaps = 3*slotW + 2*GAP
+ * B-01 takes 1 slot + 1 gap on its right:
+ *   slotW + GAP
+ * Remaining = ramp body width:
+ *   (3*slotW + 2*GAP) - (slotW + GAP) = 2*slotW + GAP
+ */
+function rampL2DownW(compact: boolean): number {
+  const sw = compact ? SLOT_W.compact : SLOT_W.full;
+  return 2 * sw + GAP; // = 110 (full) / 94 (compact)
+}
 
 const STYLE: Record<
   SlotStatus,
@@ -101,6 +125,7 @@ function SlotBay({
   compact,
   openlot,
   live,
+  dimmed,
 }: {
   slot: Slot;
   status: SlotStatus;
@@ -108,6 +133,8 @@ function SlotBay({
   compact?: boolean;
   openlot?: boolean;
   live?: LiveGuest;
+  /** Dim this slot when a type filter is active and it doesn't match. */
+  dimmed?: boolean;
 }) {
   const st = STYLE[status];
   const disabled = status !== "AVAILABLE";
@@ -127,7 +154,8 @@ function SlotBay({
           : cn("rounded-xl border", st.box),
         live && "ring-2 ring-amber-400 ring-offset-1 ring-offset-white dark:ring-offset-[#0a0f1e]",
         disabled && "cursor-default",
-        !disabled && "active:scale-95"
+        !disabled && "active:scale-95",
+        dimmed && "opacity-25"
       )}
     >
       {live && (
@@ -142,6 +170,13 @@ function SlotBay({
       {status === "OCCUPIED" && <CarFront className={cn("h-3 w-3 text-red-400 opacity-80 dark:opacity-60", compact ? "hidden" : "block")} />}
       {status === "RESERVED" && <Clock3 className={cn("h-3 w-3 text-amber-500 opacity-70 dark:text-amber-300 dark:opacity-40", compact && "hidden")} />}
       {status === "MAINTENANCE" && <Wrench className={cn("h-3 w-3 text-slate-400 opacity-80 dark:opacity-40", compact && "hidden")} />}
+      {/* slot type badge — only shown when not occupied/reserved/maintenance */}
+      {status === "AVAILABLE" && slot.slotType === "EV" && (
+        <Zap className="h-2.5 w-2.5 text-emerald-500 dark:text-emerald-400" aria-label="EV Charger" />
+      )}
+      {status === "AVAILABLE" && slot.slotType === "DISABILITY" && (
+        <Accessibility className="h-2.5 w-2.5 text-sky-500 dark:text-sky-400" aria-label="Disability" />
+      )}
       <span
         className={cn(
           "tnum font-display font-semibold tracking-tight",
@@ -155,78 +190,98 @@ function SlotBay({
   );
 }
 
+/** Pillar — thin vertical separator between every 3-slot chunk in Row A. */
 function Pillar({ h }: { h: number }) {
   return (
     <div
       aria-hidden
-      className="w-1.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.07] dark:via-white/[0.13] dark:to-white/[0.07]"
-      style={{ minHeight: h }}
-    />
-  );
-}
-
-/** Tembok — wall strip after the last slot of a row (v20/v25, aligned A↔B). */
-function WallStrip({ h }: { h: number }) {
-  return (
-    <div
-      aria-hidden
-      className="w-2.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]"
-      style={{ minHeight: h }}
+      className="shrink-0 self-stretch rounded-full bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.07] dark:via-white/[0.13] dark:to-white/[0.07]"
+      style={{ width: PILLAR_W, minHeight: h }}
     />
   );
 }
 
 /**
- * RampBlockBox (v25) — the L2 down-ramp as ONE seamless child: integrated 8px
- * wall edge strips on both sides + the blue ramp body with chevrons. Replaces
- * the old wall·ramp·wall triple — no dark slit can appear between the walls
- * and the ramp anymore.
+ * WallStrip — tembok vertical (aligned A↔B).
+ * Same visual weight as Pillar but slightly wider for physical wall feel.
  */
-function RampBlockBox({ compact, h }: { compact: boolean; h: number }) {
-  const lang = useParkir((s) => s.lang);
-  const blockW = compact ? L2RAMP_BLOCK_W.compact : L2RAMP_BLOCK_W.full;
+function WallStrip({ h }: { h: number }) {
   return (
     <div
-      data-map-el="ramp-l2"
-      aria-label="Ramp turun Lantai 2"
-      className="flex shrink-0 items-stretch overflow-hidden rounded-xl border border-slate-300 dark:border-white/[0.12]"
-      style={{ width: blockW, height: h }}
+      aria-hidden
+      className="shrink-0 self-stretch rounded-full bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]"
+      style={{ width: PILLAR_W, minHeight: h }}
+    />
+  );
+}
+
+/**
+ * RampL2Down — ramp turun dari Lantai 2, muncul di Row B setelah B-01.
+ * Lebar = 2*slotW + GAP sehingga B-02 tepat sejajar dengan A-04.
+ */
+function RampL2Down({ compact, h }: { compact: boolean; h: number }) {
+  const lang = useParkir((s) => s.lang);
+  const w = rampL2DownW(compact);
+  return (
+    <div
+      data-map-el="ramp-l2-down"
+      aria-label="Ramp turun dari Lantai 2"
+      className="flex shrink-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border border-slate-300 bg-gradient-to-b from-sky-100 to-blue-50 dark:border-white/[0.12] dark:from-binus-blue/35 dark:to-binus-blue/20"
+      style={{ width: w, height: h }}
     >
-      {/* integrated wall edge — left */}
-      <div
-        aria-hidden
-        className="h-full bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]"
-        style={{ width: L2RAMP_WALL_W }}
-      />
-      <div aria-hidden style={{ width: L2RAMP_GAP }} />
-      {/* ramp body */}
-      <div className="relative flex h-full flex-1 flex-col items-center justify-center gap-1 bg-gradient-to-b from-sky-100 to-blue-50 dark:from-binus-blue/35 dark:to-binus-blue/20">
-        <span
-          aria-hidden
-          className="absolute inset-y-1 left-0.5 flex flex-col justify-around"
-          style={{ opacity: 0.45 }}
-        >
-          {[0, 1, 2, 3].map((i) => (
-            <svg key={i} viewBox="0 0 10 6" className="h-[6px] w-[10px] text-blue-500 dark:text-binus-bright" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path d="M1 1l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          ))}
-        </span>
-        <ArrowDown className="h-4 w-4 text-blue-600 dark:text-binus-bright" />
-        <span className="text-[7.5px] font-black leading-none tracking-wider text-blue-700 dark:text-binus-bright/90">
-          {lang === "id" ? "RAMP" : "RAMP"}
-        </span>
-        <span className="rounded-sm bg-blue-600/90 px-1 text-[6.5px] font-black leading-[10px] text-white dark:bg-binus-bright/90 dark:text-[#0b1226]">
-          L2 ↓
-        </span>
-      </div>
-      <div aria-hidden style={{ width: L2RAMP_GAP }} />
-      {/* integrated wall edge — right */}
-      <div
-        aria-hidden
-        className="h-full bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]"
-        style={{ width: L2RAMP_WALL_W }}
-      />
+      <span aria-hidden className="flex flex-col items-center gap-0.5" style={{ opacity: 0.45 }}>
+        {[0, 1, 2].map((i) => (
+          <svg key={i} viewBox="0 0 10 6" className="h-[6px] w-[10px] text-blue-500 dark:text-binus-bright" fill="none" stroke="currentColor" strokeWidth="1.6">
+            <path d="M1 1l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ))}
+      </span>
+      <ArrowDown className="h-4 w-4 text-blue-600 dark:text-binus-bright" />
+      <span className="text-[7.5px] font-black leading-none tracking-wider text-blue-700 dark:text-binus-bright/90">RAMP</span>
+      <span className="rounded-sm bg-blue-600/90 px-1 text-[6.5px] font-black leading-[10px] text-white dark:bg-binus-bright/90 dark:text-[#0b1226]">
+        {lang === "id" ? "L2 ↓" : "L2 ↓"}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * RampUp / RampDown — dua ramp di ujung kanan Row B (naik ke L2 dan turun dari L2).
+ * Masing-masing lebarnya = slotW sehingga bersama-sama sejajar dengan Entrance Row A
+ * yang lebarnya 2*slotW + GAP (sama dengan lebar Entrance di Row A = 84/64px compact).
+ */
+function RampUp({ compact, h }: { compact: boolean; h: number }) {
+  const sw = compact ? SLOT_W.compact : SLOT_W.full;
+  return (
+    <div
+      data-map-el="ramp-up"
+      aria-label="Ramp naik ke Lantai 2"
+      className="flex shrink-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-teal-50 dark:border-emerald-400/25 dark:from-emerald-400/[0.12] dark:to-teal-400/[0.08]"
+      style={{ width: sw, height: h }}
+    >
+      <ArrowUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+      <span className="text-[7.5px] font-black leading-none tracking-wider text-emerald-700 dark:text-emerald-300">RAMP</span>
+      <span className="rounded-sm bg-emerald-600/90 px-1 text-[6.5px] font-black leading-[10px] text-white dark:bg-emerald-400/90 dark:text-[#0b1226]">
+        L2 ↑
+      </span>
+    </div>
+  );
+}
+
+function RampDown({ compact, h }: { compact: boolean; h: number }) {
+  const sw = compact ? SLOT_W.compact : SLOT_W.full;
+  return (
+    <div
+      data-map-el="ramp-down"
+      aria-label="Ramp turun dari Lantai 2"
+      className="flex shrink-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border border-sky-200 bg-gradient-to-b from-sky-50 to-blue-50 dark:border-sky-400/25 dark:from-sky-400/[0.12] dark:to-blue-400/[0.08]"
+      style={{ width: sw, height: h }}
+    >
+      <ArrowDown className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+      <span className="text-[7.5px] font-black leading-none tracking-wider text-sky-700 dark:text-sky-300">RAMP</span>
+      <span className="rounded-sm bg-sky-600/90 px-1 text-[6.5px] font-black leading-[10px] text-white dark:bg-sky-400/90 dark:text-[#0b1226]">
+        L2 ↓
+      </span>
     </div>
   );
 }
@@ -235,20 +290,20 @@ function RowSlots({
   slots,
   onSlotPress,
   compact,
-  liftWC,
   openlot,
+  highlightSlotType,
 }: {
   slots: Slot[];
   onSlotPress?: (s: Slot) => void;
   compact?: boolean;
-  liftWC?: boolean;
   openlot?: boolean;
+  highlightSlotType?: "EV" | "DISABILITY";
 }) {
   const lang = useParkir((s) => s.lang);
   const reservations = useParkir((s) => s.reservations);
   const win = useParkir((s) => s.viewWindow);
   const guestMap = useGuestMap();
-  const slotH = compact ? 48 : 64;
+  const slotH = compact ? SLOT_H.compact : SLOT_H.full;
 
   // Open lot — one continuous strip of bays divided by thin paint lines.
   if (openlot) {
@@ -263,12 +318,14 @@ function RowSlots({
             compact={compact}
             openlot
             live={guestMap.get(s.id)}
+            dimmed={!!highlightSlotType && s.slotType !== highlightSlotType}
           />
         ))}
       </div>
     );
   }
 
+  // Building deck — chunks of 3 slots separated by Pillars.
   const chunks: React.ReactNode[] = [];
   let chunk: React.ReactNode[] = [];
 
@@ -281,32 +338,11 @@ function RowSlots({
         onSlotPress={onSlotPress}
         compact={compact}
         live={guestMap.get(s.id)}
+        dimmed={!!highlightSlotType && s.slotType !== highlightSlotType}
       />
     );
     const isLast = i === slots.length - 1;
     const isPillarPos = (i + 1) % 3 === 0;
-    // Insert LIFT + WC after 8th slot of row B
-    if (liftWC && i === ROW_B_LEFT - 1) {
-      chunk.push(
-        <div key="lift" className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-1 dark:border-binus-bright/30 dark:bg-binus-bright/[0.08]" style={{ width: compact ? 38 : 46, height: slotH }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={cn("text-blue-600 dark:text-binus-bright", compact ? "h-3 w-3" : "h-4 w-4")} aria-hidden>
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <path d="M8 12V8M16 12v4" strokeLinecap="round" />
-            <path d="m6 10 2-2 2 2M14 14l2 2 2-2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="text-[7.5px] font-bold text-blue-600 dark:text-binus-bright">{tr(lang, "liftLabel")}</span>
-        </div>,
-        <div key="wc" className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-violet-200 bg-violet-50 px-1 dark:border-violet-400/30 dark:bg-violet-400/[0.07]" style={{ width: compact ? 38 : 46, height: slotH }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={cn("text-violet-500 dark:text-violet-300", compact ? "h-3 w-3" : "h-4 w-4")} aria-hidden>
-            <circle cx="7.5" cy="4.5" r="1.8" />
-            <path d="M7.5 8v6M5.5 14h4l-1 7h-2z" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="16.5" cy="4.5" r="1.8" />
-            <path d="M16.5 8v4m0 0c-1.4 0-2.5 1-2.5 2.5V21h5v-6.5c0-1.5-1.1-2.5-2.5-2.5z" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="text-[7.5px] font-bold text-violet-600 dark:text-violet-300">{tr(lang, "wcLabel")}</span>
-        </div>
-      );
-    }
     if (isPillarPos && !isLast) {
       chunks.push(
         <div key={`grp-${i}`} className="flex shrink-0 items-stretch gap-1.5">
@@ -328,12 +364,189 @@ function RowSlots({
   return <div className="flex items-stretch gap-1.5">{chunks}</div>;
 }
 
+/**
+ * RowB — Row B Kemanggisan dengan layout fisik yang tepat:
+ *
+ * [B-01] [RampL2↓] [B-02 B-03 B-04] [wall] [B-05 B-06 B-07] [wall]
+ * [B-08] [wall] [LIFT] [WC] [wall] [B-09 B-10 B-11] [wall]
+ * [B-12 B-13 B-14] [wall] [RampUp] [RampDown]
+ *
+ * Tembok-tembok di atas sejajar piksel dengan pillar Row A:
+ * - wall setelah B-04 → sejajar pillar setelah A-06
+ * - wall setelah B-07 → sejajar pillar setelah A-09
+ * - wall setelah B-08 → sejajar pillar setelah A-12  (B-08 + LIFT + WC = 3 lebar A)
+ * - wall setelah LIFT/WC → sejajar pillar setelah A-12
+ * - wall setelah B-11 → sejajar pillar setelah A-15
+ * - wall setelah B-14 → sejajar WallStrip setelah A-18 (ujung kanan)
+ */
+function RowB({
+  slots,
+  onSlotPress,
+  compact,
+  highlightSlotType,
+}: {
+  slots: Slot[];
+  onSlotPress?: (s: Slot) => void;
+  compact?: boolean;
+  highlightSlotType?: "EV" | "DISABILITY";
+}) {
+  const lang = useParkir((s) => s.lang);
+  const reservations = useParkir((s) => s.reservations);
+  const win = useParkir((s) => s.viewWindow);
+  const guestMap = useGuestMap();
+  const h = compact ? SLOT_H.compact : SLOT_H.full;
+
+  function bay(s: Slot) {
+    return (
+      <SlotBay
+        key={s.id}
+        slot={s}
+        status={slotStatusForWindow(s, reservations, win)}
+        onSlotPress={onSlotPress}
+        compact={compact}
+        live={guestMap.get(s.id)}
+        dimmed={!!highlightSlotType && s.slotType !== highlightSlotType}
+      />
+    );
+  }
+
+  // Split slots by index (0-based colIndex order)
+  const b1   = slots[0];   // B-01
+  const b234 = slots.slice(1, 4);  // B-02 B-03 B-04
+  const b567 = slots.slice(4, 7);  // B-05 B-06 B-07
+  const b8   = slots[7];           // B-08
+  const b91011 = slots.slice(8, 11); // B-09 B-10 B-11
+  const b121314 = slots.slice(11, 14); // B-12 B-13 B-14
+
+  return (
+    <div className="flex items-stretch gap-1.5">
+      {/*
+       * B-01 + RampL2↓ + spacer pillar dibungkus dalam satu div dengan lebar eksak
+       * = 1 chunk Row A (3 slots + 2 inner gaps) + 1 gap + 1 pillar
+       * = 3*slotW + 2*GAP + GAP + PILLAR_W
+       * = 168 + 6 + 6 = 180px (full) / 138+6+6=150px (compact)
+       * Ini menjamin B-02 tepat sejajar secara piksel dengan A-04.
+       */}
+      <div
+        className="flex shrink-0 items-stretch gap-1.5"
+        style={{
+          width: (compact ? SLOT_W.compact : SLOT_W.full) * 3
+               + GAP * 2   /* inner gaps dalam chunk */
+               + GAP       /* gap setelah chunk */
+               + PILLAR_W  /* pillar Row A */
+        }}
+      >
+        {/* B-01 */}
+        {b1 && bay(b1)}
+
+        {/* Ramp L2 turun dari Lantai 2 */}
+        <RampL2Down compact={!!compact} h={h} />
+
+        {/* spacer pillar — align dengan Pillar Row A setelah A-03 */}
+        <Pillar h={h} />
+      </div>
+
+      {/* B-02 B-03 B-04 */}
+      <div className="flex shrink-0 items-stretch gap-1.5">
+        {b234.map((s) => bay(s))}
+      </div>
+
+      {/* Tembok setelah B-04 — sejajar pillar A setelah A-06 */}
+      <WallStrip h={h} />
+
+      {/* B-05 B-06 B-07 */}
+      <div className="flex shrink-0 items-stretch gap-1.5">
+        {b567.map((s) => bay(s))}
+      </div>
+
+      {/* Tembok setelah B-07 — sejajar pillar A setelah A-09 */}
+      <WallStrip h={h} />
+
+      {/*
+       * B-08 + tembok + LIFT + WC + tembok dibungkus satu div lebar eksak
+       * = 1 chunk Row A (168) + 1 gap+pillar+gap (18) = 186px (full) / 150px (compact)
+       * Ini menjamin B-09 sejajar dengan A-13.
+       */}
+      <div
+        className="flex shrink-0 items-stretch gap-1.5"
+        style={{
+          width: (compact ? SLOT_W.compact : SLOT_W.full) * 3
+               + GAP * 2
+               + GAP
+               + PILLAR_W
+        }}
+      >
+        {/* B-08 */}
+        {b8 && bay(b8)}
+
+        {/* Tembok sebelum LIFT */}
+        <WallStrip h={h} />
+
+        {/* LIFT */}
+        <div
+          className="flex flex-1 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-1 dark:border-binus-bright/30 dark:bg-binus-bright/[0.08]"
+          style={{ height: h }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            className={cn("text-blue-600 dark:text-binus-bright", compact ? "h-3 w-3" : "h-4 w-4")} aria-hidden>
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M8 12V8M16 12v4" strokeLinecap="round" />
+            <path d="m6 10 2-2 2 2M14 14l2 2 2-2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="text-[7.5px] font-bold text-blue-600 dark:text-binus-bright">{tr(lang, "liftLabel")}</span>
+        </div>
+
+        {/* WC */}
+        <div
+          className="flex flex-1 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-violet-200 bg-violet-50 px-1 dark:border-violet-400/30 dark:bg-violet-400/[0.07]"
+          style={{ height: h }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            className={cn("text-violet-500 dark:text-violet-300", compact ? "h-3 w-3" : "h-4 w-4")} aria-hidden>
+            <circle cx="7.5" cy="4.5" r="1.8" />
+            <path d="M7.5 8v6M5.5 14h4l-1 7h-2z" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="16.5" cy="4.5" r="1.8" />
+            <path d="M16.5 8v4m0 0c-1.4 0-2.5 1-2.5 2.5V21h5v-6.5c0-1.5-1.1-2.5-2.5-2.5z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="text-[7.5px] font-bold text-violet-600 dark:text-violet-300">{tr(lang, "wcLabel")}</span>
+        </div>
+
+        {/* Tembok setelah WC — satu tembok saja */}
+        <WallStrip h={h} />
+      </div>
+
+      {/* B-09 B-10 B-11 */}
+      <div className="flex shrink-0 items-stretch gap-1.5">
+        {b91011.map((s) => bay(s))}
+      </div>
+
+      {/* Tembok setelah B-11 — sejajar pillar A setelah A-15 */}
+      <WallStrip h={h} />
+
+      {/* B-12 B-13 B-14 */}
+      <div className="flex shrink-0 items-stretch gap-1.5">
+        {b121314.map((s) => bay(s))}
+      </div>
+
+      {/* Tembok setelah B-14 — sejajar WallStrip setelah A-18 */}
+      <WallStrip h={h} />
+
+      {/* Ramp Naik + Ramp Turun — sejajar Entrance Row A (lebar total = 2*slotW + GAP) */}
+      <RampUp compact={!!compact} h={h} />
+      <RampDown compact={!!compact} h={h} />
+    </div>
+  );
+}
+
 export function ParkingMap({
   onSlotPress,
   compact,
+  highlightSlotType,
 }: {
   onSlotPress?: (s: Slot) => void;
   compact?: boolean;
+  /** When set, dims slots that don't match this type. Pass undefined for no filter. */
+  highlightSlotType?: "EV" | "DISABILITY";
 }) {
   const lang = useParkir((s) => s.lang);
   const slots = useParkir((s) => s.slots);
@@ -354,7 +567,10 @@ export function ParkingMap({
   }, {});
   const free = counts.AVAILABLE ?? 0;
   const total = slots.length;
-  const slotH = compact ? 48 : 64;
+  const slotH = compact ? SLOT_H.compact : SLOT_H.full;
+
+  // Entrance width for Row A = 2*slotW + GAP, matching the RampUp+RampDown pair in Row B
+  const entranceW = (compact ? SLOT_W.compact : SLOT_W.full) * 2 + GAP;
 
   return (
     <div
@@ -390,7 +606,7 @@ export function ParkingMap({
           {openlot ? (
             /* ── open lot: Row A · lane with gates · Row B — no walls, no pillars ── */
             <div className="flex flex-col gap-1.5">
-              <RowSlots slots={rowA} onSlotPress={onSlotPress} compact={compact} openlot />
+              <RowSlots slots={rowA} onSlotPress={onSlotPress} compact={compact} openlot highlightSlotType={highlightSlotType} />
 
               {/* lane + MASUK (left gate) + KELUAR (right gate) */}
               <div className="flex items-stretch gap-1.5">
@@ -430,21 +646,21 @@ export function ParkingMap({
                 </div>
               </div>
 
-              <RowSlots slots={rowB} onSlotPress={onSlotPress} compact={compact} openlot />
+              <RowSlots slots={rowB} onSlotPress={onSlotPress} compact={compact} openlot highlightSlotType={highlightSlotType} />
             </div>
           ) : (
-            /* ── building deck (Anggrek): walls, pillars, facilities, gates, L2 ramp block ── */
+            /* ── building deck (Anggrek/Kemanggisan) ── */
             <>
           {/* top wall */}
           <div className="mb-1.5 h-1.5 rounded-full bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]" />
 
-          {/* Row A + tembok A + entrance */}
+          {/* Row A: A-01…A-18, pillar every 3, WallStrip, Entrance */}
           <div className="flex items-stretch gap-1.5">
-            <RowSlots slots={rowA} onSlotPress={onSlotPress} compact={compact} />
+            <RowSlots slots={rowA} onSlotPress={onSlotPress} compact={compact} highlightSlotType={highlightSlotType} />
             <WallStrip h={slotH} />
             <div
               className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-emerald-400 bg-emerald-50 px-2 dark:border-emerald-400/40 dark:bg-emerald-400/[0.06]"
-              style={{ width: compact ? 64 : 84, height: slotH }}
+              style={{ width: entranceW, height: slotH }}
             >
               <LogIn className={cn("text-emerald-600 dark:text-emerald-300", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
               <span className="text-[8px] font-bold tracking-wider text-emerald-700 dark:text-emerald-300">
@@ -458,7 +674,7 @@ export function ParkingMap({
             </div>
           </div>
 
-          {/* lane */}
+          {/* drive lane */}
           <div className="relative my-1.5 flex h-9 items-center overflow-hidden rounded-lg bg-slate-100 dark:bg-white/[0.03]">
             <div className="w-full border-t-2 border-dashed border-slate-300 dark:border-white/[0.08]" />
             <span className="absolute left-1/2 -translate-x-1/2 rounded-full bg-white px-2 py-0.5 text-[7.5px] font-semibold tracking-[0.2em] text-slate-400 dark:bg-background/80 dark:text-muted-foreground/60">
@@ -466,21 +682,8 @@ export function ParkingMap({
             </span>
           </div>
 
-          {/* Row B + tembok B + exit + seamless L2 ramp block */}
-          <div className="flex items-stretch gap-1.5">
-            <RowSlots slots={rowB} onSlotPress={onSlotPress} compact={compact} liftWC />
-            <WallStrip h={slotH} />
-            <div
-              className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-2 dark:border-slate-400/30 dark:bg-white/[0.03]"
-              style={{ width: compact ? 52 : 64, height: slotH }}
-            >
-              <DoorOpen className={cn("text-slate-500 dark:text-slate-400", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
-              <span className="text-[8px] font-bold tracking-wider text-slate-500 dark:text-slate-400">
-                {tr(lang, "exitLabel")}
-              </span>
-            </div>
-            <RampBlockBox compact={!!compact} h={slotH} />
-          </div>
+          {/* Row B — custom layout component */}
+          <RowB slots={rowB} onSlotPress={onSlotPress} compact={compact} highlightSlotType={highlightSlotType} />
 
           {/* bottom wall */}
           <div className="mt-1.5 h-1.5 rounded-full bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 dark:from-white/[0.06] dark:via-white/[0.14] dark:to-white/[0.06]" />
@@ -531,6 +734,14 @@ export function MapLegend() {
           {i.label}
         </span>
       ))}
+      <span className="inline-flex items-center gap-1.5">
+        <Zap className="h-2.5 w-2.5 text-emerald-500 dark:text-emerald-400" />
+        {tr(lang, "slotTypeEv")}
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <Accessibility className="h-2.5 w-2.5 text-sky-500 dark:text-sky-400" />
+        {tr(lang, "slotTypeDisability")}
+      </span>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import {
   BadgeCheck,
+  Bell,
   Camera,
   Car,
   Languages,
@@ -50,6 +51,8 @@ export function ProfileView() {
   const removeVehicle = useParkir((s) => s.removeVehicle);
   const setAvatar = useParkir((s) => s.setAvatar);
   const toast = useParkir((s) => s.toast);
+  const pushEnabled = useParkir((s) => s.pushEnabled);
+  const setPushEnabled = useParkir((s) => s.setPushEnabled);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
@@ -145,8 +148,17 @@ export function ProfileView() {
                   {initials}
                 </span>
               )}
-              <span className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition group-hover:opacity-100">
+              {/* Camera icon overlay — always slightly visible, full on hover */}
+              <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
                 <Camera className="h-5 w-5 text-white" />
+              </span>
+              {/* Small persistent camera badge bottom-right */}
+              <span
+                aria-hidden
+                data-avatar-cam
+                className="pointer-events-none absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-card bg-binus-bright text-white shadow-sm"
+              >
+                <Camera className="h-2.5 w-2.5" />
               </span>
             </button>
             {/* binusian badge — top right */}
@@ -161,14 +173,6 @@ export function ProfileView() {
               ) : (
                 <UserRound className="h-2.5 w-2.5 text-muted-foreground" />
               )}
-            </span>
-            {/* persistent camera chip — visible affordance on touch devices (no hover) */}
-            <span
-              aria-hidden
-              data-avatar-cam
-              className="pointer-events-none absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-binus-bright text-white shadow-sm"
-            >
-              <Camera className="h-3 w-3" />
             </span>
             {/* remove photo — only when a custom photo exists */}
             {user.avatar && (
@@ -197,13 +201,6 @@ export function ProfileView() {
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-lg font-bold leading-tight">{user.name}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="mt-0.5 inline-flex items-center gap-1 text-[10.5px] font-semibold text-primary/90 transition hover:text-primary"
-            >
-              <Camera className="h-3 w-3" />
-              {t("avatarChange")}
-            </button>
             {(user.nim || user.phone) && (
               <p className="tnum mt-0.5 truncate text-[11px] text-muted-foreground/80">
                 {[user.nim, user.phone].filter(Boolean).join(" · ")}
@@ -370,6 +367,49 @@ export function ProfileView() {
               aria-label={t("darkMode")}
             />
           </div>
+          {/* push notifications — hidden if SW not supported */}
+          {mounted && typeof window !== "undefined" && "serviceWorker" in navigator && (
+            <div className="border-t border-border/60">
+              <div className="flex items-start gap-3 px-4 py-3.5">
+                <Bell className="mt-0.5 h-4.5 w-4.5 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-semibold">{t("pushNotif")}</span>
+                  {Notification.permission === "denied" ? (
+                    <p className="mt-0.5 text-[10px] leading-snug text-amber-500">
+                      {t("pushBlockedNote")}
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      {pushEnabled ? t("pushGranted") : t("pushEnable")}
+                    </p>
+                  )}
+                </div>
+                <Switch
+                  checked={pushEnabled}
+                  disabled={Notification.permission === "denied"}
+                  onCheckedChange={async (v) => {
+                    if (v) {
+                      const perm = await Notification.requestPermission();
+                      if (perm === "granted") {
+                        try {
+                          await navigator.serviceWorker.register("/sw.js");
+                          setPushEnabled(true);
+                          toast(t("pushGranted"), "success");
+                        } catch {
+                          toast(t("pushDenied"), "error");
+                        }
+                      } else {
+                        toast(t("pushDenied"), "error");
+                      }
+                    } else {
+                      setPushEnabled(false);
+                    }
+                  }}
+                  aria-label={t("pushNotif")}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

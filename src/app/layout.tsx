@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     "Reserve your parking slot at BINUS Anggrek. Live availability, QR check-in/out, wallet & refunds — dark premium redesign.",
   keywords: ["BINUS", "parking", "Parkir Binus", "campus", "reservation"],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo.svg",
   },
 };
 
@@ -35,6 +35,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

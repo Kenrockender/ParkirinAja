@@ -50,6 +50,7 @@ const ACTION_META: Record<AuditAction, { icon: React.ComponentType<{ className?:
   CAMPUS_SWITCHED: { icon: ArrowLeftRight, labelKey: "aCampusSwitched" },
   PROMO_BROADCAST: { icon: Megaphone, labelKey: "aPromoBroadcast" },
   PROFILE_UPDATE: { icon: UserRoundPen, labelKey: "aProfileUpdate" },
+  ANPR_CHECKIN: { icon: ScanLine, labelKey: "anprTitle" },
 };
 
 const OPERATOR_ACTIONS = new Set<AuditAction>([

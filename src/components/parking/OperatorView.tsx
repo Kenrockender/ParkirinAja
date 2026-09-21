@@ -55,6 +55,7 @@ import { FinanceView } from "./FinanceView";
 import { AuditView } from "./AuditView";
 import { SystemView } from "./SystemView";
 import { ArchCard, ChangelogCard, ErdCard, StackCard } from "./SystemCards";
+import { AnprConsole } from "./AnprConsole";
 import { useParkir } from "@/lib/store";
 import {
   campusById,
@@ -931,6 +932,7 @@ export function OperatorView() {
               onExtend={doExtend}
               onOpen={openSessionSlot}
             />
+            <AnprConsole className="md:col-span-12" />
             <FeedCard className="md:col-span-12" lang={lang} events={feed} />
           </motion.div>
         )}

@@ -6,6 +6,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  Accessibility,
   Building2,
   CalendarClock,
   CalendarDays,
@@ -14,6 +15,7 @@ import {
   ChevronDown,
   Clock,
   Coffee,
+  Hand,
   MapPin,
   Maximize2,
   PartyPopper,
@@ -24,6 +26,7 @@ import {
   TrendingDown,
   TrendingUp,
   TriangleAlert,
+  Zap,
 } from "lucide-react";
 import {
   Dialog,
@@ -50,9 +53,17 @@ import {
   type Ad,
   type Campus,
   type Lang,
+  type SlotType,
   type TimeWindow,
 } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
+import {
+  buildAnalyticsWorld,
+  holtWintersForecast,
+  hourlyOccupancySeries,
+  ANA_HOUR_START,
+  ANA_HOURS,
+} from "@/lib/analytics";
 
 const HEAT = buildHeatmap();
 
@@ -83,6 +94,9 @@ export function HomeView({
   /** null = belum mencari; setelah pencarian pertama, hasil mengikuti window aktif */
   const [searched, setSearched] = React.useState(false);
   const activeWin: TimeWindow | null = searched ? win : null;
+
+  /** Slot type filter — "STANDARD" means no filter (show all) */
+  const [slotTypeFilter, setSlotTypeFilter] = React.useState<SlotType>("STANDARD");
 
   const results = React.useMemo(() => {
     if (!activeWin) return null;
@@ -121,8 +135,9 @@ export function HomeView({
           <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             {greet}
           </p>
-          <h2 className="font-display text-xl font-bold tracking-tight">
-            {user.name.split(" ")[0]} 👋
+          <h2 className="font-display text-xl font-bold tracking-tight flex items-center gap-1.5">
+            {user.name.split(" ")[0]}
+            <Hand className="h-4 w-4 text-primary" aria-hidden />
           </h2>
         </div>
       </motion.div>
@@ -270,7 +285,37 @@ export function HomeView({
           </WindowPicker>
         </div>
 
+        {/* Slot type filter pills */}
+        <div className="mt-3 flex gap-2">
+          {(
+            [
+              { type: "STANDARD" as SlotType, label: t("filterSlotAll"), icon: null },
+              { type: "EV" as SlotType, label: t("filterSlotEv"), icon: <Zap className="h-3 w-3" /> },
+              { type: "DISABILITY" as SlotType, label: t("filterSlotDisability"), icon: <Accessibility className="h-3 w-3" /> },
+            ]
+          ).map((f) => (
+            <button
+              key={f.type}
+              onClick={() => setSlotTypeFilter(f.type)}
+              className={cn(
+                "flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11px] font-bold transition-all",
+                slotTypeFilter === f.type
+                  ? f.type === "EV"
+                    ? "border-emerald-400/60 bg-emerald-400/15 text-emerald-400"
+                    : f.type === "DISABILITY"
+                    ? "border-sky-400/60 bg-sky-400/15 text-sky-400"
+                    : "border-primary/60 bg-primary/15 text-primary"
+                  : "border-border bg-card/40 text-muted-foreground hover:border-primary/30"
+              )}
+            >
+              {f.icon}
+              {f.label}
+            </button>
+          ))}
+        </div>
+
         {/* Cari Slot button — moved here */}
+        <PredictionStrip win={win} lang={lang} />
         <button
           onClick={() => setSearched(true)}
           className="glow-primary mt-3 flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl bg-primary text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.01] active:scale-[0.98]"
@@ -332,6 +377,7 @@ export function HomeView({
                 <ParkingMap
                   compact
                   onSlotPress={(s) => onSlotPress(s.id, s.slotNumber)}
+                  highlightSlotType={slotTypeFilter !== "STANDARD" ? slotTypeFilter : undefined}
                 />
                 <MapLegend />
                 <p className="text-center text-[10px] text-muted-foreground/70">
@@ -755,5 +801,111 @@ function HeatmapCard({ lang }: { lang: "id" | "en" }) {
         </div>
       </div>
     </section>
+  );
+}
+
+// ─────────────────────────── AI Prediction Strip ───────────────────────────
+
+/**
+ * PredictionStrip — reads the 48h Holt-Winters forecast and shows predicted
+ * occupancy for the currently selected booking window.
+ * Memoized once per mount; re-evaluates when win.date or win.startTime changes.
+ */
+const forecastCache = {
+  forecast: null as number[] | null,
+};
+
+function PredictionStrip({
+  win,
+  lang,
+}: {
+  win: { date: string; startTime: string };
+  lang: "id" | "en";
+}) {
+  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
+
+  // Build forecast once — deterministic, no need to recompute
+  const forecast = React.useMemo(() => {
+    if (!forecastCache.forecast) {
+      const world = buildAnalyticsWorld();
+      const series = hourlyOccupancySeries(world);
+      const hw = holtWintersForecast(series);
+      forecastCache.forecast = hw.forecast;
+    }
+    return forecastCache.forecast;
+  }, []);
+
+  // Map the selected startTime → forecast hour index
+  const predicted = React.useMemo(() => {
+    const [hh] = win.startTime.split(":").map(Number);
+    // The forecast covers 48 hours from "now". Map the selected time
+    // to the nearest matching hour in the forecast array.
+    const nowH = new Date().getHours();
+    const targetH = hh;
+    // delta hours from now (wrap next day if needed)
+    let delta = targetH - nowH;
+    if (delta < 0) delta += 24;
+    // keep within [0, forecast.length)
+    const idx = Math.min(delta, forecast.length - 1);
+    return Math.round(forecast[idx]);
+  }, [forecast, win.startTime, win.date]);
+
+  const level = predicted < 40 ? "low" : predicted < 70 ? "medium" : "high";
+  const tipKey =
+    level === "low" ? "aiPredictLow" : level === "medium" ? "aiPredictMed" : "aiPredictHigh";
+
+  const ringColor =
+    level === "low"
+      ? { stroke: "#34d399", fill: "rgba(52,211,153,0.12)" }
+      : level === "medium"
+      ? { stroke: "#fbbf24", fill: "rgba(251,191,36,0.12)" }
+      : { stroke: "#f87171", fill: "rgba(248,113,113,0.12)" };
+
+  const textColor =
+    level === "low" ? "text-emerald-400" : level === "medium" ? "text-amber-400" : "text-red-400";
+
+  const R = 14;
+  const circ = 2 * Math.PI * R;
+  const dash = (predicted / 100) * circ;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-card/40 px-3.5 py-2.5"
+    >
+      {/* mini ring */}
+      <div className="relative shrink-0">
+        <svg width={34} height={34} viewBox="0 0 34 34" aria-hidden>
+          <circle cx={17} cy={17} r={R} fill="none" stroke="currentColor" strokeWidth={3}
+            className="text-white/[0.06]" />
+          <circle
+            cx={17} cy={17} r={R}
+            fill="none"
+            stroke={ringColor.stroke}
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${circ}`}
+            transform="rotate(-90 17 17)"
+          />
+        </svg>
+        <span className={cn("tnum absolute inset-0 flex items-center justify-center text-[8.5px] font-black", textColor)}>
+          {predicted}%
+        </span>
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          {t("aiPredictLabel")} · {win.startTime}
+        </p>
+        <p className={cn("mt-0.5 text-[11.5px] font-semibold leading-snug", textColor)}>
+          {t(tipKey)}
+        </p>
+      </div>
+
+      {/* Sparkles badge */}
+      <Sparkles className={cn("h-4 w-4 shrink-0", textColor)} aria-hidden />
+    </motion.div>
   );
 }

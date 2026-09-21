@@ -363,3 +363,82 @@ export function analyticsCsv(world: AnaSession[]): string {
     );
   return [header, ...rows].join("\r\n");
 }
+
+// ───────────────────── Model card params (Task 6) ─────────────────────
+
+export interface ModelParams {
+  /** Holt-Winters smoothing parameters (fixed in the model above). */
+  alpha: number;
+  beta: number;
+  gamma: number;
+  /** Seasonal period used (168 = weekly, 24 = daily). */
+  seasonalPeriod: number;
+  /** In-sample MAPE from the full training run. */
+  inSampleMape: number;
+  /** Hold-out MAPE: train on first 23 days, evaluate on last 7 days. */
+  holdOutMape: number;
+  /** Number of sessions in the 30-day training dataset. */
+  trainingSessions: number;
+  /** Number of sessions used as hold-out. */
+  holdOutSessions: number;
+}
+
+/**
+ * Compute model card parameters from the frozen 30-day dataset.
+ * The hold-out split is: train = first 23 days, test = last 7 days.
+ * We re-run holtWintersForecast on the training slice then evaluate
+ * forecasted occupancy against the actual hold-out series.
+ */
+export function computeModelParams(world: AnaSession[]): ModelParams {
+  const days = anaDays(world);
+  const splitIdx = Math.max(14, days.length - 7); // keep at least 14 days for training
+  const trainDays = new Set(days.slice(0, splitIdx));
+  const testDays = new Set(days.slice(splitIdx));
+
+  const trainWorld = world.filter((s) => trainDays.has(s.date));
+  const testWorld = world.filter((s) => testDays.has(s.date));
+
+  // Build series for training slice only
+  const trainSeries = hourlyOccupancySeries(trainWorld, splitIdx);
+
+  // Forecast enough hours to cover the hold-out period
+  const horizon = testDays.size * 24;
+  const trainForecast = holtWintersForecast(trainSeries, horizon);
+
+  // Build actual occupancy matrix for the hold-out days
+  const testDayList = days.slice(splitIdx);
+  const testMatrix = occupancyMatrix(testWorld);
+  const actual: number[] = [];
+  for (let di = 0; di < testDayList.length; di++) {
+    for (let h = 0; h < 24; h++) {
+      const idx = h - ANA_HOUR_START;
+      actual.push(idx >= 0 && idx < ANA_HOURS ? testMatrix[di][idx] : 0);
+    }
+  }
+
+  // Compute hold-out MAPE
+  let hoSum = 0;
+  let hoN = 0;
+  for (let i = 0; i < Math.min(actual.length, trainForecast.forecast.length); i++) {
+    if (actual[i] > 0.5) {
+      hoSum += Math.abs((actual[i] - trainForecast.forecast[i]) / actual[i]);
+      hoN++;
+    }
+  }
+  const holdOutMape = hoN > 0 ? (hoSum / hoN) * 100 : 0;
+
+  // Full training run for in-sample MAPE (reuse existing forecast result)
+  const fullSeries = hourlyOccupancySeries(world);
+  const fullForecast = holtWintersForecast(fullSeries);
+
+  return {
+    alpha: 0.32,
+    beta: 0.03,
+    gamma: 0.22,
+    seasonalPeriod: fullSeries.length >= 336 ? 168 : 24,
+    inSampleMape: fullForecast.mape,
+    holdOutMape,
+    trainingSessions: trainWorld.length,
+    holdOutSessions: testWorld.length,
+  };
+}

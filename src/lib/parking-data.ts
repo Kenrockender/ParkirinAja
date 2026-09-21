@@ -16,12 +16,16 @@ export type ResStatus =
 export type ResType = "ADVANCE" | "WALK_IN";
 export type TxnType = "TOP_UP" | "SERVICE_FEE" | "OVERTIME" | "REFUND";
 
+export type SlotType = "STANDARD" | "EV" | "DISABILITY";
+
 export interface Slot {
   id: string;
   slotNumber: string;
   rowLabel: "A" | "B";
   colIndex: number;
   status: "ACTIVE" | "MAINTENANCE";
+  /** Special slot designation — EV charger or disability-accessible bay. */
+  slotType: SlotType;
 }
 
 export interface Reservation {
@@ -124,7 +128,8 @@ export type AuditAction =
   | "SLOT_REACTIVATED"
   | "CAMPUS_SWITCHED"
   | "PROMO_BROADCAST"
-  | "PROFILE_UPDATE";
+  | "PROFILE_UPDATE"
+  | "ANPR_CHECKIN";
 
 /** Append-only audit entry — actor, role, fake IP, severity, target & detail. */
 export interface AuditEntry {
@@ -623,6 +628,21 @@ const dict = {
     busiest: "Tersibuk",
     quietest: "Paling sepi",
     tapSlotHint: "Ketuk slot hijau untuk booking",
+    // slot types
+    slotTypeStandard: "Standar",
+    slotTypeEv: "EV Charger",
+    slotTypeDisability: "Disabilitas",
+    filterSlotAll: "Semua",
+    filterSlotEv: "EV",
+    filterSlotDisability: "Disabilitas",
+    slotTypeEvBadge: "Slot EV",
+    slotTypeDisabilityBadge: "Slot Disabilitas",
+    // wayfinding
+    wayfindTitle: "Panduan Rute",
+    wayfindSub: "Rute menuju slot parkirmu",
+    wayfindSteps: "Langkah-langkah",
+    wayfindDest: "Tujuan",
+    wayfindOpen: "Panduan Rute",
     // availability search
     searchSlots: "Cari Slot",
     searchResults: "Hasil ketersediaan",
@@ -682,6 +702,8 @@ const dict = {
     sessionActive: "Sesi parkir aktif",
     sessionDone: "Sesi selesai",
     overtimeNote: "Denda telat Rp5.000/jam jika keluar lewat jadwal",
+    downloadReceipt: "Unduh Kwitansi",
+    receiptReady: "Kwitansi PDF siap diunduh",
     // history
     historyTitle: "Riwayat",
     filterAll: "Semua",
@@ -747,11 +769,23 @@ const dict = {
     appearance: "Tampilan",
     darkMode: "Mode gelap",
     signOut: "Keluar",
+    // push notifications
+    pushNotif: "Push Notifikasi",
+    pushEnable: "Aktifkan notifikasi latar belakang",
+    pushDisabled: "Dinonaktifkan",
+    pushDenied: "Diblokir di browser",
+    pushBlockedNote: "Aktifkan di pengaturan browser untuk menerima notifikasi",
+    pushGranted: "Notifikasi aktif",
     memberSince: "Anggota sejak",
     totalSessions: "Total sesi",
     // scanner
     scannerTitle: "Scan QR Slot",
     scannerHint: "Arahkan kamera ke QR permanen yang terpasang di tiap slot",
+    camPermDenied: "Izin kamera diperlukan untuk scan QR",
+    camRetry: "Coba Lagi",
+    camScanning: "Kamera aktif",
+    camRequesting: "Meminta izin...",
+    camError: "Kamera tidak tersedia",
     orEnterCode: "atau ketik kode slot",
     codePlaceholder: "mis. A-07",
     scanGo: "Scan",
@@ -1073,6 +1107,19 @@ const dict = {
     anprDeny: "TOLAK",
     anprLog: "Log pengenalan",
     anprScan: "Simulasikan mobil lewat",
+    anprUploadTitle: "Unggah Foto Plat",
+    anprUploadHint: "Foto plat nomor kendaraan",
+    anprAnalyzing: "Menganalisis plat...",
+    anprDetected: "Plat terdeteksi",
+    anprMatchFound: "Reservasi ditemukan",
+    anprMatchNone: "Tidak ada reservasi aktif",
+    anprConfirmCheckin: "Konfirmasi Check-in",
+    anprManualLabel: "Deteksi Manual",
+    anprManualPh: "Masukkan nomor plat...",
+    anprManualBtn: "Cari",
+    anprCheckinOk: "Check-in ANPR berhasil",
+    anprCheckinFail: "Tidak ada reservasi yang cocok",
+    anprUploadPrompt: "Klik untuk unggah foto plat",
     // promo broadcast (v19)
     promoTitle: "Broadcast Promo",
     promoSub: "Kirim promo kampus ke semua pengguna aktif",
@@ -1093,8 +1140,24 @@ const dict = {
     anaMcFeatures: "Fitur",
     anaMcFeaturesVal: "Okupansi per jam · hari dalam minggu · profil mingguan",
     anaMcMape: "MAPE (in-sample)",
+    anaMcHoldOutMape: "MAPE (hold-out 7 hari)",
+    anaMcAlpha: "α — pemulusan level",
+    anaMcBeta: "β — pemulusan tren",
+    anaMcGamma: "γ — pemulusan musiman",
+    anaMcSeasonal: "Periode musiman",
+    anaMcTrain: "Data latih",
+    anaMcHoldOut: "Data uji (hold-out)",
+    anaMcAccGood: "Baik",
+    anaMcAccOk: "Cukup",
+    anaMcAccPoor: "Perlu Ditingkatkan",
     anaMcLimit: "Limitasi",
     anaMcLimitText: "Data sintetis deterministik; belum divalidasi pada data riil; akurasi menurun di horizon >48 jam.",
+    // prediction strip (customer HomeView)
+    aiPredictLabel: "Prediksi AI",
+    aiPredictLow: "Diprediksi sepi — waktu yang bagus untuk parkir",
+    aiPredictMed: "Diprediksi cukup ramai — disarankan pesan lebih awal",
+    aiPredictHigh: "Diprediksi sangat ramai — segera pesan untuk amankan slot",
+    aiPredictNote: "Berdasarkan model Holt-Winters 30 hari",
     anaAnomalyTitle: "Anomali Okupansi · Z-Score",
     anaAnomalyEmpty: "Tidak ada anomali terdeteksi",
     anaRevenueTitle: "Pendapatan Harian",
@@ -1231,6 +1294,21 @@ const dict = {
     busiest: "Busiest",
     quietest: "Quietest",
     tapSlotHint: "Tap a green slot to book",
+    // slot types
+    slotTypeStandard: "Standard",
+    slotTypeEv: "EV Charger",
+    slotTypeDisability: "Disability",
+    filterSlotAll: "All",
+    filterSlotEv: "EV",
+    filterSlotDisability: "Disability",
+    slotTypeEvBadge: "EV Slot",
+    slotTypeDisabilityBadge: "Disability Slot",
+    // wayfinding
+    wayfindTitle: "Get Directions",
+    wayfindSub: "Route to your parking slot",
+    wayfindSteps: "Step-by-step",
+    wayfindDest: "Destination",
+    wayfindOpen: "Get Directions",
     // availability search
     searchSlots: "Find a slot",
     searchResults: "Availability results",
@@ -1287,6 +1365,8 @@ const dict = {
     sessionActive: "Active session",
     sessionDone: "Session complete",
     overtimeNote: "Rp5,000/h late fine if you leave past your window",
+    downloadReceipt: "Download Receipt",
+    receiptReady: "PDF receipt ready",
     historyTitle: "History",
     filterAll: "All",
     filterUpcoming: "Upcoming",
@@ -1347,11 +1427,23 @@ const dict = {
     appearance: "Appearance",
     darkMode: "Dark mode",
     signOut: "Sign out",
+    // push notifications
+    pushNotif: "Push Notifications",
+    pushEnable: "Enable background notifications",
+    pushDisabled: "Disabled",
+    pushDenied: "Blocked by browser",
+    pushBlockedNote: "Enable in browser settings to receive notifications",
+    pushGranted: "Notifications active",
     memberSince: "Member since",
     totalSessions: "Total sessions",
     // scanner
     scannerTitle: "Scan Slot QR",
     scannerHint: "Point the camera at the permanent QR mounted on each slot",
+    camPermDenied: "Camera permission required to scan QR",
+    camRetry: "Try Again",
+    camScanning: "Camera active",
+    camRequesting: "Requesting permission...",
+    camError: "Camera not available",
     orEnterCode: "or type a slot code",
     codePlaceholder: "e.g. A-07",
     scanGo: "Scan",
@@ -1672,6 +1764,19 @@ const dict = {
     anprDeny: "DENY",
     anprLog: "Recognition log",
     anprScan: "Simulate a car passing",
+    anprUploadTitle: "Upload Plate Photo",
+    anprUploadHint: "Photo of the vehicle license plate",
+    anprAnalyzing: "Analyzing plate...",
+    anprDetected: "Plate detected",
+    anprMatchFound: "Reservation found",
+    anprMatchNone: "No active reservation",
+    anprConfirmCheckin: "Confirm Check-in",
+    anprManualLabel: "Manual Detection",
+    anprManualPh: "Enter plate number...",
+    anprManualBtn: "Search",
+    anprCheckinOk: "ANPR check-in successful",
+    anprCheckinFail: "No matching reservation found",
+    anprUploadPrompt: "Click to upload plate photo",
     // promo broadcast (v19)
     promoTitle: "Promo Broadcast",
     promoSub: "Send a campus promo to every active user",
@@ -1692,8 +1797,24 @@ const dict = {
     anaMcFeatures: "Features",
     anaMcFeaturesVal: "Hourly occupancy · day of week · weekly profile",
     anaMcMape: "MAPE (in-sample)",
+    anaMcHoldOutMape: "MAPE (7-day hold-out)",
+    anaMcAlpha: "α — level smoothing",
+    anaMcBeta: "β — trend smoothing",
+    anaMcGamma: "γ — seasonal smoothing",
+    anaMcSeasonal: "Seasonal period",
+    anaMcTrain: "Training data",
+    anaMcHoldOut: "Test data (hold-out)",
+    anaMcAccGood: "Good",
+    anaMcAccOk: "Fair",
+    anaMcAccPoor: "Needs Improvement",
     anaMcLimit: "Limitations",
     anaMcLimitText: "Deterministic synthetic data; not validated on real data; accuracy degrades beyond a 48h horizon.",
+    // prediction strip (customer HomeView)
+    aiPredictLabel: "AI Prediction",
+    aiPredictLow: "Predicted quiet — great time to park",
+    aiPredictMed: "Predicted moderately busy — book early recommended",
+    aiPredictHigh: "Predicted very busy — book now to secure your slot",
+    aiPredictNote: "Based on 30-day Holt-Winters model",
     anaAnomalyTitle: "Occupancy Anomalies · Z-Score",
     anaAnomalyEmpty: "No anomalies detected",
     anaRevenueTitle: "Daily Revenue",
@@ -1828,6 +1949,7 @@ export function buildBekasiSlots(): Slot[] {
       rowLabel: "A",
       colIndex: i,
       status: i === 6 ? "MAINTENANCE" : "ACTIVE", // A-07
+      slotType: i === 0 || i === 1 ? "EV" : i === 23 || i === 24 ? "DISABILITY" : "STANDARD",
     });
   }
   for (let i = 0; i < BK_ROW_B; i++) {
@@ -1837,6 +1959,7 @@ export function buildBekasiSlots(): Slot[] {
       rowLabel: "B",
       colIndex: i,
       status: i === 14 ? "MAINTENANCE" : "ACTIVE", // B-15
+      slotType: "STANDARD",
     });
   }
   return slots;
@@ -1851,6 +1974,7 @@ export function buildAlamSuteraSlots(): Slot[] {
       rowLabel: "A",
       colIndex: i,
       status: i === 6 ? "MAINTENANCE" : "ACTIVE", // A-07
+      slotType: i === 0 || i === 1 ? "EV" : i === 18 || i === 19 ? "DISABILITY" : "STANDARD",
     });
   }
   for (let i = 0; i < AS_ROW_B; i++) {
@@ -1860,6 +1984,7 @@ export function buildAlamSuteraSlots(): Slot[] {
       rowLabel: "B",
       colIndex: i,
       status: i === 14 ? "MAINTENANCE" : "ACTIVE", // B-15
+      slotType: "STANDARD",
     });
   }
   return slots;
@@ -1874,6 +1999,7 @@ export function buildSlots(): Slot[] {
       rowLabel: "A",
       colIndex: i,
       status: i === 13 ? "MAINTENANCE" : "ACTIVE",
+      slotType: i === 0 || i === 1 ? "EV" : i === 16 || i === 17 ? "DISABILITY" : "STANDARD",
     });
   }
   for (let i = 0; i < ROW_B_LEFT + ROW_B_RIGHT; i++) {
@@ -1883,6 +2009,7 @@ export function buildSlots(): Slot[] {
       rowLabel: "B",
       colIndex: i,
       status: i === 10 ? "MAINTENANCE" : "ACTIVE",
+      slotType: "STANDARD",
     });
   }
   return slots;

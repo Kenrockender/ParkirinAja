@@ -109,3 +109,144 @@ export function ppnRecap(invoices: Invoice[]): PpnRecap {
     },
   };
 }
+
+// ─── PDF Receipt (Task 4) ───────────────────────────────────────────────────
+
+import type { Campus } from "./parking-data";
+
+/** Format number as Rupiah for PDF (no library needed — plain string). */
+function rupiahPdf(n: number): string {
+  return `Rp${n.toLocaleString("id-ID")}`;
+}
+
+/**
+ * Generate and download a parking receipt PDF using jspdf.
+ * Called client-side only — jspdf is a browser library.
+ */
+export async function generateReceipt(
+  reservation: Reservation,
+  campus: Campus,
+  lang: "id" | "en"
+): Promise<void> {
+  // Dynamic import so jspdf is never included in SSR bundle
+  const { jsPDF } = await import("jspdf");
+  const id = lang === "id";
+
+  const doc = new jsPDF({ unit: "mm", format: "a5", orientation: "portrait" });
+
+  const W = doc.internal.pageSize.getWidth();
+  let y = 14;
+
+  const line = (x1: number, y1: number, x2: number, y2: number) =>
+    doc.line(x1, y1, x2, y2);
+  const text = (
+    t: string,
+    x: number,
+    yPos: number,
+    opts?: { align?: "left" | "center" | "right"; bold?: boolean; size?: number }
+  ) => {
+    doc.setFontSize(opts?.size ?? 10);
+    doc.setFont("helvetica", opts?.bold ? "bold" : "normal");
+    doc.text(t, x, yPos, { align: opts?.align ?? "left" });
+  };
+
+  // ── Header ──
+  doc.setFillColor(11, 18, 38); // #0b1226
+  doc.rect(0, 0, W, 22, "F");
+
+  doc.setTextColor(255, 214, 10); // primary gold
+  text("PARKIR BINUS", W / 2, 10, { align: "center", bold: true, size: 14 });
+  doc.setTextColor(200, 200, 200);
+  text(campus.name, W / 2, 16, { align: "center", size: 8 });
+
+  y = 28;
+  doc.setTextColor(30, 30, 30);
+
+  // ── Title ──
+  text(id ? "KWITANSI PARKIR" : "PARKING RECEIPT", W / 2, y, {
+    align: "center", bold: true, size: 12,
+  });
+  y += 6;
+
+  doc.setDrawColor(220, 210, 180);
+  line(10, y, W - 10, y);
+  y += 6;
+
+  // ── Meta rows ──
+  const rowL = (label: string, value: string) => {
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(110, 100, 85);
+    doc.text(label, 12, y);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text(value, W - 12, y, { align: "right" });
+    y += 6;
+  };
+
+  rowL(id ? "No. Kwitansi" : "Receipt No.", reservation.code);
+  rowL(id ? "Tanggal" : "Date", reservation.date);
+  rowL(id ? "Pengemudi" : "Driver", reservation.driverName);
+  rowL(id ? "Kendaraan" : "Vehicle", reservation.vehicleName || "-");
+  rowL(id ? "Plat" : "Plate", reservation.vehiclePlate);
+  rowL(id ? "Slot" : "Slot", reservation.slotNumber);
+  rowL(id ? "Lokasi" : "Location", campus.location);
+  rowL(id ? "Jadwal" : "Window", `${reservation.startTime} – ${reservation.endTime}`);
+
+  y += 2;
+  line(10, y, W - 10, y);
+  y += 7;
+
+  // ── Fee rows ──
+  const feeRow = (label: string, amount: number, bold = false) => {
+    doc.setFontSize(9);
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setTextColor(bold ? 30 : 80, bold ? 30 : 75, bold ? 30 : 60);
+    doc.text(label, 12, y);
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setTextColor(30, 30, 30);
+    doc.text(rupiahPdf(amount), W - 12, y, { align: "right" });
+    y += 6.5;
+  };
+
+  feeRow(id ? "Biaya layanan parkir" : "Parking service fee", reservation.serviceFee);
+  if (reservation.overtimeFee > 0) {
+    feeRow(id ? "Denda keterlambatan" : "Late fine", reservation.overtimeFee);
+  }
+  if (reservation.refundAmount > 0) {
+    feeRow(id ? "Refund pembatalan" : "Cancellation refund", -reservation.refundAmount);
+  }
+
+  y += 1;
+  line(10, y, W - 10, y);
+  y += 7;
+
+  const total = reservation.serviceFee + reservation.overtimeFee - reservation.refundAmount;
+  feeRow(id ? "TOTAL" : "TOTAL", total, true);
+
+  y += 6;
+  doc.setDrawColor(220, 210, 180);
+  line(10, y, W - 10, y);
+  y += 8;
+
+  // ── Footer ──
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(140, 130, 110);
+  const footer = id
+    ? "Terima kasih telah menggunakan Parkir Binus. Simpan kwitansi ini sebagai bukti pembayaran."
+    : "Thank you for using Parkir Binus. Keep this receipt as proof of payment.";
+  const lines = doc.splitTextToSize(footer, W - 24) as string[];
+  doc.text(lines, W / 2, y, { align: "center" });
+  y += lines.length * 4 + 4;
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(170, 160, 140);
+  const ts = new Date().toLocaleString(id ? "id-ID" : "en-US");
+  doc.text(`${id ? "Dibuat" : "Generated"}: ${ts}`, W / 2, y, {
+    align: "center",
+  });
+
+  // ── Download ──
+  doc.save(`kwitansi-${reservation.code}-${reservation.date}.pdf`);
+}

@@ -58,6 +58,64 @@ const TXN_ICON: Record<TxnType, React.ComponentType<{ className?: string }>> = {
   REFUND: ArrowDownLeft,
 };
 
+// ── Real bank logo SVGs ───────────────────────────────────────────────────────
+
+function BankLogo({ id, className }: { id: string; className?: string }) {
+  // Each logo is a minimal inline SVG faithfully representing the bank's mark
+  if (id === "bca") return (
+    <svg viewBox="0 0 48 20" className={className} aria-label="BCA">
+      <rect width="48" height="20" rx="3" fill="#0d5bb5" />
+      <text x="24" y="14.5" textAnchor="middle" fill="white" fontSize="9" fontWeight="800" fontFamily="Arial,sans-serif">BCA</text>
+    </svg>
+  );
+  if (id === "mandiri") return (
+    <svg viewBox="0 0 56 20" className={className} aria-label="Mandiri">
+      <rect width="56" height="20" rx="3" fill="#123e7c" />
+      {/* Mandiri's characteristic yellow wave bar */}
+      <rect x="0" y="14" width="56" height="6" rx="3" fill="#f0a500" />
+      <text x="28" y="11" textAnchor="middle" fill="white" fontSize="7.5" fontWeight="800" fontFamily="Arial,sans-serif">mandiri</text>
+    </svg>
+  );
+  if (id === "bni") return (
+    <svg viewBox="0 0 48 20" className={className} aria-label="BNI">
+      <rect width="48" height="20" rx="3" fill="#f28f2a" />
+      <text x="24" y="14.5" textAnchor="middle" fill="white" fontSize="9" fontWeight="800" fontFamily="Arial,sans-serif">BNI</text>
+    </svg>
+  );
+  if (id === "bri") return (
+    <svg viewBox="0 0 48 20" className={className} aria-label="BRI">
+      <rect width="48" height="20" rx="3" fill="#1a5fa8" />
+      <text x="24" y="14.5" textAnchor="middle" fill="white" fontSize="9" fontWeight="800" fontFamily="Arial,sans-serif">BRI</text>
+    </svg>
+  );
+  if (id === "cimb") return (
+    <svg viewBox="0 0 56 20" className={className} aria-label="CIMB Niaga">
+      <rect width="56" height="20" rx="3" fill="#b91c3c" />
+      <text x="28" y="14" textAnchor="middle" fill="white" fontSize="7.5" fontWeight="800" fontFamily="Arial,sans-serif">CIMB</text>
+    </svg>
+  );
+  if (id === "danamon") return (
+    <svg viewBox="0 0 60 20" className={className} aria-label="Danamon">
+      <rect width="60" height="20" rx="3" fill="#00497f" />
+      <text x="30" y="14" textAnchor="middle" fill="white" fontSize="7" fontWeight="800" fontFamily="Arial,sans-serif">Danamon</text>
+    </svg>
+  );
+  if (id === "permata") return (
+    <svg viewBox="0 0 60 20" className={className} aria-label="Permata">
+      <rect width="60" height="20" rx="3" fill="#2f7d4f" />
+      <text x="30" y="14" textAnchor="middle" fill="white" fontSize="7" fontWeight="800" fontFamily="Arial,sans-serif">Permata</text>
+    </svg>
+  );
+  if (id === "bsi") return (
+    <svg viewBox="0 0 48 20" className={className} aria-label="BSI">
+      <rect width="48" height="20" rx="3" fill="#1e7d6f" />
+      <text x="24" y="14.5" textAnchor="middle" fill="white" fontSize="9" fontWeight="800" fontFamily="Arial,sans-serif">BSI</text>
+    </svg>
+  );
+  // fallback
+  return <span className={className}>{id.toUpperCase()}</span>;
+}
+
 const QUICK_AMOUNTS = [50000, 100000, 200000, 500000];
 const MIN_TOPUP = 10_000;
 const MAX_TOPUP = 10_000_000;
@@ -411,12 +469,7 @@ function TopUpDialog({
                   onClick={() => pickBank(b)}
                   className="flex items-center gap-2.5 rounded-xl border border-border bg-card/50 px-3 py-2.5 text-left transition hover:border-primary/40 hover:bg-card/80 active:scale-[0.98]"
                 >
-                  <span
-                    className="flex h-7 w-9 shrink-0 items-center justify-center rounded-md text-[8px] font-black text-white"
-                    style={{ background: b.color }}
-                  >
-                    {b.short.slice(0, 4)}
-                  </span>
+                  <BankLogo id={b.id} className="h-5 w-10 shrink-0 rounded" />
                   <span className="min-w-0 flex-1 truncate text-[11.5px] font-bold">{b.name}</span>
                 </button>
               ))}
@@ -427,12 +480,7 @@ function TopUpDialog({
         {stage === "va-pay" && bank && (
           <div data-va-number className="mt-4 space-y-3">
             <div className="flex items-center gap-2.5 rounded-2xl border border-border bg-card/60 px-3 py-2.5">
-              <span
-                className="flex h-8 w-11 shrink-0 items-center justify-center rounded-md text-[8.5px] font-black text-white"
-                style={{ background: bank.color }}
-              >
-                {bank.short.slice(0, 4)}
-              </span>
+              <BankLogo id={bank.id} className="h-6 w-12 shrink-0 rounded" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[12px] font-bold">{bank.name}</p>
                 <p className="text-[10px] text-muted-foreground">{bank.short} Virtual Account</p>

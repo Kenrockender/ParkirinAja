@@ -88,15 +88,24 @@ const KIND_TONE: Record<NotifKind, string> = {
 
 // ───────────────────────────── live alerts ─────────────────────────────
 
-/** Raises session-ending/overtime notifications for the user's own active sessions. */
+/** Raises session-ending/overtime notifications for the user's own active sessions.
+ *  Also fires native OS push via Service Worker when pushEnabled is true.
+ */
 export function useSessionAlerts() {
   const reservations = useParkir((s) => s.reservations);
   const user = useParkir((s) => s.user);
   const pushNotif = useParkir((s) => s.pushNotif);
 
+  /** Send a push via the registered SW (no-op if SW not available/not registered). */
+  function sendPush(title: string, body: string, tag: string) {
+    if (typeof navigator === "undefined" || !navigator.serviceWorker?.controller) return;
+    navigator.serviceWorker.controller.postMessage({ type: "NOTIFY", title, body, tag });
+  }
+
   React.useEffect(() => {
     const check = () => {
       const now = Date.now();
+      const { lang, pushEnabled } = useParkir.getState();
       for (const r of useParkir.getState().reservations) {
         if (r.status !== "CHECKED_IN" || r.driverName !== user.name) continue;
         const plannedEnd = new Date(`${r.date}T${r.endTime}:00`).getTime();
@@ -107,9 +116,36 @@ export function useSessionAlerts() {
             kind: "overtime",
             params: { slot: r.slotNumber },
           });
+          if (pushEnabled) {
+            const title = "Parkir Binus";
+            const body = lang === "id"
+              ? `Sesi parkir ${r.slotNumber} sudah melewati jadwal. Segera keluar.`
+              : `Parking session ${r.slotNumber} is overdue. Please exit now.`;
+            sendPush(title, body, `ot-${r.id}`);
+          }
+        } else if (minsLeft <= 15) {
+          // OS push for ≤15 min (more urgent threshold for background alerts)
+          const firstCross = !useParkir.getState().notifications.some((n) => n.key === `end:${r.id}`);
+          useParkir.getState().pushNotif({
+            key: `end:${r.id}`,
+            kind: "session_end_soon",
+            params: { slot: r.slotNumber, minutes: minsLeft },
+          });
+          if (firstCross) {
+            const msg = tpl(useParkir.getState().lang, "endSoonToast", {
+              slot: r.slotNumber,
+              minutes: minsLeft,
+            });
+            useParkir.getState().toast(msg, "error");
+          }
+          if (pushEnabled) {
+            const title = "Parkir Binus";
+            const body = lang === "id"
+              ? `Sesi parkir ${r.slotNumber} berakhir dalam ${minsLeft} menit. Perpanjang atau segera keluar.`
+              : `Parking session ${r.slotNumber} ends in ${minsLeft} minutes. Extend or exit soon.`;
+            sendPush(title, body, `end-${r.id}`);
+          }
         } else if (minsLeft <= 30) {
-          // v26 — the FIRST time a session crosses the 30-min line, fire an
-          // in-app toast as well (the notification itself is deduped by key).
           const firstCross = !useParkir.getState().notifications.some((n) => n.key === `end:${r.id}`);
           useParkir.getState().pushNotif({
             key: `end:${r.id}`,

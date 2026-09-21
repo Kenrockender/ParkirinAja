@@ -101,7 +101,7 @@ function Shell() {
   }
 
   return (
-    <div className="ambient flex min-h-dvh flex-col">
+    <div className="ambient flex min-h-dvh flex-col overflow-x-hidden">
       {/* ── header ── */}
       <header className="sticky top-0 z-30 border-b border-border/50 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full max-w-[430px] items-center gap-2 px-4">
@@ -142,7 +142,7 @@ function Shell() {
       </header>
 
       {/* ── main ── */}
-      <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-32 pt-4">
+      <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-[calc(8rem+env(safe-area-inset-bottom))] pt-4">
         <AnimatePresence mode="wait">
           {view.name === "tabs" && (
             <motion.div
@@ -195,21 +195,24 @@ function Shell() {
 
       {/* ── floating bottom nav (hidden during focused flows) ── */}
       {view.name === "tabs" && (
-      <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-30 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="mx-auto w-full max-w-[430px] px-4">
+      <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-30 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        {/* backdrop strip */}
+        <div className="absolute inset-x-0 bottom-0 h-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/80 backdrop-blur-xl" aria-hidden />
+        <div className="w-full px-3">
+          <div className="mx-auto max-w-[430px]">
           <div className="relative">
-            {/* center scan button — elevated above the pill, solid (no ring) */}
+            {/* center scan button — elevated above the pill */}
             <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-[55%]">
               <button
                 onClick={() => setScanOpen(true)}
                 aria-label={t("scanQr")}
-                className="flex h-[58px] w-[58px] items-center justify-center rounded-full bg-primary shadow-[0_16px_32px_-10px_rgba(255,214,10,0.55),0_6px_16px_rgba(0,0,0,0.45)] transition-transform duration-200 hover:scale-105 active:scale-90"
+                className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-primary shadow-[0_16px_32px_-10px_rgba(255,214,10,0.55),0_6px_16px_rgba(0,0,0,0.45)] transition-transform duration-200 hover:scale-105 active:scale-90"
               >
-                <QrGlyph className="h-7 w-7 text-primary-foreground" />
+                <QrGlyph className="h-6 w-6 text-primary-foreground" />
               </button>
             </div>
 
-            <div className="glass flex items-stretch justify-around rounded-[1.6rem] px-2.5 py-2 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.55)]">
+            <div className="glass flex items-stretch justify-around rounded-[1.6rem] px-1 py-2 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.55)]">
               {navTabs.slice(0, 2).map(({ k, label, icon: Icon }) => (
                 <NavBtn
                   key={k}
@@ -225,8 +228,8 @@ function Shell() {
               ))}
 
               {/* spacer under the elevated scan button */}
-              <div aria-hidden className="flex w-16 shrink-0 flex-col items-center justify-end pb-1.5">
-                <span className="text-[9.5px] font-bold leading-none text-muted-foreground/70">
+              <div aria-hidden className="flex w-14 shrink-0 flex-col items-center justify-end pb-1.5">
+                <span className="text-[9px] font-bold leading-none text-muted-foreground/70">
                   {t("scanQr")}
                 </span>
               </div>
@@ -245,6 +248,7 @@ function Shell() {
                 </NavBtn>
               ))}
             </div>
+          </div>
           </div>
         </div>
       </nav>

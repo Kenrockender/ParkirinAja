@@ -12,15 +12,19 @@ import {
   Car,
   CheckCircle2,
   Clock,
+  FileDown,
   Info,
   LogIn,
   LogOut,
+  Navigation,
   Ticket as TicketIcon,
   Timer,
   TimerReset,
   TriangleAlert,
   XCircle,
 } from "lucide-react";
+import { WayfindingView } from "./WayfindingView";
+import { generateReceipt } from "@/lib/invoice";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,6 +69,8 @@ export function TicketView({
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [checkoutOpen, setCheckoutOpen] = React.useState(false);
+  const [wayfindOpen, setWayfindOpen] = React.useState(false);
+  const [pdfLoading, setPdfLoading] = React.useState(false);
   const [, tickNow] = React.useReducer((x: number) => x + 1, 0);
 
   // live elapsed timer for active sessions
@@ -328,6 +334,13 @@ export function TicketView({
               <XCircle className="h-4 w-4" />
               {t("cancelBooking")}
             </button>
+            <button
+              onClick={() => setWayfindOpen(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/25 bg-primary/[0.06] py-3 text-sm font-semibold text-primary transition hover:bg-primary/10"
+            >
+              <Navigation className="h-4 w-4" />
+              {t("wayfindOpen")}
+            </button>
           </>
         )}
 
@@ -365,6 +378,13 @@ export function TicketView({
                 </p>
               </div>
             )}
+            <button
+              onClick={() => setWayfindOpen(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/25 bg-primary/[0.06] py-3 text-sm font-semibold text-primary transition hover:bg-primary/10"
+            >
+              <Navigation className="h-4 w-4" />
+              {t("wayfindOpen")}
+            </button>
           </>
         )}
 
@@ -377,6 +397,26 @@ export function TicketView({
               {rupiah(res.serviceFee + res.overtimeFee - res.refundAmount)}
             </span>
           </div>
+        )}
+
+        {res.status === "COMPLETED" && (
+          <button
+            onClick={async () => {
+              setPdfLoading(true);
+              try {
+                const campus = campusById(campusForSlot(res.slotId));
+                await generateReceipt(res, campus, lang);
+                toast(t("receiptReady"), "success");
+              } finally {
+                setPdfLoading(false);
+              }
+            }}
+            disabled={pdfLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/25 bg-primary/[0.06] py-3 text-sm font-semibold text-primary transition hover:bg-primary/10 disabled:opacity-50"
+          >
+            <FileDown className={cn("h-4 w-4", pdfLoading && "animate-bounce")} />
+            {pdfLoading ? (lang === "id" ? "Membuat PDF..." : "Generating PDF...") : t("downloadReceipt")}
+          </button>
         )}
       </div>
 
@@ -475,6 +515,13 @@ export function TicketView({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* wayfinding dialog */}
+      <WayfindingView
+        open={wayfindOpen}
+        onClose={() => setWayfindOpen(false)}
+        reservation={res}
+      />
     </motion.div>
   );
 }

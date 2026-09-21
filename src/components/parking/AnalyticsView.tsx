@@ -25,6 +25,7 @@ import {
   ANA_HOUR_START,
   analyticsCsv,
   buildAnalyticsWorld,
+  computeModelParams,
   detectAnomalies,
   heatmapMatrix,
   holtWintersForecast,
@@ -84,6 +85,7 @@ export function AnalyticsView() {
   const forecast = React.useMemo(() => holtWintersForecast(series), [series]);
   const anomalies = React.useMemo(() => detectAnomalies(world), [world]);
   const revenue = React.useMemo(() => revenueAgg(world), [world]);
+  const modelParams = React.useMemo(() => computeModelParams(world), [world]);
 
   const totalRevenue = revenue.reduce((a, r) => a + r.total, 0);
   const totalSessions = world.length;
@@ -255,20 +257,82 @@ export function AnalyticsView() {
 
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.1 }} className={cn(CARD, "md:col-span-5")}>
           <CardHead icon={Sparkles} title={t("anaModelCard")} tone="text-violet-400" />
-          <div className="space-y-2.5">
-            {[
-              { k: t("anaMcMethod"), v: t("anaMcMethodVal") },
-              { k: t("anaMcFeatures"), v: t("anaMcFeaturesVal") },
-              { k: t("anaMcMape"), v: `${forecast.mape.toFixed(1)}%`, strong: true },
-              { k: t("anaMcLimit"), v: t("anaMcLimitText") },
-            ].map((row) => (
-              <div key={row.k} className="rounded-xl border border-border bg-card/50 px-3 py-2.5">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{row.k}</p>
-                <p className={cn("mt-0.5 text-[11px] leading-snug", row.strong ? "tnum font-display text-lg font-bold text-violet-300" : "font-medium")}>
-                  {row.v}
-                </p>
+          <div className="space-y-2">
+
+            {/* parameters table */}
+            <div className="rounded-xl border border-violet-400/20 bg-violet-400/[0.05] px-3 py-2.5">
+              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-violet-400/80">
+                {t("anaMcMethod")}
+              </p>
+              <p className="text-[10.5px] font-medium leading-snug">{t("anaMcMethodVal")}</p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { label: t("anaMcAlpha"), value: modelParams.alpha.toFixed(2) },
+                { label: t("anaMcBeta"),  value: modelParams.beta.toFixed(2) },
+                { label: t("anaMcGamma"), value: modelParams.gamma.toFixed(2) },
+              ].map((p) => (
+                <div key={p.label} className="rounded-xl border border-border bg-card/50 px-2 py-2 text-center">
+                  <p className="tnum font-display text-base font-black text-violet-300">{p.value}</p>
+                  <p className="mt-0.5 text-[8px] font-semibold leading-tight text-muted-foreground">{p.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* accuracy */}
+            <div className="space-y-1.5">
+              {[
+                { label: t("anaMcMape"), value: modelParams.inSampleMape },
+                { label: t("anaMcHoldOutMape"), value: modelParams.holdOutMape },
+              ].map((row) => {
+                const grade = row.value < 10 ? t("anaMcAccGood") : row.value < 20 ? t("anaMcAccOk") : t("anaMcAccPoor");
+                const tone = row.value < 10 ? "text-emerald-400" : row.value < 20 ? "text-amber-400" : "text-red-400";
+                const bar = row.value < 10 ? "bg-emerald-400" : row.value < 20 ? "bg-amber-400" : "bg-red-400";
+                return (
+                  <div key={row.label} className="rounded-xl border border-border bg-card/50 px-3 py-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{row.label}</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn("tnum text-sm font-black", tone)}>{row.value.toFixed(1)}%</span>
+                        <span className={cn("rounded-full px-1.5 py-0.5 text-[7.5px] font-black uppercase tracking-wide", tone, `bg-current/10`)}
+                          style={{ backgroundColor: row.value < 10 ? "rgba(52,211,153,0.12)" : row.value < 20 ? "rgba(251,191,36,0.12)" : "rgba(248,113,113,0.12)" }}
+                        >
+                          {grade}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                      <div className={cn("h-full rounded-full transition-all", bar)} style={{ width: `${Math.min(100, row.value * 3)}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* training metadata */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="rounded-xl border border-border bg-card/50 px-2.5 py-2">
+                <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">{t("anaMcTrain")}</p>
+                <p className="tnum mt-0.5 text-[11px] font-bold">30 {lang === "id" ? "hari" : "days"}</p>
+                <p className="tnum text-[9px] text-muted-foreground">{modelParams.trainingSessions.toLocaleString()} {lang === "id" ? "sesi" : "sessions"}</p>
               </div>
-            ))}
+              <div className="rounded-xl border border-border bg-card/50 px-2.5 py-2">
+                <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">{t("anaMcHoldOut")}</p>
+                <p className="tnum mt-0.5 text-[11px] font-bold">7 {lang === "id" ? "hari" : "days"}</p>
+                <p className="tnum text-[9px] text-muted-foreground">{modelParams.holdOutSessions.toLocaleString()} {lang === "id" ? "sesi" : "sessions"}</p>
+              </div>
+            </div>
+
+            {/* features + limitations */}
+            <div className="rounded-xl border border-border bg-card/50 px-3 py-2.5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{t("anaMcFeatures")}</p>
+              <p className="mt-0.5 text-[10.5px] leading-snug font-medium">{t("anaMcFeaturesVal")}</p>
+            </div>
+            <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.05] px-3 py-2.5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-amber-400/80">{t("anaMcLimit")}</p>
+              <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">{t("anaMcLimitText")}</p>
+            </div>
           </div>
         </motion.section>
       </div>

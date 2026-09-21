@@ -4,6 +4,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import {
   Activity,
+  Accessibility,
   ArrowLeft,
   CalendarClock,
   CalendarDays,
@@ -16,6 +17,7 @@ import {
   TrendingDown,
   TrendingUp,
   Wallet,
+  Zap,
 } from "lucide-react";
 import { DateGrid, TimeGrid, WindowPicker, fmtDateLabel } from "./WindowPickers";
 import { useParkir } from "@/lib/store";
@@ -60,6 +62,9 @@ export function BookingView({
   /** Live demand snapshot — the fee follows the active tier in real time. */
   const demand = demandNow(slots, reservations);
   const pricing = DEMAND_TIERS[demand.tier];
+
+  /** Look up full slot object for slotType badge */
+  const slotObj = slots.find((s) => s.id === slotId);
   const tierMeta = {
     LOW: {
       label: t("dynLow"),
@@ -173,9 +178,34 @@ export function BookingView({
             <p className="tnum mt-1.5 font-display text-5xl font-bold tracking-tight text-gradient-gold">
               {slotNumber}
             </p>
+            {slotObj?.slotType === "EV" && (
+              <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold text-emerald-400">
+                <Zap className="h-3 w-3" />
+                {t("slotTypeEvBadge")}
+              </span>
+            )}
+            {slotObj?.slotType === "DISABILITY" && (
+              <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-sky-400/40 bg-sky-400/10 px-2.5 py-1 text-[10px] font-bold text-sky-400">
+                <Accessibility className="h-3 w-3" />
+                {t("slotTypeDisabilityBadge")}
+              </span>
+            )}
           </div>
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-400/30 bg-emerald-400/10">
-            <Car className="h-6 w-6 text-emerald-300" />
+          <div className={cn(
+            "flex h-14 w-14 items-center justify-center rounded-2xl border",
+            slotObj?.slotType === "EV"
+              ? "border-emerald-400/40 bg-emerald-400/10"
+              : slotObj?.slotType === "DISABILITY"
+              ? "border-sky-400/40 bg-sky-400/10"
+              : "border-emerald-400/30 bg-emerald-400/10"
+          )}>
+            {slotObj?.slotType === "EV" ? (
+              <Zap className="h-6 w-6 text-emerald-400" />
+            ) : slotObj?.slotType === "DISABILITY" ? (
+              <Accessibility className="h-6 w-6 text-sky-400" />
+            ) : (
+              <Car className="h-6 w-6 text-emerald-300" />
+            )}
           </div>
         </div>
       </div>
