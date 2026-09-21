@@ -10,6 +10,11 @@ node_modules
 !.yarn/releases
 !.yarn/versions
 
+# lock files (using bun.lock only)
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
 # testing
 /coverage
 
@@ -40,15 +45,28 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local config & logs
 local-*
 .claude
 .z-ai-config
 *.log
 dev.log
 dev.out.log
+server.log
 test
 prompt
 
-server.log
+# Backups & archives
+*.zip
+*.backup
+*.bak
+worklog*.md
+
 # Skills directory
 /skills/
+
+# Deployment scripts (platform-specific)
+/.zscripts/
+Caddyfile
+/mini-services/
