@@ -8,27 +8,17 @@ import { useParkir } from "@/lib/store";
 export function LogoMark({ size = 40, className }: { size?: number; className?: string }) {
   return (
     <span
-      className={cn(
-        "relative inline-flex items-center justify-center rounded-2xl bg-primary glow-primary",
-        className
-      )}
+      className={cn("relative inline-flex items-center justify-center", className)}
       style={{ width: size, height: size }}
       aria-hidden
     >
-      {/* Stylized "P" mark */}
-      <svg
-        width={size * 0.58}
-        height={size * 0.58}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="text-primary-foreground"
-      >
-        <path d="M6 21V4.5a1 1 0 0 1 1-1h6.5a4.5 4.5 0 0 1 0 9H7" />
-      </svg>
+      <img
+        src="/icons/icon-192x192.png"
+        alt="Parkir Binus Logo"
+        width={size}
+        height={size}
+        className="h-full w-full object-contain"
+      />
     </span>
   );
 }

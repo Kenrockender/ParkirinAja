@@ -29,10 +29,13 @@ export const metadata: Metadata = {
   keywords: ["BINUS", "parking", "Parkir Binus", "campus", "reservation"],
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icon.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/icons/icon-192x192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icons/icon-512x512.png", type: "image/png", sizes: "512x512" },
     ],
-    apple: "/apple-icon.svg",
+    apple: [
+      { url: "/apple-icon.png", type: "image/png", sizes: "180x180" },
+    ],
+    shortcut: "/icons/icon-192x192.png",
   },
   manifest: "/manifest.json",
   appleWebApp: {
