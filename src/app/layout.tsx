@@ -3,6 +3,8 @@ import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "next-themes";
+import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
+import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,7 +28,20 @@ export const metadata: Metadata = {
     "Reserve your parking slot at BINUS Anggrek. Live availability, QR check-in/out, wallet & refunds — dark premium redesign.",
   keywords: ["BINUS", "parking", "Parkir Binus", "campus", "reservation"],
   icons: {
-    icon: "/logo.svg",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.svg", type: "image/svg+xml", sizes: "any" },
+    ],
+    apple: "/apple-icon.svg",
+  },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Parkir Binus",
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 
@@ -64,8 +79,10 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
+          <ServiceWorkerRegistration />
           {children}
           <Toaster />
+          <PWAInstallPrompt />
         </ThemeProvider>
       </body>
     </html>
