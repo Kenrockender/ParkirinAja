@@ -8,7 +8,7 @@ import { useParkir } from "@/lib/store";
 export function LogoMark({ size = 40, className }: { size?: number; className?: string }) {
   return (
     <span
-      className={cn("relative inline-flex items-center justify-center", className)}
+      className={cn("relative inline-flex items-center justify-center overflow-hidden rounded-3xl", className)}
       style={{ width: size, height: size }}
       aria-hidden
     >
@@ -17,7 +17,7 @@ export function LogoMark({ size = 40, className }: { size?: number; className?: 
         alt="Parkir Binus Logo"
         width={size}
         height={size}
-        className="h-full w-full object-contain"
+        className="h-full w-full rounded-3xl object-cover"
       />
     </span>
   );

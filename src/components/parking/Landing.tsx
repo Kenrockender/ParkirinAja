@@ -51,9 +51,6 @@ export function Landing() {
         >
           <div className="relative">
             <LogoMark size={84} />
-            <span className="absolute -right-2 -top-1 rounded-full bg-emerald-400/90 px-1.5 py-px text-[8px] font-black tracking-wide text-emerald-950">
-              v8
-            </span>
           </div>
           <h1 className="mt-5 font-display text-3xl font-bold tracking-tight">
             {t("appName")}
