@@ -1,14 +1,15 @@
 "use client";
 /**
- * Parkir Binus — Dark Premium UI Concept v8
+ * Parkir Binus - Dark Premium UI Concept v8
  * Live preview app: full customer journey on simulated data.
  */
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import {
-  ArrowLeftRight,
+  Check,
   CheckCircle2,
+  ChevronDown,
   History as HistoryIcon,
   Info,
   MapPin,
@@ -18,6 +19,12 @@ import {
   Wallet as WalletIcon,
   XCircle,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { LogoMark } from "@/components/parking/Brand";
 import { Landing } from "@/components/parking/Landing";
 import { HomeView } from "@/components/parking/HomeView";
@@ -29,9 +36,9 @@ import { ProfileView } from "@/components/parking/ProfileView";
 import { ScannerView } from "@/components/parking/ScannerView";
 import { MapView } from "@/components/parking/MapView";
 import { OperatorView } from "@/components/parking/OperatorView";
-import { NotifBell, NotifSheet, useSessionAlerts } from "@/components/parking/NotifCenter";
+import { NotifSheet, useSessionAlerts } from "@/components/parking/NotifCenter";
 import { useParkir } from "@/lib/store";
-import { campusById, campusLabel, rupiah, tr } from "@/lib/parking-data";
+import { CAMPUSES, campusById, campusLabel, tr } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
 
 type Tab = "home" | "history" | "wallet" | "profile";
@@ -73,11 +80,7 @@ function App() {
 
 function Shell() {
   const lang = useParkir((s) => s.lang);
-  const setLang = useParkir((s) => s.setLang);
-  const walletBalance = useParkir((s) => s.walletBalance);
-  const campus = campusById(useParkir((s) => s.campusId));
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
-  const { theme, setTheme } = useTheme();
 
   const [tab, setTab] = React.useState<Tab>("home");
   const [view, setView] = React.useState<View>({ name: "tabs" });
@@ -102,47 +105,8 @@ function Shell() {
 
   return (
     <div className="ambient flex min-h-dvh flex-col overflow-x-hidden">
-      {/* ── header ── */}
-      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/70 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 w-full max-w-[430px] items-center gap-2 px-4">
-          <LogoMark size={34} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-[13.5px] font-bold leading-tight tracking-tight">
-              {t("appName")}
-            </p>
-            <p className="truncate text-[9px] text-muted-foreground">{campusLabel(campus)}</p>
-          </div>
-          <NotifBell onOpen={() => setNotifOpen(true)} />
-          <button
-            onClick={() => {
-              setView({ name: "tabs" });
-              setTab("wallet");
-            }}
-            aria-label={t("walletTitle")}
-            className="flex h-8 items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 text-[11px] font-bold text-primary transition hover:bg-primary/20"
-          >
-            <WalletIcon className="h-3 w-3" />
-            <span className="tnum">{rupiah(walletBalance)}</span>
-          </button>
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            aria-label={t("appearance")}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card/50 text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
-          >
-            {theme === "dark" ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
-          </button>
-          <button
-            onClick={() => setLang(lang === "id" ? "en" : "id")}
-            aria-label={t("language")}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card/50 text-[10px] font-black text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
-          >
-            {lang.toUpperCase()}
-          </button>
-        </div>
-      </header>
-
       {/* ── main ── */}
-      <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-[calc(8rem+env(safe-area-inset-bottom))] pt-4">
+      <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-[calc(8rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
         <AnimatePresence mode="wait">
           {view.name === "tabs" && (
             <motion.div
@@ -156,6 +120,7 @@ function Shell() {
                 <HomeView
                   onSlotPress={(slotId, slotNumber) => openBooking(slotId, slotNumber)}
                   onOpenMap={() => setMapOpen(true)}
+                  onOpenNotif={() => setNotifOpen(true)}
                 />
               )}
               {tab === "history" && (
@@ -201,12 +166,12 @@ function Shell() {
         <div className="w-full px-3">
           <div className="mx-auto max-w-[430px]">
           <div className="relative">
-            {/* center scan button — elevated above the pill */}
+            {/* center scan button - elevated above the pill */}
             <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-[55%]">
               <button
                 onClick={() => setScanOpen(true)}
                 aria-label={t("scanQr")}
-                className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-primary shadow-[0_16px_32px_-10px_rgba(255,214,10,0.55),0_6px_16px_rgba(0,0,0,0.45)] transition-transform duration-200 hover:scale-105 active:scale-90"
+                className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-primary shadow-[0_16px_32px_-10px_rgba(59,130,246,0.55),0_6px_16px_rgba(0,0,0,0.45)] transition-transform duration-200 hover:scale-105 active:scale-90"
               >
                 <QrGlyph className="h-6 w-6 text-primary-foreground" />
               </button>
@@ -281,41 +246,61 @@ function Shell() {
   );
 }
 
-/** Operator shell — officer console header + dashboard, no customer nav. */
+/** Operator shell - officer console header + dashboard, no customer nav. */
 function OperatorShell() {
   const lang = useParkir((s) => s.lang);
   const setLang = useParkir((s) => s.setLang);
   const campusId = useParkir((s) => s.campusId);
   const selectCampus = useParkir((s) => s.selectCampus);
+  const toast = useParkir((s) => s.toast);
   const campus = campusById(campusId);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const { theme, setTheme } = useTheme();
 
   return (
     <div className="ambient flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/70 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/70 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full max-w-[430px] items-center gap-2.5 px-4 md:max-w-[900px] lg:max-w-[1100px]">
           <LogoMark size={34} />
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-[13.5px] font-bold leading-tight tracking-tight">
               {t("appName")} <span className="hidden text-muted-foreground/60 sm:inline">· Command Center</span>
             </p>
-            <button
-              onClick={() =>
-                selectCampus(
-                  campusId === "anggrek" ? "alamsutera" : campusId === "alamsutera" ? "bekasi" : "anggrek"
-                )
-              }
-              aria-label={lang === "id" ? "Ganti kampus" : "Switch campus"}
-              title={campusLabel(campus)}
-              className="mt-0.5 flex max-w-full items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-binus-bright transition hover:text-primary"
-            >
-              <MapPin className="h-2.5 w-2.5 shrink-0" />
-              <span className="truncate">
-                {t("operatorBadge")} · {campus.building ?? campus.name.replace("BINUS @ ", "")}
-              </span>
-              <ArrowLeftRight className="h-2.5 w-2.5 shrink-0 opacity-60" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  aria-label={lang === "id" ? "Ganti kampus" : "Switch campus"}
+                  title={campusLabel(campus)}
+                  className="mt-0.5 flex max-w-full items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-binus-bright transition hover:text-primary"
+                >
+                  <MapPin className="h-2.5 w-2.5 shrink-0" />
+                  <span className="truncate">
+                    {t("operatorBadge")} · {campus.building ?? campus.name.replace("BINUS @ ", "")}
+                  </span>
+                  <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-60" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                {CAMPUSES.map((c) => (
+                  <DropdownMenuItem
+                    key={c.id}
+                    onClick={() => {
+                      if (c.id !== campusId) {
+                        selectCampus(c.id);
+                        toast(`${t("campusSwitched")} · ${c.building ?? c.name}`, "success");
+                      }
+                    }}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      {c.name}
+                      {c.building ? ` · ${c.building}` : ""}
+                    </span>
+                    {c.id === campusId && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -388,7 +373,7 @@ function NavBtn({
   );
 }
 
-/** QR glyph — 3 finder squares + alignment dots, tuned for small sizes. */
+/** QR glyph - 3 finder squares + alignment dots, tuned for small sizes. */
 function QrGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
@@ -422,11 +407,11 @@ function Toasts() {
             onClick={() => dismiss(tst.id)}
             className={cn(
               "glass pointer-events-auto flex max-w-[380px] items-center gap-2.5 rounded-full px-4 py-2.5 text-[13px] font-semibold shadow-xl",
-              tst.tone === "success" && "border-emerald-400/30",
+              tst.tone === "success" && "border-green-400/30",
               tst.tone === "error" && "border-red-400/30"
             )}
           >
-            {tst.tone === "success" && <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-emerald-400" />}
+            {tst.tone === "success" && <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-green-400" />}
             {tst.tone === "error" && <XCircle className="h-4.5 w-4.5 shrink-0 text-red-400" />}
             {tst.tone === "info" && <Info className="h-4.5 w-4.5 shrink-0 text-primary" />}
             <span className="text-left leading-snug">{tst.message}</span>

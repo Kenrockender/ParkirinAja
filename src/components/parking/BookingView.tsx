@@ -1,5 +1,5 @@
 "use client";
-/** BookingView — pick type, vehicle & window, then pay from wallet. */
+/** BookingView - pick type, vehicle & window, then pay from wallet. */
 import React from "react";
 import { motion } from "framer-motion";
 import {
@@ -59,7 +59,7 @@ export function BookingView({
   const toast = useParkir((s) => s.toast);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
 
-  /** Live demand snapshot — the fee follows the active tier in real time. */
+  /** Live demand snapshot - the fee follows the active tier in real time. */
   const demand = demandNow(slots, reservations);
   const pricing = DEMAND_TIERS[demand.tier];
 
@@ -70,19 +70,19 @@ export function BookingView({
       label: t("dynLow"),
       note: t("dynBannerLow"),
       icon: TrendingDown,
-      box: "border-emerald-400/25 bg-emerald-400/[0.07]",
-      ico: "text-emerald-300",
-      lbl: "text-emerald-300",
-      chip: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+      box: "border-green-400/25 bg-green-400/[0.07]",
+      ico: "text-green-300",
+      lbl: "text-green-300",
+      chip: "border-green-400/30 bg-green-400/10 text-green-300",
     },
     NORMAL: {
       label: t("dynNormal"),
       note: t("dynBannerNormal"),
       icon: Activity,
-      box: "border-sky-400/25 bg-sky-400/[0.06]",
-      ico: "text-sky-300",
-      lbl: "text-sky-300",
-      chip: "border-sky-400/30 bg-sky-400/10 text-sky-300",
+      box: "border-blue-400/25 bg-blue-400/[0.06]",
+      ico: "text-blue-300",
+      lbl: "text-blue-300",
+      chip: "border-blue-400/30 bg-blue-400/10 text-blue-300",
     },
     HIGH: {
       label: t("dynHigh"),
@@ -95,7 +95,7 @@ export function BookingView({
     },
   }[demand.tier];
 
-  /** Non-BINUSIAN (guest): advance booking locked — walk-in only. */
+  /** Non-BINUSIAN (guest): advance booking locked - walk-in only. */
   const [type, setType] = React.useState<ResType>(
     defaultType === "ADVANCE" && !isBinusian ? "WALK_IN" : defaultType
   );
@@ -168,7 +168,7 @@ export function BookingView({
       <div className="glass glow-soft relative overflow-hidden rounded-3xl p-5">
         <div
           aria-hidden
-          className="pointer-events-none absolute -left-10 -top-10 h-36 w-36 rounded-full bg-emerald-400/10 blur-3xl"
+          className="pointer-events-none absolute -left-10 -top-10 h-36 w-36 rounded-full bg-green-400/10 blur-3xl"
         />
         <div className="flex items-center justify-between">
           <div>
@@ -179,13 +179,13 @@ export function BookingView({
               {slotNumber}
             </p>
             {slotObj?.slotType === "EV" && (
-              <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold text-emerald-400">
+              <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-green-400/40 bg-green-400/10 px-2.5 py-1 text-[10px] font-bold text-green-400">
                 <Zap className="h-3 w-3" />
                 {t("slotTypeEvBadge")}
               </span>
             )}
             {slotObj?.slotType === "DISABILITY" && (
-              <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-sky-400/40 bg-sky-400/10 px-2.5 py-1 text-[10px] font-bold text-sky-400">
+              <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-blue-400/40 bg-blue-400/10 px-2.5 py-1 text-[10px] font-bold text-blue-400">
                 <Accessibility className="h-3 w-3" />
                 {t("slotTypeDisabilityBadge")}
               </span>
@@ -194,17 +194,17 @@ export function BookingView({
           <div className={cn(
             "flex h-14 w-14 items-center justify-center rounded-2xl border",
             slotObj?.slotType === "EV"
-              ? "border-emerald-400/40 bg-emerald-400/10"
+              ? "border-green-400/40 bg-green-400/10"
               : slotObj?.slotType === "DISABILITY"
-              ? "border-sky-400/40 bg-sky-400/10"
-              : "border-emerald-400/30 bg-emerald-400/10"
+              ? "border-blue-400/40 bg-blue-400/10"
+              : "border-green-400/30 bg-green-400/10"
           )}>
             {slotObj?.slotType === "EV" ? (
-              <Zap className="h-6 w-6 text-emerald-400" />
+              <Zap className="h-6 w-6 text-green-400" />
             ) : slotObj?.slotType === "DISABILITY" ? (
-              <Accessibility className="h-6 w-6 text-sky-400" />
+              <Accessibility className="h-6 w-6 text-blue-400" />
             ) : (
-              <Car className="h-6 w-6 text-emerald-300" />
+              <Car className="h-6 w-6 text-green-300" />
             )}
           </div>
         </div>
@@ -260,7 +260,7 @@ export function BookingView({
                   "relative rounded-2xl border p-3.5 text-left transition-all",
                   locked && "cursor-not-allowed opacity-45 hover:border-border",
                   type === o.k && !locked
-                    ? "border-primary/60 bg-primary/10 shadow-[0_0_24px_-8px_rgba(255,214,10,0.4)]"
+                    ? "border-primary/60 bg-primary/10 shadow-[0_0_24px_-8px_rgba(59,130,246,0.4)]"
                     : "border-border bg-card/50 hover:border-primary/25"
                 )}
               >
@@ -407,7 +407,7 @@ export function BookingView({
             <span
               className={cn(
                 "tnum font-bold",
-                enough ? "text-emerald-400" : "text-red-400"
+                enough ? "text-green-400" : "text-red-400"
               )}
             >
               {rupiah(walletBalance - fee)}

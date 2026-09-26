@@ -1,11 +1,11 @@
 "use client";
 /**
- * WayfindingView — animated SVG path from the campus entrance to the booked slot,
+ * WayfindingView - animated SVG path from the campus entrance to the booked slot,
  * plus numbered step-by-step text directions.
  *
  * Supports all 3 campus layouts:
- *  · building  (Anggrek)     — entrance right side of Row A, lane, Row B bottom
- *  · openlot   (Alam Sutera / Bekasi) — MASUK gate left side, KELUAR right side
+ *  · building  (Anggrek)     - entrance right side of Row A, lane, Row B bottom
+ *  · openlot   (Alam Sutera / Bekasi) - MASUK gate left side, KELUAR right side
  */
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -212,7 +212,7 @@ export function WayfindingView({
         </DialogHeader>
 
         {/* ── animated SVG map ── */}
-        <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-white dark:bg-[#0a0f1e]/80">
+        <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-white dark:bg-[#0F172A]/80">
           <svg
             viewBox={`0 0 ${SVG_W} ${SVG_H}`}
             width="100%"
@@ -264,20 +264,20 @@ export function WayfindingView({
             {/* Gate markers */}
             {layout === "openlot" ? (
               <>
-                {/* MASUK — left */}
+                {/* MASUK - left */}
                 <rect x={2} y={LANE_Y - 13} width={22} height={26} rx={5}
-                  className="fill-emerald-100 stroke-emerald-400 dark:fill-emerald-400/10"
+                  className="fill-green-100 stroke-green-400 dark:fill-green-400/10"
                   strokeWidth={1}
                   strokeDasharray="3 2"
                 />
                 <text x={13} y={LANE_Y - 2} fontSize={5.5} fontWeight={800} textAnchor="middle"
-                  className="fill-emerald-700 dark:fill-emerald-300"
+                  className="fill-green-700 dark:fill-green-300"
                 >MASUK</text>
                 <text x={13} y={LANE_Y + 6} fontSize={5} textAnchor="middle"
-                  className="fill-emerald-600 dark:fill-emerald-400"
+                  className="fill-green-600 dark:fill-green-400"
                 >▶</text>
 
-                {/* KELUAR — right */}
+                {/* KELUAR - right */}
                 <rect x={SVG_W - 24} y={LANE_Y - 13} width={22} height={26} rx={5}
                   className="fill-slate-100 stroke-slate-400 dark:fill-white/5"
                   strokeWidth={1}
@@ -288,18 +288,18 @@ export function WayfindingView({
                 >KELUAR</text>
               </>
             ) : (
-              /* Building entrance — right side of Row A */
+              /* Building entrance - right side of Row A */
               <>
                 <rect x={SVG_W - 24} y={ROW_A_Y - 13} width={22} height={26} rx={5}
-                  className="fill-emerald-100 stroke-emerald-400 dark:fill-emerald-400/10"
+                  className="fill-green-100 stroke-green-400 dark:fill-green-400/10"
                   strokeWidth={1}
                   strokeDasharray="3 2"
                 />
                 <text x={SVG_W - 13} y={ROW_A_Y - 1} fontSize={5} fontWeight={800} textAnchor="middle"
-                  className="fill-emerald-700 dark:fill-emerald-300"
+                  className="fill-green-700 dark:fill-green-300"
                 >MASUK</text>
                 <text x={SVG_W - 13} y={ROW_A_Y + 7} fontSize={5} textAnchor="middle"
-                  className="fill-emerald-600 dark:fill-emerald-400"
+                  className="fill-green-600 dark:fill-green-400"
                 >◀</text>
               </>
             )}
@@ -308,7 +308,7 @@ export function WayfindingView({
             <motion.polyline
               points={pointsAttr(waypoints)}
               fill="none"
-              stroke="#FFD60A"
+              stroke="#3B82F6"
               strokeWidth={2.5}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -322,14 +322,14 @@ export function WayfindingView({
             <circle
               cx={waypoints[0].x} cy={waypoints[0].y}
               r={4}
-              className="fill-emerald-400"
+              className="fill-green-400"
             />
 
-            {/* Destination — pulsing ring + filled dot */}
+            {/* Destination - pulsing ring + filled dot */}
             <motion.circle
               cx={dest.x} cy={dest.y} r={9}
               fill="none"
-              stroke="#FFD60A"
+              stroke="#3B82F6"
               strokeWidth={1.5}
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: [0, 0.6, 0], scale: [0.8, 1.6, 0.8] }}
@@ -337,7 +337,7 @@ export function WayfindingView({
             />
             <motion.circle
               cx={dest.x} cy={dest.y} r={5}
-              fill="#FFD60A"
+              fill="#3B82F6"
               initial={{ opacity: 0, scale: 0 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3, delay: 1.3 }}
@@ -352,12 +352,12 @@ export function WayfindingView({
               <rect
                 x={dest.x - 16} y={dest.y - (row === "A" ? 24 : -12)}
                 width={32} height={14} rx={4}
-                fill="#FFD60A"
+                fill="#3B82F6"
               />
               <text
                 x={dest.x} y={dest.y - (row === "A" ? 13 : 23)}
                 fontSize={7.5} fontWeight={800} textAnchor="middle"
-                fill="#0b1226"
+                fill="#ffffff"
               >
                 {reservation.slotNumber}
               </text>

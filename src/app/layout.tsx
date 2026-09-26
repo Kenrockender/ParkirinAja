@@ -23,9 +23,9 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Parkir Binus — Smart Campus Parking",
+  title: "Parkir Binus - Smart Campus Parking",
   description:
-    "Reserve your parking slot at BINUS Anggrek. Live availability, QR check-in/out, wallet & refunds — dark premium redesign.",
+    "Reserve your parking slot at BINUS Anggrek. Live availability, QR check-in/out, wallet & refunds - dark premium redesign.",
   keywords: ["BINUS", "parking", "Parkir Binus", "campus", "reservation"],
   icons: {
     icon: [
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#070B16",
+  themeColor: "#020617",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -66,7 +66,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} antialiased bg-background text-foreground`}
       >
-        {/* Frost fix — Turbopack's Lightning CSS pass strips the standard
+        {/* Frost fix - Turbopack's Lightning CSS pass strips the standard
             `backdrop-filter` declaration from every stylesheet rule (keeping
             only the -webkit- form, which Chromium discards), so all .glass
             surfaces rendered flat. An inline <style> bypasses the CSS

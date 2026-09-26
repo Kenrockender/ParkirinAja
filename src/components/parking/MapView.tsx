@@ -1,5 +1,5 @@
 "use client";
-/** MapView — full-screen immersive parking map overlay + live gate pill & ticker (v23). */
+/** MapView - full-screen immersive parking map overlay + live gate pill & ticker (v23). */
 import React from "react";
 import { motion } from "framer-motion";
 import { Building2, ChevronRight, MoveHorizontal, Radio, X } from "lucide-react";
@@ -94,11 +94,11 @@ export function MapView({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {campus.available && (
-            <span className="tnum hidden rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-xs font-bold text-emerald-300 sm:inline">
+            <span className="tnum hidden rounded-full border border-green-400/25 bg-green-400/10 px-3 py-1.5 text-xs font-bold text-green-300 sm:inline">
               {free}/{total} {t("slotWord")}
             </span>
           )}
-          {/* live pill — click to connect/disconnect the gate stream */}
+          {/* live pill - click to connect/disconnect the gate stream */}
           <button
             onClick={liveToggle}
             aria-label={liveOn ? t("liveDisconnect") : t("liveToggle")}
@@ -123,7 +123,7 @@ export function MapView({
         </div>
       </div>
 
-      {/* live ticker — privacy-masked plates, newest first */}
+      {/* live ticker - privacy-masked plates, newest first */}
       {liveOn && liveEvents.length > 0 && (
         <div data-live-ticker className="mx-4 mb-2 overflow-hidden rounded-2xl border border-amber-400/25 bg-amber-400/[0.05]">
           <div className="flex gap-2 overflow-x-auto px-3 py-2 slim-scroll">
@@ -133,11 +133,11 @@ export function MapView({
                 className={cn(
                   "flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold",
                   e.kind === "in"
-                    ? "border-emerald-400/30 bg-emerald-400/[0.08] text-emerald-600 dark:text-emerald-300"
-                    : "border-sky-400/30 bg-sky-400/[0.08] text-sky-600 dark:text-sky-300"
+                    ? "border-green-400/30 bg-green-400/[0.08] text-green-600 dark:text-green-300"
+                    : "border-blue-400/30 bg-blue-400/[0.08] text-blue-600 dark:text-blue-300"
                 )}
               >
-                <span className={cn("h-1.5 w-1.5 rounded-full", e.kind === "in" ? "bg-emerald-400" : "bg-sky-400")} />
+                <span className={cn("h-1.5 w-1.5 rounded-full", e.kind === "in" ? "bg-green-400" : "bg-blue-400")} />
                 <span className="tnum">{maskPlate(e.plate)}</span>
                 <span className="text-muted-foreground">
                   {e.kind === "in" ? t("liveTickerIn") : t("liveTickerOut")} {e.slotNumber}

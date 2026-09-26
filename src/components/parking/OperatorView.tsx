@@ -1,6 +1,6 @@
 "use client";
 /**
- * OperatorView — parking officer command center.
+ * OperatorView - parking officer command center.
  * 8 tabs: Monitor · Harga · QR · Riwayat · Analitik · Keuangan · Audit · Sistem.
  * v22 fees (service + fines only), v23 live gate stream + audit, v24 system docs.
  */
@@ -86,7 +86,7 @@ const DAY_END_H = 23;
 
 type OpTab = "monitor" | "harga" | "qr" | "riwayat" | "analitik" | "keuangan" | "audit" | "sistem";
 
-/** Window covering "right now" — operator always sees live state */
+/** Window covering "right now" - operator always sees live state */
 function nowWindow() {
   const d = new Date();
   return {
@@ -96,7 +96,7 @@ function nowWindow() {
   };
 }
 
-/** Payload encoded in every physical slot QR — parseable by the customer scanner. */
+/** Payload encoded in every physical slot QR - parseable by the customer scanner. */
 export function slotQrPayload(slot: Slot): string {
   return `${campusCodePrefix(campusForSlot(slot.id))}-${slot.slotNumber}`;
 }
@@ -108,8 +108,8 @@ export function slotLocation(slot: Slot): string {
 
 const TILE: Record<SlotStatus, { box: string; num: string }> = {
   AVAILABLE: {
-    box: "border-emerald-400/30 bg-emerald-400/[0.07] hover:bg-emerald-400/[0.15]",
-    num: "text-emerald-300",
+    box: "border-green-400/30 bg-green-400/[0.07] hover:bg-green-400/[0.15]",
+    num: "text-green-300",
   },
   RESERVED: {
     box: "border-amber-400/30 bg-amber-400/[0.06]",
@@ -226,8 +226,8 @@ function LiveClock() {
     <div className="shrink-0 text-right">
       <p className="tnum flex items-center justify-end gap-1.5 font-display text-xl font-bold leading-none tracking-tight">
         <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-          <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span className="absolute h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
+          <span className="relative h-1.5 w-1.5 rounded-full bg-green-400" />
         </span>
         {now
           ? now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
@@ -244,7 +244,7 @@ function LiveClock() {
 
 // ───────────────────────── live stream (v23) ─────────────────────────
 
-/** Header pill — click to connect/disconnect the simulated gate WebSocket. */
+/** Header pill - click to connect/disconnect the simulated gate WebSocket. */
 function LiveStatusPill({
   liveOn,
   liveStatus,
@@ -283,7 +283,7 @@ function LiveStatusPill({
   );
 }
 
-/** Live ops card — connection stats + full-plate event stream (operator view). */
+/** Live ops card - connection stats + full-plate event stream (operator view). */
 function LiveOpsCard({
   className,
   liveOn,
@@ -360,7 +360,7 @@ function LiveOpsCard({
         <div className="rounded-xl border border-border bg-card/50 px-3 py-2 text-center">
           <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">{t("liveUptime")}</p>
           <p className="tnum mt-0.5 text-sm font-bold">
-            {liveOn ? `${String(upM).padStart(2, "0")}:${String(upS).padStart(2, "0")}` : "—"}
+            {liveOn ? `${String(upM).padStart(2, "0")}:${String(upS).padStart(2, "0")}` : "-"}
           </p>
         </div>
         <div className="rounded-xl border border-border bg-card/50 px-3 py-2 text-center">
@@ -374,14 +374,14 @@ function LiveOpsCard({
       </div>
 
       {/* avg latency strip */}
-      <div className="mt-2 flex items-center justify-between rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] px-3.5 py-2">
+      <div className="mt-2 flex items-center justify-between rounded-xl border border-green-400/25 bg-green-400/[0.06] px-3.5 py-2">
         <span className="text-[10px] font-semibold text-muted-foreground">{t("liveLatency")}</span>
-        <span className="tnum text-sm font-bold text-emerald-400">
-          {liveOn && liveStatus === "live" ? `${liveLatency || avgLatency} ms` : "—"}
+        <span className="tnum text-sm font-bold text-green-400">
+          {liveOn && liveStatus === "live" ? `${liveLatency || avgLatency} ms` : "-"}
         </span>
       </div>
 
-      {/* event stream — full plates for the operator */}
+      {/* event stream - full plates for the operator */}
       <p className="mb-1.5 mt-3 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground/70">
         {t("liveStreamTitle")} · {t("opGuests")} {liveGuests.length}
       </p>
@@ -403,8 +403,8 @@ function LiveOpsCard({
                 className={cn(
                   "flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border",
                   e.kind === "in"
-                    ? "border-emerald-400/25 bg-emerald-400/[0.07] text-emerald-400"
-                    : "border-sky-400/25 bg-sky-400/[0.07] text-sky-400"
+                    ? "border-green-400/25 bg-green-400/[0.07] text-green-400"
+                    : "border-blue-400/25 bg-blue-400/[0.07] text-blue-400"
                 )}
               >
                 {e.kind === "in" ? <LogIn className="h-3 w-3" /> : <LogOut className="h-3 w-3" />}
@@ -423,7 +423,7 @@ function LiveOpsCard({
   );
 }
 
-/** Promo broadcast card (v19) — sends a campus promo to every active user. */
+/** Promo broadcast card (v19) - sends a campus promo to every active user. */
 function PromoCard({ className, onSend }: { className?: string; onSend: () => void }) {
   const lang = useParkir((s) => s.lang);
   const toast = useParkir((s) => s.toast);
@@ -443,7 +443,7 @@ function PromoCard({ className, onSend }: { className?: string; onSend: () => vo
       <div className="mt-3 rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] p-3">
         <p className="text-[12px] font-black">Kopi Rp15.000</p>
         <p className="mt-0.5 text-[10.5px] text-muted-foreground">
-          Fusion Cafe — {lang === "id" ? "tunjukkan pass parkirmu" : "show your parking pass"}
+          Fusion Cafe - {lang === "id" ? "tunjukkan pass parkirmu" : "show your parking pass"}
         </p>
       </div>
       <button
@@ -469,7 +469,7 @@ export function OperatorView() {
   const slots = useParkir((s) => s.slots);
   const allReservations = useParkir((s) => s.reservations);
   const allTransactions = useParkir((s) => s.transactions);
-  // Scope the console to the active campus — other campuses' worlds stay out.
+  // Scope the console to the active campus - other campuses' worlds stay out.
   const campusSlotIds = React.useMemo(() => new Set(slots.map((s) => s.id)), [slots]);
   const reservations = React.useMemo(
     () => allReservations.filter((r) => campusSlotIds.has(r.slotId)),
@@ -477,7 +477,7 @@ export function OperatorView() {
   );
   const transactions = React.useMemo(() => {
     // Fee/refund txns are tied to a reservation code (campus-scoped);
-    // blank-note txns are wallet top-ups — kept for the activity feed.
+    // blank-note txns are wallet top-ups - kept for the activity feed.
     const codes = new Set(reservations.map((r) => r.code));
     return allTransactions.filter((tx) => tx.note === "" || codes.has(tx.note));
   }, [allTransactions, reservations]);
@@ -595,7 +595,7 @@ export function OperatorView() {
     [reservations, transactions]
   );
 
-  /** Live demand tier — drives the dynamic pricing strip. */
+  /** Live demand tier - drives the dynamic pricing strip. */
   const demand = React.useMemo(
     () => demandNow(slots, reservations),
     [slots, reservations, tick]
@@ -673,7 +673,7 @@ export function OperatorView() {
     ];
     const campusName = campusById(useParkir.getState().campusId).name;
     const meta = [
-      [`${t("appName")} — ${t("csvExportTitle")}`],
+      [`${t("appName")} - ${t("csvExportTitle")}`],
       [id ? "Kampus" : "Campus", campusName, slotLocation(slots[0])],
       [id ? "Dibuat" : "Generated", new Date().toLocaleString(loc)],
       [""],
@@ -721,7 +721,7 @@ export function OperatorView() {
   const statCards = [
     { label: t("inBuilding"), value: stats.OCCUPIED, cls: "border-red-400/25 bg-red-400/[0.06]", val: "text-red-300", icon: CarFront },
     { label: t("reservedNow"), value: stats.RESERVED, cls: "border-amber-400/25 bg-amber-400/[0.06]", val: "text-amber-300", icon: Clock3 },
-    { label: t("available"), value: stats.AVAILABLE, cls: "border-emerald-400/25 bg-emerald-400/[0.06]", val: "text-emerald-300", icon: LogIn },
+    { label: t("available"), value: stats.AVAILABLE, cls: "border-green-400/25 bg-green-400/[0.06]", val: "text-green-300", icon: LogIn },
     { label: t("inMaintenance"), value: stats.MAINTENANCE, cls: "border-slate-500/25 bg-slate-500/[0.08]", val: "text-slate-300", icon: Wrench },
   ];
 
@@ -749,7 +749,7 @@ export function OperatorView() {
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-40"
           style={{
-            backgroundImage: "radial-gradient(rgba(255,214,10,0.09) 1px, transparent 1px)",
+            backgroundImage: "radial-gradient(rgba(59,130,246,0.09) 1px, transparent 1px)",
             backgroundSize: "22px 22px",
           }}
         />
@@ -815,7 +815,7 @@ export function OperatorView() {
         </div>
       </motion.section>
 
-      {/* ── segmented tabs (v23/v24: 8 tabs — vertical icon+label mobile, horizontal ≥sm) ── */}
+      {/* ── segmented tabs (v23/v24: 8 tabs - vertical icon+label mobile, horizontal ≥sm) ── */}
       <div className="glass grid grid-cols-4 gap-1 rounded-2xl p-1 sm:grid-cols-8">
         {tabs.map(({ k, label, icon: Icon }) => (
           <button
@@ -1007,7 +1007,7 @@ export function OperatorView() {
                       value={slotQrPayload(s)}
                       size={62}
                       bgColor="#ffffff"
-                      fgColor="#0b1226"
+                      fgColor="#0F172A"
                       level="M"
                       marginSize={0}
                     />
@@ -1129,8 +1129,8 @@ export function OperatorView() {
       <div id="qr-print-sheet" className="hidden">
         <div className="mb-[4mm] flex items-end justify-between border-b-[0.3mm] border-slate-300 pb-[2mm]">
           <div>
-            <p className="text-[13pt] font-black leading-tight text-[#070B16]">
-              {t("appName")} — {t("qrSlotsTitle")}
+            <p className="text-[13pt] font-black leading-tight text-[#0F172A]">
+              {t("appName")} - {t("qrSlotsTitle")}
             </p>
             <p className="text-[8pt] text-slate-600">
               {t("qrPrintBrand")} · {(slots[0] && slotLocation(slots[0])) || ""} ·{" "}
@@ -1165,7 +1165,7 @@ export function OperatorView() {
 
 // ───────────────────────── monitor tab cards ─────────────────────────
 
-/** Live dynamic-pricing strip — active tier, running prices, occupancy gauge. */
+/** Live dynamic-pricing strip - active tier, running prices, occupancy gauge. */
 function PricingCard({
   className,
   lang,
@@ -1181,15 +1181,15 @@ function PricingCard({
     LOW: {
       label: t("dynLow"),
       icon: TrendingDown,
-      chip: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
-      bar: "bg-emerald-400",
+      chip: "border-green-400/30 bg-green-400/10 text-green-300",
+      bar: "bg-green-400",
       next: t("dynNextLow"),
     },
     NORMAL: {
       label: t("dynNormal"),
       icon: Activity,
-      chip: "border-sky-400/30 bg-sky-400/10 text-sky-300",
-      bar: "bg-sky-400",
+      chip: "border-blue-400/30 bg-blue-400/10 text-blue-300",
+      bar: "bg-blue-400",
       next: t("dynNextNormal"),
     },
     HIGH: {
@@ -1290,10 +1290,10 @@ function PricingCard({
 }
 
 const RING_COLORS: Record<Exclude<SlotStatus, never>, string> = {
-  OCCUPIED: "#f87171",
-  RESERVED: "#fbbf24",
+  OCCUPIED: "#ef4444",
+  RESERVED: "#f59e0b",
   MAINTENANCE: "#64748b",
-  AVAILABLE: "#34d399",
+  AVAILABLE: "#22c55e",
 };
 
 /** Donut occupancy ring + per-status legend + shift statistics. */
@@ -1324,7 +1324,7 @@ function OccupancyCard({
     { key: "OCCUPIED", label: t("inBuilding"), dot: "bg-red-400", text: "text-red-300" },
     { key: "RESERVED", label: t("reservedNow"), dot: "bg-amber-400", text: "text-amber-300" },
     { key: "MAINTENANCE", label: t("inMaintenance"), dot: "bg-slate-500", text: "text-slate-400" },
-    { key: "AVAILABLE", label: t("available"), dot: "bg-emerald-400", text: "text-emerald-300" },
+    { key: "AVAILABLE", label: t("available"), dot: "bg-green-400", text: "text-green-300" },
   ];
   let acc = 0;
 
@@ -1340,9 +1340,9 @@ function OccupancyCard({
           <Gauge className="h-4 w-4 text-primary" />
           {t("occupancyTitle")}
         </h3>
-        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
+        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-green-400">
           <Activity className="h-3 w-3" />
-          {t("floorLabel").split("—")[0].trim()}
+          {t("floorLabel").split("-")[0].trim()}
         </span>
       </div>
 
@@ -1394,8 +1394,8 @@ function OccupancyCard({
 
       <div className="mt-3.5 grid grid-cols-3 gap-2 border-t border-border/60 pt-3">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-emerald-400/25 bg-emerald-400/[0.07]">
-            <LogIn className="h-3.5 w-3.5 text-emerald-400" />
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-green-400/25 bg-green-400/[0.07]">
+            <LogIn className="h-3.5 w-3.5 text-green-400" />
           </span>
           <div className="min-w-0">
             <p className="tnum font-display text-base font-bold leading-none">{shift.ins}</p>
@@ -1405,8 +1405,8 @@ function OccupancyCard({
           </div>
         </div>
         <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-sky-400/25 bg-sky-400/[0.07]">
-            <LogOut className="h-3.5 w-3.5 text-sky-400" />
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-blue-400/25 bg-blue-400/[0.07]">
+            <LogOut className="h-3.5 w-3.5 text-blue-400" />
           </span>
           <div className="min-w-0">
             <p className="tnum font-display text-base font-bold leading-none">{shift.outs}</p>
@@ -1472,7 +1472,7 @@ function RevenueCard({
               className={cn(
                 "rounded-[3px]",
                 i === peakIdx && v > 0
-                  ? "bg-primary shadow-[0_0_14px_rgba(255,214,10,0.4)]"
+                  ? "bg-primary shadow-[0_0_14px_rgba(59,130,246,0.4)]"
                   : "bg-binus-blue/45 dark:bg-binus-blue/45"
               )}
             />
@@ -1499,7 +1499,7 @@ function RevenueCard({
   );
 }
 
-/** Live slot grid — tap a tile for detail & maintenance control. v23: guest overlay. */
+/** Live slot grid - tap a tile for detail & maintenance control. v23: guest overlay. */
 function SlotMonitorCard({
   className,
   lang,
@@ -1525,7 +1525,7 @@ function SlotMonitorCard({
   const legend = [
     { st: "OCCUPIED" as SlotStatus, label: t("inBuilding"), dot: "bg-red-400", n: stats.OCCUPIED },
     { st: "RESERVED" as SlotStatus, label: t("reservedNow"), dot: "bg-amber-400", n: stats.RESERVED },
-    { st: "AVAILABLE" as SlotStatus, label: t("available"), dot: "bg-emerald-400", n: stats.AVAILABLE },
+    { st: "AVAILABLE" as SlotStatus, label: t("available"), dot: "bg-green-400", n: stats.AVAILABLE },
     { st: "MAINTENANCE" as SlotStatus, label: t("inMaintenance"), dot: "bg-slate-500", n: stats.MAINTENANCE },
   ];
 
@@ -1676,7 +1676,7 @@ function SessionsCard({
                         {r.vehicleName} · {r.vehiclePlate}
                       </span>
                       <span className="tnum mt-0.5 block text-[9.5px] text-muted-foreground/70">
-                        {t("sinceLabel")} {r.checkedInAt ? timeStr(new Date(r.checkedInAt)) : "—"} ·{" "}
+                        {t("sinceLabel")} {r.checkedInAt ? timeStr(new Date(r.checkedInAt)) : "-"} ·{" "}
                         <span className={cn("font-bold", late ? "text-red-400" : "text-foreground/80")}>{dur}</span>
                         {late && (
                           <span className="ml-1 font-bold text-red-400">
@@ -1753,7 +1753,7 @@ function BusyCard({ className, lang, hist }: { className?: string; lang: string;
               transition={{ duration: 0.55, delay: 0.2 + i * 0.025, ease: "easeOut" }}
               className={cn(
                 "rounded-[3px]",
-                hot.has(i) ? "bg-primary shadow-[0_0_12px_rgba(255,214,10,0.35)]" : "bg-emerald-400/35 dark:bg-emerald-400/35"
+                hot.has(i) ? "bg-primary shadow-[0_0_12px_rgba(59,130,246,0.35)]" : "bg-green-400/35 dark:bg-green-400/35"
               )}
             />
           </div>
@@ -1886,13 +1886,13 @@ function UpcomingCard({
 }
 
 const FEED_STYLE: Record<FeedKind, { icon: React.ComponentType<{ className?: string }>; cls: string; labelKey: Parameters<typeof tr>[1] }> = {
-  checkin: { icon: LogIn, cls: "border-emerald-400/25 bg-emerald-400/[0.07] text-emerald-400", labelKey: "evCheckin" },
-  checkout: { icon: LogOut, cls: "border-sky-400/25 bg-sky-400/[0.07] text-sky-400", labelKey: "evCheckout" },
+  checkin: { icon: LogIn, cls: "border-green-400/25 bg-green-400/[0.07] text-green-400", labelKey: "evCheckin" },
+  checkout: { icon: LogOut, cls: "border-blue-400/25 bg-blue-400/[0.07] text-blue-400", labelKey: "evCheckout" },
   booking: { icon: CalendarPlus, cls: "border-primary/25 bg-primary/[0.07] text-primary", labelKey: "evBooking" },
   topup: { icon: Wallet, cls: "border-primary/25 bg-primary/[0.07] text-primary", labelKey: "evTopup" },
 };
 
-/** Live activity feed — derived from real store events, newest first. */
+/** Live activity feed - derived from real store events, newest first. */
 function FeedCard({ className, lang, events }: { className?: string; lang: string; events: FeedEvent[] }) {
   const t = (k: Parameters<typeof tr>[1]) => tr(lang as "id" | "en", k);
   return (
@@ -1904,12 +1904,12 @@ function FeedCard({ className, lang, events }: { className?: string; lang: strin
     >
       <div className="mb-3 flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 font-display text-sm font-bold tracking-tight">
-          <Activity className="h-4 w-4 text-emerald-400" />
+          <Activity className="h-4 w-4 text-green-400" />
           {t("feedTitle")}
         </h3>
         <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-          <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span className="absolute h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
+          <span className="relative h-1.5 w-1.5 rounded-full bg-green-400" />
         </span>
       </div>
 
@@ -1966,7 +1966,7 @@ function FeedCard({ className, lang, events }: { className?: string; lang: strin
 
 // ───────────────────────── history tab cards ─────────────────────────
 
-/** Today's recap — revenue, transactions, vehicles, peak occupancy, longest stay. */
+/** Today's recap - revenue, transactions, vehicles, peak occupancy, longest stay. */
 function RecapCard({
   className,
   lang,
@@ -1988,10 +1988,10 @@ function RecapCard({
 }) {
   const t = (k: Parameters<typeof tr>[1]) => tr(lang as "id" | "en", k);
   const tiles = [
-    { label: t("txnsToday"), value: String(txns), icon: ClipboardList, cls: "border-sky-400/25 bg-sky-400/[0.06]", val: "text-sky-300" },
-    { label: t("recapVehicles"), value: String(vehicles), icon: LogIn, cls: "border-emerald-400/25 bg-emerald-400/[0.06]", val: "text-emerald-300" },
+    { label: t("txnsToday"), value: String(txns), icon: ClipboardList, cls: "border-blue-400/25 bg-blue-400/[0.06]", val: "text-blue-300" },
+    { label: t("recapVehicles"), value: String(vehicles), icon: LogIn, cls: "border-green-400/25 bg-green-400/[0.06]", val: "text-green-300" },
     { label: t("recapPeak"), value: `${peak}/${total}`, icon: Gauge, cls: "border-red-400/25 bg-red-400/[0.06]", val: "text-red-300" },
-    { label: t("recapLongest"), value: longest ? fmtDuration(longest.ms) : "—", icon: Timer, cls: "border-primary/25 bg-primary/[0.07]", val: "text-primary", sub: longest?.res.vehiclePlate },
+    { label: t("recapLongest"), value: longest ? fmtDuration(longest.ms) : "-", icon: Timer, cls: "border-primary/25 bg-primary/[0.07]", val: "text-primary", sub: longest?.res.vehiclePlate },
   ];
   return (
     <motion.section
@@ -2036,7 +2036,7 @@ function RecapCard({
   );
 }
 
-/** Completed sessions today — in/out times, duration, fees. */
+/** Completed sessions today - in/out times, duration, fees. */
 function CompletedCard({ className, lang, list }: { className?: string; lang: string; list: Reservation[] }) {
   const t = (k: Parameters<typeof tr>[1]) => tr(lang as "id" | "en", k);
   return (
@@ -2051,7 +2051,7 @@ function CompletedCard({ className, lang, list }: { className?: string; lang: st
           <Car className="h-4 w-4 text-primary" />
           {t("completedTodayTitle")}
         </h3>
-        <span className="tnum rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-black text-emerald-300">
+        <span className="tnum rounded-full bg-green-400/15 px-2 py-0.5 text-[10px] font-black text-green-300">
           {list.length}
         </span>
       </div>
@@ -2071,8 +2071,8 @@ function CompletedCard({ className, lang, list }: { className?: string; lang: st
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[12px] font-bold leading-tight">{r.driverName}</p>
                 <p className="tnum truncate text-[9.5px] text-muted-foreground">
-                  {r.vehiclePlate} · {r.checkedInAt ? timeStr(new Date(r.checkedInAt)) : "—"} →{" "}
-                  {r.checkedOutAt ? timeStr(new Date(r.checkedOutAt)) : "—"} ·{" "}
+                  {r.vehiclePlate} · {r.checkedInAt ? timeStr(new Date(r.checkedInAt)) : "-"} →{" "}
+                  {r.checkedOutAt ? timeStr(new Date(r.checkedOutAt)) : "-"} ·{" "}
                   {fmtDuration((r.checkedOutAt ?? 0) - (r.checkedInAt ?? 0))}
                   {r.overtimeFee > 0 && (
                     <span className="ml-1 font-bold text-amber-400">+{lang === "id" ? "lembur" : "overtime"}</span>
@@ -2094,7 +2094,7 @@ const TXN_META: Record<
   Txn["type"],
   { icon: React.ComponentType<{ className?: string }>; labelKey: Parameters<typeof tr>[1]; cls: string }
 > = {
-  TOP_UP: { icon: Plus, labelKey: "tTopUp", cls: "border-emerald-400/25 bg-emerald-400/[0.07] text-emerald-400" },
+  TOP_UP: { icon: Plus, labelKey: "tTopUp", cls: "border-green-400/25 bg-green-400/[0.07] text-green-400" },
   SERVICE_FEE: { icon: QrCode, labelKey: "tServiceFee", cls: "border-primary/25 bg-primary/[0.07] text-primary" },
   OVERTIME: { icon: TimerReset, labelKey: "tOvertime", cls: "border-amber-400/25 bg-amber-400/[0.07] text-amber-400" },
   REFUND: { icon: LogOut, labelKey: "tRefund", cls: "border-red-400/25 bg-red-400/[0.07] text-red-400" },
@@ -2164,7 +2164,7 @@ function TxnLogCard({
                   <span className="font-bold text-foreground">{t(meta.labelKey)}</span>
                   {x.note && <span className="tnum ml-1.5 text-[10px] text-muted-foreground/70">{x.note}</span>}
                 </p>
-                <p className={cn("tnum shrink-0 text-[12px] font-bold", credit ? "text-emerald-400" : "text-primary")}>
+                <p className={cn("tnum shrink-0 text-[12px] font-bold", credit ? "text-green-400" : "text-primary")}>
                   {credit ? "+" : ""}
                   {rupiah(x.amount)}
                 </p>
@@ -2179,7 +2179,7 @@ function TxnLogCard({
 
 // ───────────────────────── dialogs ─────────────────────────
 
-/** Slot detail — status, occupant/booking info, session control, maintenance. */
+/** Slot detail - status, occupant/booking info, session control, maintenance. */
 function SlotDetailDialog({ slot, onClose }: { slot: Slot; onClose: () => void }) {
   const lang = useParkir((s) => s.lang);
   const reservations = useParkir((s) => s.reservations);
@@ -2237,7 +2237,7 @@ function SlotDetailDialog({ slot, onClose }: { slot: Slot; onClose: () => void }
             <DetailRow label={t("vehicleLabel")} value={`${session.vehicleName} · ${session.vehiclePlate}`} />
             <DetailRow
               label={t("sinceLabel")}
-              value={`${session.checkedInAt ? timeStr(new Date(session.checkedInAt)) : "—"} · ${fmtDuration(
+              value={`${session.checkedInAt ? timeStr(new Date(session.checkedInAt)) : "-"} · ${fmtDuration(
                 Date.now() - (session.checkedInAt ?? Date.now())
               )}`}
             />
@@ -2253,9 +2253,9 @@ function SlotDetailDialog({ slot, onClose }: { slot: Slot; onClose: () => void }
             />
           </>
         ) : (
-          <div className="flex items-center gap-2.5 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.05] px-3 py-3">
-            <LogIn className="h-4 w-4 shrink-0 text-emerald-400" />
-            <p className="text-xs font-semibold text-emerald-300">{t("slotEmptyState")}</p>
+          <div className="flex items-center gap-2.5 rounded-xl border border-green-400/20 bg-green-400/[0.05] px-3 py-3">
+            <LogIn className="h-4 w-4 shrink-0 text-green-400" />
+            <p className="text-xs font-semibold text-green-300">{t("slotEmptyState")}</p>
           </div>
         )}
       </div>
@@ -2320,7 +2320,7 @@ function SlotDetailDialog({ slot, onClose }: { slot: Slot; onClose: () => void }
         className={cn(
           "mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-xs font-bold transition active:scale-[0.98]",
           slot.status === "MAINTENANCE"
-            ? "border border-emerald-400/30 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20"
+            ? "border border-green-400/30 bg-green-400/10 text-green-300 hover:bg-green-400/20"
             : "border border-slate-400/30 bg-slate-400/10 text-slate-300 hover:bg-slate-400/20"
         )}
       >
@@ -2339,7 +2339,7 @@ function SlotDetailDialog({ slot, onClose }: { slot: Slot; onClose: () => void }
   );
 }
 
-/** Slot QR detail — big QR, code & hi-res PNG download */
+/** Slot QR detail - big QR, code & hi-res PNG download */
 function QrSlotDetailDialog({ slot, onClose }: { slot: Slot; onClose: () => void }) {
   const lang = useParkir((s) => s.lang);
   const toast = useParkir((s) => s.toast);
@@ -2365,7 +2365,7 @@ function QrSlotDetailDialog({ slot, onClose }: { slot: Slot; onClose: () => void
             value={payload}
             size={150}
             bgColor="#ffffff"
-            fgColor="#0b1226"
+            fgColor="#0F172A"
             level="M"
             marginSize={2}
           />
@@ -2408,7 +2408,7 @@ function QrSlotDetailDialog({ slot, onClose }: { slot: Slot; onClose: () => void
           value={payload}
           size={1024}
           bgColor="#ffffff"
-          fgColor="#0b1226"
+          fgColor="#0F172A"
           level="M"
           marginSize={4}
         />
@@ -2419,7 +2419,7 @@ function QrSlotDetailDialog({ slot, onClose }: { slot: Slot; onClose: () => void
 
 // ───────────────────────── print card ─────────────────────────
 
-/** Print card — one physical slot sign: QR + slot number + mounting info. */
+/** Print card - one physical slot sign: QR + slot number + mounting info. */
 function QrPrintCard({ slot }: { slot: Slot }) {
   const lang = useParkir((s) => s.lang);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
@@ -2438,12 +2438,12 @@ function QrPrintCard({ slot }: { slot: Slot }) {
         <p className="text-[7pt] font-black uppercase tracking-[0.22em] text-[#1E3A8A]">
           {t("appName")}
         </p>
-        <p className="tnum text-[28pt] font-black leading-[1.05] text-[#070B16]">{slot.slotNumber}</p>
+        <p className="tnum text-[28pt] font-black leading-[1.05] text-[#0F172A]">{slot.slotNumber}</p>
         <p className="tnum mt-[1.5mm] text-[9pt] font-bold text-slate-700">
           {lang === "id" ? "Kode" : "Code"}: {slotQrPayload(slot)}
         </p>
         <p className="text-[7.5pt] leading-snug text-slate-600">{slotLocation(slot)}</p>
-        <p className="mt-[2mm] inline-block rounded-[1.5mm] bg-[#FFD60A] px-[2mm] py-[0.8mm] text-[7pt] font-black uppercase tracking-wide text-[#070B16]">
+        <p className="mt-[2mm] inline-block rounded-[1.5mm] bg-[#3B82F6] px-[2mm] py-[0.8mm] text-[7pt] font-black uppercase tracking-wide text-white">
           {t("qrCardHint")}
         </p>
       </div>

@@ -1,11 +1,11 @@
 "use client";
 /**
- * AnalyticsView — operator "Analitik" tab.
+ * AnalyticsView - operator "Analitik" tab.
  * End-to-end DS showcase on a deterministic 30-day synthetic dataset:
  * KPI strip → occupancy heatmap (day × hour) → 48h Holt-Winters forecast with
  * 90% band & model card → z-score anomaly list → daily revenue split →
  * what-if tariff simulator → analytics-ready CSV export.
- * Charts are hand-rolled SVG in a minimal Apple-Health style — no chart library.
+ * Charts are hand-rolled SVG in a minimal Apple-Health style - no chart library.
  */
 import React from "react";
 import { motion } from "framer-motion";
@@ -65,11 +65,11 @@ function CardHead({
 }
 
 function heatColor(v: number): string {
-  if (v < 20) return "bg-emerald-400/[0.13]";
-  if (v < 40) return "bg-emerald-400/30";
+  if (v < 20) return "bg-green-400/[0.13]";
+  if (v < 40) return "bg-green-400/30";
   if (v < 55) return "bg-amber-400/40";
   if (v < 70) return "bg-amber-400/65";
-  if (v < 85) return "bg-orange-400/75";
+  if (v < 85) return "bg-red-400/55";
   return "bg-red-400/80";
 }
 
@@ -78,7 +78,7 @@ export function AnalyticsView() {
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const toast = useParkir((s) => s.toast);
 
-  // Deterministic world — computed once per mount (the PRNG stream is frozen).
+  // Deterministic world - computed once per mount (the PRNG stream is frozen).
   const world = React.useMemo(() => buildAnalyticsWorld(), []);
   const heat = React.useMemo(() => heatmapMatrix(world), [world]);
   const series = React.useMemo(() => hourlyOccupancySeries(world), [world]);
@@ -149,10 +149,10 @@ export function AnalyticsView() {
   // ── revenue bar chart geometry ──
   const revMax = Math.max(...revenue.map((r) => r.total));
   const kpis = [
-    { label: t("anaKpiSessions"), value: String(totalSessions), icon: Gauge, cls: "border-sky-400/25 bg-sky-400/[0.06]", val: "text-sky-300" },
+    { label: t("anaKpiSessions"), value: String(totalSessions), icon: Gauge, cls: "border-blue-400/25 bg-blue-400/[0.06]", val: "text-blue-300" },
     { label: t("anaKpiRevenue"), value: rupiah(totalRevenue), icon: Wallet, cls: "border-primary/25 bg-primary/[0.07]", val: "text-primary" },
-    { label: t("anaKpiOccupancy"), value: `${avgOccupancy}%`, icon: Activity, cls: "border-emerald-400/25 bg-emerald-400/[0.06]", val: "text-emerald-300" },
-    { label: t("anaKpiMape"), value: `${forecast.mape.toFixed(1)}%`, icon: Sparkles, cls: "border-violet-400/25 bg-violet-400/[0.06]", val: "text-violet-300" },
+    { label: t("anaKpiOccupancy"), value: `${avgOccupancy}%`, icon: Activity, cls: "border-green-400/25 bg-green-400/[0.06]", val: "text-green-300" },
+    { label: t("anaKpiMape"), value: `${forecast.mape.toFixed(1)}%`, icon: Sparkles, cls: "border-slate-400/25 bg-slate-400/[0.06]", val: "text-slate-300" },
   ];
 
   return (
@@ -225,8 +225,8 @@ export function AnalyticsView() {
             sub={t("anaForecastSub")}
             right={
               <div className="flex items-center gap-2.5 text-[9px] font-bold">
-                <span className="flex items-center gap-1 text-emerald-400">
-                  <span className="h-[3px] w-4 rounded-full bg-emerald-400" /> {t("cfActual")}
+                <span className="flex items-center gap-1 text-green-400">
+                  <span className="h-[3px] w-4 rounded-full bg-green-400" /> {t("cfActual")}
                 </span>
                 <span className="flex items-center gap-1 text-primary">
                   <span className="h-[3px] w-4 rounded-full bg-primary" /> {t("cfForecast")}
@@ -242,7 +242,7 @@ export function AnalyticsView() {
             {/* 90% band */}
             <path d={bandPath} className="fill-primary/[0.28] stroke-primary/50" strokeWidth="0.8" strokeDasharray="3 3" />
             {/* actual context */}
-            <path d={line(hist)} className="stroke-emerald-400" strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
+            <path d={line(hist)} className="stroke-green-400" strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
             {/* forecast */}
             <path d={line(forecast.forecast, HIST)} className="stroke-primary" strokeWidth="2.2" fill="none" strokeDasharray="5 4" strokeLinejoin="round" strokeLinecap="round" />
             {/* now divider */}
@@ -256,12 +256,12 @@ export function AnalyticsView() {
         </motion.section>
 
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.1 }} className={cn(CARD, "md:col-span-5")}>
-          <CardHead icon={Sparkles} title={t("anaModelCard")} tone="text-violet-400" />
+          <CardHead icon={Sparkles} title={t("anaModelCard")} tone="text-slate-400" />
           <div className="space-y-2">
 
             {/* parameters table */}
-            <div className="rounded-xl border border-violet-400/20 bg-violet-400/[0.05] px-3 py-2.5">
-              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-violet-400/80">
+            <div className="rounded-xl border border-slate-400/20 bg-slate-400/[0.05] px-3 py-2.5">
+              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400/80">
                 {t("anaMcMethod")}
               </p>
               <p className="text-[10.5px] font-medium leading-snug">{t("anaMcMethodVal")}</p>
@@ -274,7 +274,7 @@ export function AnalyticsView() {
                 { label: t("anaMcGamma"), value: modelParams.gamma.toFixed(2) },
               ].map((p) => (
                 <div key={p.label} className="rounded-xl border border-border bg-card/50 px-2 py-2 text-center">
-                  <p className="tnum font-display text-base font-black text-violet-300">{p.value}</p>
+                  <p className="tnum font-display text-base font-black text-slate-300">{p.value}</p>
                   <p className="mt-0.5 text-[8px] font-semibold leading-tight text-muted-foreground">{p.label}</p>
                 </div>
               ))}
@@ -287,8 +287,8 @@ export function AnalyticsView() {
                 { label: t("anaMcHoldOutMape"), value: modelParams.holdOutMape },
               ].map((row) => {
                 const grade = row.value < 10 ? t("anaMcAccGood") : row.value < 20 ? t("anaMcAccOk") : t("anaMcAccPoor");
-                const tone = row.value < 10 ? "text-emerald-400" : row.value < 20 ? "text-amber-400" : "text-red-400";
-                const bar = row.value < 10 ? "bg-emerald-400" : row.value < 20 ? "bg-amber-400" : "bg-red-400";
+                const tone = row.value < 10 ? "text-green-400" : row.value < 20 ? "text-amber-400" : "text-red-400";
+                const bar = row.value < 10 ? "bg-green-400" : row.value < 20 ? "bg-amber-400" : "bg-red-400";
                 return (
                   <div key={row.label} className="rounded-xl border border-border bg-card/50 px-3 py-2">
                     <div className="flex items-center justify-between">
@@ -296,7 +296,7 @@ export function AnalyticsView() {
                       <div className="flex items-center gap-1.5">
                         <span className={cn("tnum text-sm font-black", tone)}>{row.value.toFixed(1)}%</span>
                         <span className={cn("rounded-full px-1.5 py-0.5 text-[7.5px] font-black uppercase tracking-wide", tone, `bg-current/10`)}
-                          style={{ backgroundColor: row.value < 10 ? "rgba(52,211,153,0.12)" : row.value < 20 ? "rgba(251,191,36,0.12)" : "rgba(248,113,113,0.12)" }}
+                          style={{ backgroundColor: row.value < 10 ? "rgba(34,197,94,0.12)" : row.value < 20 ? "rgba(245,158,11,0.12)" : "rgba(239,68,68,0.12)" }}
                         >
                           {grade}
                         </span>
@@ -422,7 +422,7 @@ export function AnalyticsView() {
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{s.label}</p>
                   <p className="tnum text-sm font-bold">
                     {rupiah(s.value)}{" "}
-                    <span className={cn("text-[10px] font-semibold", s.value === s.base ? "text-muted-foreground" : s.value > s.base ? "text-emerald-400" : "text-amber-400")}>
+                    <span className={cn("text-[10px] font-semibold", s.value === s.base ? "text-muted-foreground" : s.value > s.base ? "text-green-400" : "text-amber-400")}>
                       ({s.value === s.base ? "base" : `${s.value > s.base ? "+" : ""}${rupiah(s.value - s.base)}`})
                     </span>
                   </p>
@@ -434,7 +434,7 @@ export function AnalyticsView() {
                   step={2500}
                   value={s.value}
                   onChange={(e) => s.set(Number(e.target.value))}
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[#FFD60A]"
+                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[#3B82F6]"
                   data-whatif-slider={s.tier}
                 />
               </div>
@@ -451,7 +451,7 @@ export function AnalyticsView() {
             </div>
             <div className="mt-1 flex items-center justify-between border-t border-dashed border-border pt-2.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Δ</span>
-              <span className={cn("tnum font-display text-xl font-black", sim.deltaPct >= 0 ? "text-emerald-400" : "text-amber-400")}>
+              <span className={cn("tnum font-display text-xl font-black", sim.deltaPct >= 0 ? "text-green-400" : "text-amber-400")}>
                 {sim.deltaPct >= 0 ? "+" : ""}{sim.deltaPct.toFixed(1)}%
               </span>
             </div>
@@ -459,7 +459,7 @@ export function AnalyticsView() {
               <motion.div
                 animate={{ width: `${Math.min(100, (sim.simulated / sim.base) * 100)}%` }}
                 transition={{ duration: 0.5 }}
-                className={cn("h-full rounded-full", sim.deltaPct >= 0 ? "bg-emerald-400" : "bg-amber-400")}
+                className={cn("h-full rounded-full", sim.deltaPct >= 0 ? "bg-green-400" : "bg-amber-400")}
               />
             </div>
           </div>

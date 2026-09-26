@@ -1,6 +1,6 @@
 "use client";
 /**
- * FinanceView — operator "Keuangan" tab (v23 + v24).
+ * FinanceView - operator "Keuangan" tab (v23 + v24).
  * KPI strip → double-entry journal → trial balance (SEIMBANG) → profit
  * waterfall → interactive break-even → PPN 11% invoices → 14-day cash-flow
  * projection. Everything derives from the REAL wallet transactions.
@@ -76,7 +76,7 @@ export function FinanceView() {
   const txns = useParkir((s) => s.transactions);
   const reservations = useParkir((s) => s.reservations);
 
-  // ── ledger (v23) — from REAL transactions ──
+  // ── ledger (v23) - from REAL transactions ──
   const journal = React.useMemo(() => buildJournal(txns), [txns]);
   const tb = React.useMemo(() => trialBalance(journal), [journal]);
   const pl = React.useMemo(() => profitAndLoss(journal), [journal]);
@@ -108,7 +108,7 @@ export function FinanceView() {
   const monthCount = recap.months.find((m) => m.month === thisMonth)?.count ?? 0;
   const [invOpen, setInvOpen] = React.useState<Invoice | null>(null);
 
-  // ── cashflow (v24) — read-only from the analytics dataset ──
+  // ── cashflow (v24) - read-only from the analytics dataset ──
   const cf = React.useMemo(() => {
     const world = buildAnalyticsWorld();
     return projectCashflow(revenueAgg(world));
@@ -117,8 +117,8 @@ export function FinanceView() {
   // ── waterfall geometry ──
   const wfMax = Math.max(pl.service + pl.fines, 1);
   const wf = [
-    { label: t("finWfService"), value: pl.service, color: "bg-emerald-400/70" },
-    { label: t("finWfFine"), value: pl.fines, color: "bg-sky-400/70" },
+    { label: t("finWfService"), value: pl.service, color: "bg-green-400/70" },
+    { label: t("finWfFine"), value: pl.fines, color: "bg-blue-400/70" },
     { label: t("finWfRefund"), value: -pl.refunds, color: "bg-red-400/70" },
     { label: t("finWfProfit"), value: pl.netIncome, color: "bg-primary" },
   ];
@@ -167,8 +167,8 @@ export function FinanceView() {
 
   const kpis = [
     { label: t("finKpiRevenue"), value: rupiah(pl.netIncome), icon: Banknote, cls: "border-primary/25 bg-primary/[0.07]", val: "text-primary" },
-    { label: t("finKpiSessions"), value: String(paidSessions), icon: Wallet, cls: "border-sky-400/25 bg-sky-400/[0.06]", val: "text-sky-300" },
-    { label: t("finKpiArpu"), value: rupiah(arpu), icon: TrendingUp, cls: "border-emerald-400/25 bg-emerald-400/[0.06]", val: "text-emerald-300" },
+    { label: t("finKpiSessions"), value: String(paidSessions), icon: Wallet, cls: "border-blue-400/25 bg-blue-400/[0.06]", val: "text-blue-300" },
+    { label: t("finKpiArpu"), value: rupiah(arpu), icon: TrendingUp, cls: "border-green-400/25 bg-green-400/[0.06]", val: "text-green-300" },
     { label: t("finKpiFineRatio"), value: `${fineRatio.toFixed(0)}%`, icon: TrendingDown, cls: "border-amber-400/25 bg-amber-400/[0.06]", val: "text-amber-300" },
   ];
 
@@ -207,11 +207,11 @@ export function FinanceView() {
                       key={l.account}
                       className={cn(
                         "rounded-lg border px-2 py-1.5",
-                        l.dr > 0 ? "border-emerald-400/25 bg-emerald-400/[0.07]" : "border-amber-400/25 bg-amber-400/[0.07]"
+                        l.dr > 0 ? "border-green-400/25 bg-green-400/[0.07]" : "border-amber-400/25 bg-amber-400/[0.07]"
                       )}
                     >
                       <p className="tnum truncate text-[9px] font-bold text-muted-foreground">{l.account}</p>
-                      <p className={cn("tnum text-[11.5px] font-bold", l.dr > 0 ? "text-emerald-300" : "text-amber-300")}>
+                      <p className={cn("tnum text-[11.5px] font-bold", l.dr > 0 ? "text-green-300" : "text-amber-300")}>
                         {l.dr > 0 ? `Dr ${rupiah(l.dr)}` : `Cr ${rupiah(l.cr)}`}
                       </p>
                     </div>
@@ -227,7 +227,7 @@ export function FinanceView() {
             icon={Scale}
             title={t("finTrialTitle")}
             right={
-              <span data-trial-balanced className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2.5 py-1 text-[9.5px] font-black uppercase tracking-wider text-emerald-400">
+              <span data-trial-balanced className="rounded-full border border-green-400/40 bg-green-400/10 px-2.5 py-1 text-[9.5px] font-black uppercase tracking-wider text-green-400">
                 {t("finTrialBalanced")}
               </span>
             }
@@ -237,13 +237,13 @@ export function FinanceView() {
               <div key={r.account} className={cn("flex items-center gap-2 border-b border-border/50 px-3 py-2 last:border-0", (r.dr === 0 && r.cr === 0) && "opacity-40")}>
                 <span className="tnum w-14 shrink-0 text-[9.5px] font-bold text-muted-foreground">{r.account}</span>
                 <span className="min-w-0 flex-1 truncate text-[10.5px] font-semibold">{r.name}</span>
-                <span className="tnum w-[86px] shrink-0 text-right text-[10.5px] font-bold text-emerald-300">{r.dr > 0 ? rupiah(r.dr) : "—"}</span>
-                <span className="tnum w-[86px] shrink-0 text-right text-[10.5px] font-bold text-amber-300">{r.cr > 0 ? rupiah(r.cr) : "—"}</span>
+                <span className="tnum w-[86px] shrink-0 text-right text-[10.5px] font-bold text-green-300">{r.dr > 0 ? rupiah(r.dr) : "-"}</span>
+                <span className="tnum w-[86px] shrink-0 text-right text-[10.5px] font-bold text-amber-300">{r.cr > 0 ? rupiah(r.cr) : "-"}</span>
               </div>
             ))}
             <div className="flex items-center gap-2 bg-primary/[0.07] px-3 py-2.5">
               <span className="flex-1 text-[10px] font-black uppercase tracking-wider text-primary">Σ</span>
-              <span className="tnum w-[86px] shrink-0 text-right text-[11px] font-black text-emerald-300">{rupiah(tb.totalDr)}</span>
+              <span className="tnum w-[86px] shrink-0 text-right text-[11px] font-black text-green-300">{rupiah(tb.totalDr)}</span>
               <span className="tnum w-[86px] shrink-0 text-right text-[11px] font-black text-amber-300">{rupiah(tb.totalCr)}</span>
             </div>
           </div>
@@ -269,7 +269,7 @@ export function FinanceView() {
               const h = Math.max(3, (Math.abs(w.value) / wfMax) * 100);
               return (
                 <div key={w.label} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
-                  <p className="tnum text-[10px] font-bold">{w.value === 0 ? "—" : `${w.value < 0 ? "−" : ""}${rupiahShort(Math.abs(w.value))}`}</p>
+                  <p className="tnum text-[10px] font-bold">{w.value === 0 ? "-" : `${w.value < 0 ? "−" : ""}${rupiahShort(Math.abs(w.value))}`}</p>
                   <motion.div
                     initial={{ height: 0 }}
                     animate={{ height: `${h}%` }}
@@ -299,14 +299,14 @@ export function FinanceView() {
                 <p className="text-[9.5px] font-bold uppercase tracking-wider text-muted-foreground">{t("finBepFixed")}</p>
                 <p className="tnum text-[11.5px] font-bold">{rupiahShort(fixedCost)}</p>
               </div>
-              <input type="range" min={5_000_000} max={40_000_000} step={1_000_000} value={fixedCost} onChange={(e) => setFixedCost(Number(e.target.value))} className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[#FFD60A]" />
+              <input type="range" min={5_000_000} max={40_000_000} step={1_000_000} value={fixedCost} onChange={(e) => setFixedCost(Number(e.target.value))} className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[#3B82F6]" />
             </div>
             <div>
               <div className="mb-1 flex items-baseline justify-between">
                 <p className="text-[9.5px] font-bold uppercase tracking-wider text-muted-foreground">{t("finBepVar")}</p>
                 <p className="tnum text-[11.5px] font-bold">{rupiah(varCost)}</p>
               </div>
-              <input type="range" min={500} max={10_000} step={500} value={varCost} onChange={(e) => setVarCost(Number(e.target.value))} className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[#FFD60A]" />
+              <input type="range" min={500} max={10_000} step={500} value={varCost} onChange={(e) => setVarCost(Number(e.target.value))} className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[#3B82F6]" />
             </div>
 
             {/* revenue vs cost crossing at BEP */}
@@ -322,32 +322,32 @@ export function FinanceView() {
                   strokeWidth="2"
                 />
                 {/* revenue line */}
-                <line x1={0} y1={by(0)} x2={bw} y2={by(arpu * bepMaxX)} className="stroke-emerald-400" strokeWidth="2" />
+                <line x1={0} y1={by(0)} x2={bw} y2={by(arpu * bepMaxX)} className="stroke-green-400" strokeWidth="2" />
                 {/* BEP dot */}
                 {Number.isFinite(bep.bepSessions) && bep.bepSessions <= bepMaxX && (
                   <>
-                    <circle cx={bx(bep.bepSessions)} cy={by(fixedCost + varCost * bep.bepSessions)} r="5" className="fill-primary stroke-[#0b1226]" strokeWidth="2" />
+                    <circle cx={bx(bep.bepSessions)} cy={by(fixedCost + varCost * bep.bepSessions)} r="5" className="fill-primary stroke-[#0F172A]" strokeWidth="2" />
                     <line x1={bx(bep.bepSessions)} x2={bx(bep.bepSessions)} y1={by(fixedCost + varCost * bep.bepSessions)} y2={bh} className="stroke-primary/60" strokeWidth="1" strokeDasharray="3 3" />
                   </>
                 )}
                 {/* run-rate marker */}
-                <line x1={bx(runRate)} x2={bx(runRate)} y1={0} y2={bh} className="stroke-sky-400/60" strokeWidth="1" strokeDasharray="2 4" />
+                <line x1={bx(runRate)} x2={bx(runRate)} y1={0} y2={bh} className="stroke-blue-400/60" strokeWidth="1" strokeDasharray="2 4" />
               </svg>
             </div>
 
             <div className="grid grid-cols-3 gap-1.5 text-center">
               <div className="rounded-xl border border-border bg-card/50 px-2 py-1.5">
                 <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">{t("finBepCm")}</p>
-                <p className="tnum text-[11.5px] font-bold text-emerald-300">{rupiah(bep.cm)}</p>
+                <p className="tnum text-[11.5px] font-bold text-green-300">{rupiah(bep.cm)}</p>
               </div>
               <div className="rounded-xl border border-border bg-card/50 px-2 py-1.5">
                 <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">{t("finBepRunrate")}</p>
-                <p className="tnum text-[11.5px] font-bold text-sky-300">{runRate}</p>
+                <p className="tnum text-[11.5px] font-bold text-blue-300">{runRate}</p>
               </div>
               <div className="rounded-xl border border-border bg-card/50 px-2 py-1.5">
                 <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">{t("finBepSafety")}</p>
-                <p className={cn("tnum text-[11.5px] font-bold", bep.safetyPct >= 0 ? "text-emerald-300" : "text-red-400")}>
-                  {Number.isFinite(bep.safetyPct) ? `${bep.safetyPct >= 0 ? "+" : ""}${bep.safetyPct.toFixed(0)}%` : "—"}
+                <p className={cn("tnum text-[11.5px] font-bold", bep.safetyPct >= 0 ? "text-green-300" : "text-red-400")}>
+                  {Number.isFinite(bep.safetyPct) ? `${bep.safetyPct >= 0 ? "+" : ""}${bep.safetyPct.toFixed(0)}%` : "-"}
                 </p>
               </div>
             </div>
@@ -411,7 +411,7 @@ export function FinanceView() {
             sub={t("cfMethod")}
             right={
               <div className="flex items-center gap-2 text-[9px] font-bold">
-                <span className="flex items-center gap-1 text-emerald-400"><span className="h-[3px] w-3.5 rounded-full bg-emerald-400" />{t("cfActual")}</span>
+                <span className="flex items-center gap-1 text-green-400"><span className="h-[3px] w-3.5 rounded-full bg-green-400" />{t("cfActual")}</span>
                 <span className="flex items-center gap-1 text-primary"><span className="h-[3px] w-3.5 rounded-full bg-primary" />{t("cfForecast")}</span>
               </div>
             }
@@ -423,7 +423,7 @@ export function FinanceView() {
               { label: t("cfKpiDelta"), value: `${cf.deltaPct >= 0 ? "+" : ""}${cf.deltaPct.toFixed(1)}%`, tone: cf.deltaPct >= 0 },
             ].map((c) => (
               <div key={c.label} className={cn("rounded-xl border px-2 py-1.5 text-center", c.gold ? "border-primary/30 bg-primary/[0.08]" : "border-border bg-card/50")}>
-                <p className={cn("tnum text-[11px] font-bold", c.gold && "text-primary", c.tone === true && "text-emerald-300", c.tone === false && "text-amber-400")}>{c.value}</p>
+                <p className={cn("tnum text-[11px] font-bold", c.gold && "text-primary", c.tone === true && "text-green-300", c.tone === false && "text-amber-400")}>{c.value}</p>
                 <p className="mt-0.5 text-[7.5px] font-semibold uppercase tracking-wider text-muted-foreground">{c.label}</p>
               </div>
             ))}
@@ -433,7 +433,7 @@ export function FinanceView() {
               <line key={g} x1={cfPad.l} x2={cfW - cfPad.r} y1={cfPad.t + g * cfih} y2={cfPad.t + g * cfih} className="stroke-border" strokeWidth="1" strokeDasharray={g === 1 ? "0" : "2 4"} />
             ))}
             <path d={cfBandPath} className="fill-primary/[0.28] stroke-primary/50" strokeWidth="0.8" strokeDasharray="3 3" />
-            <path d={cfActualLine} className="stroke-emerald-400" strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
+            <path d={cfActualLine} className="stroke-green-400" strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
             <path d={cfForecastLine} className="stroke-primary" strokeWidth="2.2" fill="none" strokeDasharray="5 4" strokeLinejoin="round" strokeLinecap="round" />
             {nowIdx >= 0 && (
               <line x1={cx(nowIdx)} x2={cx(nowIdx)} y1={cfPad.t - 3} y2={cfPad.t + cfih + 3} className="stroke-muted-foreground/50" strokeWidth="1" strokeDasharray="2 3" />
@@ -458,7 +458,7 @@ export function FinanceView() {
   );
 }
 
-/** Invoice document — LUNAS-stamped PPN breakdown. */
+/** Invoice document - LUNAS-stamped PPN breakdown. */
 function InvoiceDoc({ invoice }: { invoice: Invoice }) {
   const lang = useParkir((s) => s.lang);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
@@ -484,7 +484,7 @@ function InvoiceDoc({ invoice }: { invoice: Invoice }) {
             <p className="text-[12.5px] font-bold leading-tight">{invoice.buyer}</p>
             <p className="tnum text-[10px] text-muted-foreground">{invoice.plate} · {invoice.slot}</p>
           </div>
-          <span className="rotate-6 rounded-lg border-2 border-emerald-500/70 px-2.5 py-1 text-[13px] font-black tracking-[0.2em] text-emerald-500 dark:text-emerald-400">
+          <span className="rotate-6 rounded-lg border-2 border-green-500/70 px-2.5 py-1 text-[13px] font-black tracking-[0.2em] text-green-500 dark:text-green-400">
             {t("invPaid")}
           </span>
         </div>
@@ -500,10 +500,10 @@ function InvoiceDoc({ invoice }: { invoice: Invoice }) {
           </div>
         </div>
 
-        <div className="mt-2 space-y-1.5 rounded-xl border border-cyan-400/25 bg-cyan-400/[0.06] px-3 py-2.5 text-[11px]">
+        <div className="mt-2 space-y-1.5 rounded-xl border border-blue-400/25 bg-blue-400/[0.06] px-3 py-2.5 text-[11px]">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">{t("invDpp")}</span>
-            <span className="tnum font-bold text-cyan-500 dark:text-cyan-300">{rupiah(invoice.dpp)}</span>
+            <span className="tnum font-bold text-blue-500 dark:text-blue-300">{rupiah(invoice.dpp)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">{t("invPpn")}</span>

@@ -1,9 +1,9 @@
 "use client";
 /**
- * WalletView — gradient balance card, quick chips + custom-amount top-up (v25),
+ * WalletView - gradient balance card, quick chips + custom-amount top-up (v25),
  * and the v26 TopUpDialog payment flow: bank Virtual Account (8 banks, real
  * issuer prefixes, copyable 16-digit number), credit/debit card (live preview +
- * genuine Luhn/expiry validation), and QRIS (scannable QR). All simulated —
+ * genuine Luhn/expiry validation), and QRIS (scannable QR). All simulated -
  * every method is recorded on the transaction note.
  */
 import React from "react";
@@ -211,7 +211,7 @@ export function WalletView() {
             {rupiah(balance)}
           </p>
 
-          {/* quick chips (v25) — open the payment dialog */}
+          {/* quick chips (v25) - open the payment dialog */}
           <div className="mt-5 grid grid-cols-4 gap-2">
             {QUICK_AMOUNTS.map((a) => (
               <button
@@ -341,7 +341,7 @@ function TopUpDialog({
 
   function pickBank(b: VaBank) {
     setBank(b);
-    // per (bank, amount) deterministic VA number — same inputs, same number
+    // per (bank, amount) deterministic VA number - same inputs, same number
     let s = (amount + b.prefix.length * 7) % 233280;
     const seedRand = () => {
       s = (s * 9301 + 49297) % 233280;
@@ -527,7 +527,7 @@ function TopUpDialog({
                 </span>
               </div>
             )}
-            <p className="rounded-xl border border-sky-400/25 bg-sky-400/[0.06] px-3 py-2.5 text-[11px] leading-relaxed text-sky-600 dark:text-sky-300">
+            <p className="rounded-xl border border-blue-400/25 bg-blue-400/[0.06] px-3 py-2.5 text-[11px] leading-relaxed text-blue-600 dark:text-blue-300">
               {t("payVaHowTo")}
             </p>
             <button
@@ -695,7 +695,7 @@ function TopUpDialog({
           <div data-qris className="mt-4 space-y-3">
             <div className="rounded-2xl bg-white p-4 text-center shadow-md">
               <div className="mb-2 flex items-center justify-between">
-                <span className="rounded bg-[#0b1226] px-1.5 py-0.5 text-[8px] font-black tracking-widest text-white">
+                <span className="rounded bg-[#0F172A] px-1.5 py-0.5 text-[8px] font-black tracking-widest text-white">
                   QRIS
                 </span>
                 <span className="rounded bg-red-600 px-1.5 py-0.5 text-[8px] font-black tracking-widest text-white">
@@ -710,7 +710,7 @@ function TopUpDialog({
                 level="M"
                 marginSize={1}
               />
-              <p className="mt-2 text-[10px] font-black tracking-wide text-[#0b1226]">
+              <p className="mt-2 text-[10px] font-black tracking-wide text-[#0F172A]">
                 {t("payQrisMerchant")}
               </p>
               <p className="tnum text-[13px] font-black text-[#b91c1c]">Rp{amount.toLocaleString("id-ID")}</p>
@@ -741,10 +741,10 @@ function TopUpDialog({
         {/* ── done ── */}
         {stage === "done" && (
           <div data-pay-done className="flex flex-col items-center gap-3 py-6">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/15">
-              <Check className="h-7 w-7 text-emerald-400" />
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-green-400/15">
+              <Check className="h-7 w-7 text-green-400" />
             </span>
-            <p className="tnum font-display text-2xl font-black text-emerald-400">+{rupiah(amount)}</p>
+            <p className="tnum font-display text-2xl font-black text-green-400">+{rupiah(amount)}</p>
             {settledNote && (
               <p className="rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] font-bold text-muted-foreground">
                 {settledNote}
@@ -795,7 +795,7 @@ function TxnGroup({
                 className={cn(
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
                   credit
-                    ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
+                    ? "border-green-400/25 bg-green-400/10 text-green-300"
                     : "border-white/10 bg-white/[0.04] text-muted-foreground"
                 )}
               >
@@ -816,7 +816,7 @@ function TxnGroup({
               <span
                 className={cn(
                   "tnum shrink-0 text-[13px] font-bold",
-                  credit ? "text-emerald-400" : "text-foreground"
+                  credit ? "text-green-400" : "text-foreground"
                 )}
               >
                 {credit ? "+" : "−"}

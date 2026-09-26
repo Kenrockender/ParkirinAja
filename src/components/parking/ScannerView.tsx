@@ -1,12 +1,12 @@
 "use client";
 /**
- * ScannerView — real camera QR scanner (Task 7).
+ * ScannerView - real camera QR scanner (Task 7).
  *
  * Replaces the previous fake camera simulation with:
- *  1. getUserMedia({ facingMode: "environment" }) — rear camera
- *  2. BarcodeDetector API (native, Chrome/Edge/Safari 17+) — primary decoder
- *  3. @zxing/browser BrowserQRCodeReader — fallback for Firefox / older browsers
- *  4. Existing handleScan() business logic is unchanged — QR payloads
+ *  1. getUserMedia({ facingMode: "environment" }) - rear camera
+ *  2. BarcodeDetector API (native, Chrome/Edge/Safari 17+) - primary decoder
+ *  3. @zxing/browser BrowserQRCodeReader - fallback for Firefox / older browsers
+ *  4. Existing handleScan() business logic is unchanged - QR payloads
  *     PB-A-01, AS-A-03, BKS-B-12 are already correctly parsed by the store.
  *
  * All existing manual fallback + "my sessions" quick-tap UI is preserved.
@@ -157,7 +157,7 @@ export function ScannerView({
           handleScan(raw);
           // reset debounce after 3s to allow re-scanning
           setTimeout(() => { lastScannedRef.current = null; }, 3000);
-          return; // don't schedule next loop — flash will handle timing
+          return; // don't schedule next loop - flash will handle timing
         }
       } catch {
         /* decode errors are expected on frames without a QR code */
@@ -314,7 +314,7 @@ export function ScannerView({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* torch button — only shown when supported */}
+          {/* torch button - only shown when supported */}
           {torchSupported && camState === "active" && (
             <button
               onClick={toggleTorch}
@@ -352,10 +352,10 @@ export function ScannerView({
             <span key={c} className={cn("absolute h-10 w-10 border-primary", c)} />
           ))}
 
-          {/* animated scan line — shown only when camera is active */}
+          {/* animated scan line - shown only when camera is active */}
           {camState === "active" && !flash && (
             <div className="absolute inset-3 overflow-hidden rounded-xl">
-              <div className="animate-scanline absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_16px_rgba(255,214,10,0.8)]" />
+              <div className="animate-scanline absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_16px_rgba(59,130,246,0.8)]" />
             </div>
           )}
 
@@ -414,7 +414,7 @@ export function ScannerView({
         initial={{ y: 60 }}
         animate={{ y: 0 }}
         transition={{ delay: 0.1, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 max-h-[52dvh] overflow-y-auto slim-scroll rounded-t-[2rem] border-t border-white/10 bg-[#0a0f1e]/95 px-4 pb-8 pt-4 backdrop-blur-xl"
+        className="relative z-10 max-h-[52dvh] overflow-y-auto slim-scroll rounded-t-[2rem] border-t border-white/10 bg-[#0F172A]/95 px-4 pb-8 pt-4 backdrop-blur-xl"
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15" />
 
@@ -457,7 +457,7 @@ export function ScannerView({
           </p>
         </div>
 
-        {/* my sessions — quick tap out */}
+        {/* my sessions - quick tap out */}
         {mine.length > 0 && (
           <div className="mt-4">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">
@@ -471,7 +471,7 @@ export function ScannerView({
                   className={cn(
                     "flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition active:scale-95",
                     r.status === "CHECKED_IN"
-                      ? "border-emerald-400/30 bg-emerald-400/10 hover:bg-emerald-400/15"
+                      ? "border-green-400/30 bg-green-400/10 hover:bg-green-400/15"
                       : "border-primary/25 bg-primary/[0.08] hover:bg-primary/15"
                   )}
                 >
@@ -495,7 +495,7 @@ export function ScannerView({
               <button
                 key={s.id}
                 onClick={() => handleScan(s.slotNumber)}
-                className="tnum rounded-lg border border-emerald-400/20 bg-emerald-400/[0.06] py-2 text-[11px] font-bold text-emerald-300 transition hover:bg-emerald-400/15 active:scale-95"
+                className="tnum rounded-lg border border-green-400/20 bg-green-400/[0.06] py-2 text-[11px] font-bold text-green-300 transition hover:bg-green-400/15 active:scale-95"
               >
                 {s.slotNumber}
               </button>

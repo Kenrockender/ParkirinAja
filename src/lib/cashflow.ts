@@ -1,5 +1,5 @@
 /**
- * cashflow.ts — 14-day revenue projection (v24), read-only from the
+ * cashflow.ts - 14-day revenue projection (v24), read-only from the
  * analytics dataset (v18 stream untouched).
  *
  * Method: weekday-profile mean blended with an EWMA level (α = 0.3);

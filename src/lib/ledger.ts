@@ -1,5 +1,5 @@
 /**
- * ledger.ts — double-entry accounting engine (v23).
+ * ledger.ts - double-entry accounting engine (v23).
  *
  * Every wallet transaction maps to a balanced journal entry over a 5-account
  * chart of accounts. The ledger is the source of truth for the Finance tab:
@@ -160,7 +160,7 @@ export interface CashPosition {
 
 /** Invariant: cash − NET liability === netIncome (the accounting equation).
  * When Utang flips to a DEBIT balance (fees collected exceed top-ups), the
- * net is negative — economically a receivable — and the equation still holds. */
+ * net is negative - economically a receivable - and the equation still holds. */
 export function cashPosition(entries: JournalEntry[]): CashPosition {
   const tb = trialBalance(entries);
   const cash = tb.rows.find((r) => r.account === KAS)?.dr ?? 0;
@@ -182,7 +182,7 @@ export interface BreakEven {
   cm: number;
   /** Sessions needed per month to cover fixed costs (Infinity when CM ≤ 0). */
   bepSessions: number;
-  /** (runRate − bep) / bep in percent — negative means below break-even. */
+  /** (runRate − bep) / bep in percent - negative means below break-even. */
   safetyPct: number;
 }
 

@@ -1,5 +1,5 @@
 /**
- * invoice.ts — PPN 11% invoicing as a REPORTING layer (v24).
+ * invoice.ts - PPN 11% invoicing as a REPORTING layer (v24).
  *
  * The double-entry ledger stays GROSS; invoices split each revenue transaction
  * into DPP ( Dasar Pengenaan Pajak ) and PPN with the invariant
@@ -114,14 +114,14 @@ export function ppnRecap(invoices: Invoice[]): PpnRecap {
 
 import type { Campus } from "./parking-data";
 
-/** Format number as Rupiah for PDF (no library needed — plain string). */
+/** Format number as Rupiah for PDF (no library needed - plain string). */
 function rupiahPdf(n: number): string {
   return `Rp${n.toLocaleString("id-ID")}`;
 }
 
 /**
  * Generate and download a parking receipt PDF using jspdf.
- * Called client-side only — jspdf is a browser library.
+ * Called client-side only - jspdf is a browser library.
  */
 export async function generateReceipt(
   reservation: Reservation,
@@ -151,10 +151,10 @@ export async function generateReceipt(
   };
 
   // ── Header ──
-  doc.setFillColor(11, 18, 38); // #0b1226
+  doc.setFillColor(15, 23, 42); // #0F172A
   doc.rect(0, 0, W, 22, "F");
 
-  doc.setTextColor(255, 214, 10); // primary gold
+  doc.setTextColor(147, 197, 253); // primary blue (light tint for dark header)
   text("PARKIR BINUS", W / 2, 10, { align: "center", bold: true, size: 14 });
   doc.setTextColor(200, 200, 200);
   text(campus.name, W / 2, 16, { align: "center", size: 8 });
@@ -168,7 +168,7 @@ export async function generateReceipt(
   });
   y += 6;
 
-  doc.setDrawColor(220, 210, 180);
+  doc.setDrawColor(203, 213, 225); // #CBD5E1
   line(10, y, W - 10, y);
   y += 6;
 
@@ -176,7 +176,7 @@ export async function generateReceipt(
   const rowL = (label: string, value: string) => {
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(110, 100, 85);
+    doc.setTextColor(100, 116, 139); // #64748B
     doc.text(label, 12, y);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 30, 30);
@@ -225,14 +225,14 @@ export async function generateReceipt(
   feeRow(id ? "TOTAL" : "TOTAL", total, true);
 
   y += 6;
-  doc.setDrawColor(220, 210, 180);
+  doc.setDrawColor(203, 213, 225); // #CBD5E1
   line(10, y, W - 10, y);
   y += 8;
 
   // ── Footer ──
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "italic");
-  doc.setTextColor(140, 130, 110);
+  doc.setTextColor(100, 116, 139); // #64748B
   const footer = id
     ? "Terima kasih telah menggunakan Parkir Binus. Simpan kwitansi ini sebagai bukti pembayaran."
     : "Thank you for using Parkir Binus. Keep this receipt as proof of payment.";
@@ -241,7 +241,7 @@ export async function generateReceipt(
   y += lines.length * 4 + 4;
 
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(170, 160, 140);
+  doc.setTextColor(148, 163, 184); // slate-400
   const ts = new Date().toLocaleString(id ? "id-ID" : "en-US");
   doc.text(`${id ? "Dibuat" : "Generated"}: ${ts}`, W / 2, y, {
     align: "center",

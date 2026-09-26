@@ -1,6 +1,6 @@
 "use client";
 /**
- * AnprConsole — simulated ANPR license-plate recognition panel for the operator.
+ * AnprConsole - simulated ANPR license-plate recognition panel for the operator.
  *
  * Flow:
  *  1. Operator uploads a plate photo (or uses manual text input fallback)
@@ -147,7 +147,7 @@ export function AnprConsole({ className }: { className?: string }) {
       transition={{ duration: 0.35 }}
       className={cn("glass rounded-3xl", className)}
     >
-      {/* header — click to expand/collapse */}
+      {/* header - click to expand/collapse */}
       <button
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full items-center gap-2.5 p-4 text-left"
@@ -280,7 +280,7 @@ export function AnprConsole({ className }: { className?: string }) {
                             </p>
                             <p className={cn(
                               "tnum text-[11px] font-black",
-                              confidence >= 90 ? "text-emerald-400" : confidence >= 80 ? "text-amber-400" : "text-red-400"
+                              confidence >= 90 ? "text-green-400" : confidence >= 80 ? "text-amber-400" : "text-red-400"
                             )}>
                               {confidence}%
                             </p>
@@ -289,7 +289,7 @@ export function AnprConsole({ className }: { className?: string }) {
                             <motion.div
                               className={cn(
                                 "h-full rounded-full",
-                                confidence >= 90 ? "bg-emerald-400" : confidence >= 80 ? "bg-amber-400" : "bg-red-400"
+                                confidence >= 90 ? "bg-green-400" : confidence >= 80 ? "bg-amber-400" : "bg-red-400"
                               )}
                               initial={{ width: 0 }}
                               animate={{ width: `${confidence}%` }}
@@ -303,8 +303,8 @@ export function AnprConsole({ className }: { className?: string }) {
                     {/* matched reservation */}
                     {stage === "result" && matchedRes ? (
                       <div className="space-y-2">
-                        <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/[0.06] p-3">
-                          <p className="mb-1.5 flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-emerald-400">
+                        <div className="rounded-2xl border border-green-400/30 bg-green-400/[0.06] p-3">
+                          <p className="mb-1.5 flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-green-400">
                             <CheckCircle2 className="h-3.5 w-3.5" />
                             {t("anprMatchFound")}
                           </p>

@@ -1,5 +1,5 @@
 "use client";
-/** HistoryView — reservation timeline with filters & 10-min full-refund countdown. */
+/** HistoryView - reservation timeline with filters & 10-min full-refund countdown. */
 import React from "react";
 import { motion } from "framer-motion";
 import { ChevronRight, Clock3, History as HistoryIcon, Timer, Zap } from "lucide-react";
@@ -14,7 +14,7 @@ export function HistoryView({ onOpen }: { onOpen: (id: string) => void }) {
   const lang = useParkir((s) => s.lang);
   const user = useParkir((s) => s.user);
   const allReservations = useParkir((s) => s.reservations);
-  // Only the signed-in user's own sessions — other parkers' live sessions stay out.
+  // Only the signed-in user's own sessions - other parkers' live sessions stay out.
   const reservations = React.useMemo(
     () => allReservations.filter((r) => r.driverName === user.name),
     [allReservations, user.name]
@@ -158,7 +158,7 @@ export function HistoryView({ onOpen }: { onOpen: (id: string) => void }) {
                 </div>
 
                 {r.status === "CHECKED_IN" && (
-                  <div className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-emerald-400/[0.07] px-2.5 py-1.5 text-[10px] font-semibold text-emerald-300">
+                  <div className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-green-400/[0.07] px-2.5 py-1.5 text-[10px] font-semibold text-green-300">
                     <Timer className="h-3 w-3" />
                     {t("sessionActive")} · {r.slotNumber} · {LOCATION_SHORT(r.slotId)}
                   </div>

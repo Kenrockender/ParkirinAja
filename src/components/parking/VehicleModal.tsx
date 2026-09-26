@@ -1,9 +1,9 @@
 "use client";
 /**
- * VehicleModal — add/edit vehicle dialog (v25 rewrite).
+ * VehicleModal - add/edit vehicle dialog (v25 rewrite).
  * BrandPicker: searchable list of 25 popular Indonesian car brands with
  * startsWith-then-substring filtering + "Lainnya (tulis sendiri)" free-text
- * mode. Cars only — body-type chips (MPV/SUV/Crossover/Sedan/Hatchback/Pick-up/Van).
+ * mode. Cars only - body-type chips (MPV/SUV/Crossover/Sedan/Hatchback/Pick-up/Van).
  */
 import React from "react";
 import { motion } from "framer-motion";
@@ -152,7 +152,7 @@ export function VehicleModal({
             )}
           </div>
 
-          {/* brand — searchable dropdown (v25) */}
+          {/* brand - searchable dropdown (v25) */}
           <BrandPicker
             value={brand}
             onChange={(b) => {
@@ -271,7 +271,7 @@ function BrandPicker({
   const q = query.trim().toLowerCase();
   const matches = React.useMemo(() => {
     if (!q) return CAR_BRANDS;
-    // startsWith first, then substring — typing "H" surfaces Honda instantly
+    // startsWith first, then substring - typing "H" surfaces Honda instantly
     const starts = CAR_BRANDS.filter((b) => b.toLowerCase().startsWith(q));
     const contains = CAR_BRANDS.filter((b) => !starts.includes(b) && b.toLowerCase().includes(q));
     return [...starts, ...contains];
@@ -282,7 +282,7 @@ function BrandPicker({
       <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
         {t("fBrand")} <span className="text-red-400">*</span>
       </p>
-      {/* closed state — looks like a select */}
+      {/* closed state - looks like a select */}
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -305,7 +305,7 @@ function BrandPicker({
       </button>
       {error && <p className="mt-1 text-[10px] font-semibold text-red-400">{t("brandRequired")}</p>}
 
-      {/* open state — searchable list + Other free-text */}
+      {/* open state - searchable list + Other free-text */}
       {open && (
         <motion.div
           initial={{ opacity: 0, y: -6 }}
@@ -348,7 +348,7 @@ function BrandPicker({
                 {lang === "id" ? "Merek tidak ditemukan" : "No brand found"}
               </p>
             )}
-            {/* Other — free text */}
+            {/* Other - free text */}
             <div className="border-t border-border/60 p-2.5" data-brand-other>
               <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                 {t("brandOther")}

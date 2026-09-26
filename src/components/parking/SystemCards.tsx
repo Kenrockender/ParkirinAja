@@ -1,6 +1,6 @@
 "use client";
 /**
- * SystemCards (v24) — responsive architecture bands, 8-entity ERD (SVG in
+ * SystemCards (v24) - responsive architecture bands, 8-entity ERD (SVG in
  * h-scroll), tech stack rows, and the v18→v26 changelog timeline.
  */
 import React from "react";
@@ -19,10 +19,10 @@ export function ArchCard() {
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
 
   const bands = [
-    { icon: MonitorSmartphone, label: t("archClients"), items: t("archClientsVal"), tone: "border-sky-400/30 bg-sky-400/[0.06]", ico: "text-sky-400" },
+    { icon: MonitorSmartphone, label: t("archClients"), items: t("archClientsVal"), tone: "border-blue-400/30 bg-blue-400/[0.06]", ico: "text-blue-400" },
     { icon: Network, label: t("archEdge"), items: t("archEdgeVal"), tone: "border-amber-400/30 bg-amber-400/[0.06]", ico: "text-amber-400" },
     { icon: Layers, label: t("archApp"), items: t("archAppVal"), tone: "border-primary/30 bg-primary/[0.07]", ico: "text-primary" },
-    { icon: Database, label: t("archData"), items: t("archDataVal"), tone: "border-emerald-400/30 bg-emerald-400/[0.06]", ico: "text-emerald-400" },
+    { icon: Database, label: t("archData"), items: t("archDataVal"), tone: "border-green-400/30 bg-green-400/[0.06]", ico: "text-green-400" },
   ];
 
   return (
@@ -135,7 +135,7 @@ export function ErdCard() {
                   y={e.y + 34 + i * 15}
                   fontSize="8.5"
                   fontWeight={f.pk ? 800 : 500}
-                  className={f.pk ? "fill-[#FFD60A]" : f.fk ? "fill-sky-400" : "fill-muted-foreground"}
+                  className={f.pk ? "fill-[#3B82F6]" : f.fk ? "fill-blue-400" : "fill-muted-foreground"}
                   fontFamily="ui-monospace, monospace"
                 >
                   {f.f}
@@ -146,10 +146,10 @@ export function ErdCard() {
           {/* legend */}
           <g>
             <rect x={480} y={300} width="156" height="80" rx="10" className="fill-card/60 stroke-border" />
-            <text x={492} y={316} fontSize="8.5" fontWeight="800" className="fill-[#FFD60A]">PK — primary key</text>
-            <text x={492} y={331} fontSize="8.5" fontWeight="800" className="fill-sky-400">FK — foreign key</text>
-            <text x={492} y={346} fontSize="8.5" className="fill-muted-foreground">— 1 : n relation</text>
-            <text x={492} y={361} fontSize="8.5" className="fill-muted-foreground">- - actor · target (audit)</text>
+            <text x={492} y={316} fontSize="8.5" fontWeight="800" className="fill-[#3B82F6]">PK - primary key</text>
+            <text x={492} y={331} fontSize="8.5" fontWeight="800" className="fill-blue-400">FK - foreign key</text>
+            <text x={492} y={346} fontSize="8.5" className="fill-muted-foreground">- 1 : n relation</text>
+            <text x={492} y={361} fontSize="8.5" className="fill-muted-foreground">-- actor · target (audit)</text>
           </g>
         </svg>
       </div>

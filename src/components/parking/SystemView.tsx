@@ -1,6 +1,6 @@
 "use client";
 /**
- * SystemView — operator "Sistem" tab (v24): REST API documentation with an
+ * SystemView - operator "Sistem" tab (v24): REST API documentation with an
  * interactive playground. GET responses are built LIVE from real store state;
  * writes return 201 + simulated:true and never mutate the store.
  * Also hosts the ANPR console card (v19).
@@ -95,7 +95,7 @@ export function SystemView() {
           status: 201,
           body: {
             simulated: true,
-            message: "Writes are simulated in the UI preview — nothing was mutated.",
+            message: "Writes are simulated in the UI preview - nothing was mutated.",
             example: {
               slotId: "slot-A-03",
               type: "ADVANCE",
@@ -237,7 +237,7 @@ export function SystemView() {
             <span
               className={cn(
                 "tnum w-11 shrink-0 rounded-md px-1.5 py-0.5 text-center text-[9px] font-black",
-                ep.method === "GET" ? "bg-emerald-400/15 text-emerald-400" : "bg-amber-400/15 text-amber-400"
+                ep.method === "GET" ? "bg-green-400/15 text-green-400" : "bg-amber-400/15 text-amber-400"
               )}
             >
               {ep.method}
@@ -272,7 +272,7 @@ export function SystemView() {
               <span
                 className={cn(
                   "rounded-md px-1.5 py-0.5 text-[9px] font-black",
-                  result.status < 300 ? "bg-emerald-400/15 text-emerald-400" : "bg-amber-400/15 text-amber-400"
+                  result.status < 300 ? "bg-green-400/15 text-green-400" : "bg-amber-400/15 text-amber-400"
                 )}
               >
                 {result.status}
@@ -293,7 +293,7 @@ export function SystemView() {
               </button>
             </div>
           </div>
-          <pre className="max-h-[260px] overflow-auto bg-[#0b1226] px-3.5 py-3 font-mono text-[10px] leading-relaxed text-emerald-200/90">
+          <pre className="max-h-[260px] overflow-auto bg-[#0F172A] px-3.5 py-3 font-mono text-[10px] leading-relaxed text-green-200/90">
             {result.body}
           </pre>
           {result.endpoint.method === "POST" && (
@@ -304,13 +304,13 @@ export function SystemView() {
         </motion.div>
       )}
 
-      {/* ANPR console (v19) — camera → OCR → gate decision */}
+      {/* ANPR console (v19) - camera → OCR → gate decision */}
       <AnprCard />
     </motion.section>
   );
 }
 
-/** ANPR console — simulated plate-recognition pipeline. */
+/** ANPR console - simulated plate-recognition pipeline. */
 function AnprCard() {
   const lang = useParkir((s) => s.lang);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
@@ -338,7 +338,7 @@ function AnprCard() {
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {/* camera frame */}
-        <div className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-border bg-[#0b1226]">
+        <div className="relative flex h-28 items-center justify-center overflow-hidden rounded-2xl border border-border bg-[#0F172A]">
           <div aria-hidden className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 5px)" }} />
           <Cpu className="h-8 w-8 text-primary/60" />
           <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-red-500/90 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-white">
@@ -357,7 +357,7 @@ function AnprCard() {
         <div className="space-y-1.5" data-anpr-log>
           {log.length === 0 ? (
             <p className="flex h-full items-center justify-center rounded-xl border border-dashed border-border px-3 text-center text-[10px] text-muted-foreground">
-              {t("anprLog")} — {t("anprScan")} ↓
+              {t("anprLog")} - {t("anprScan")} ↓
             </p>
           ) : (
             log.map((l, i) => (
@@ -365,14 +365,14 @@ function AnprCard() {
                 key={l.at}
                 className={cn(
                   "flex items-center gap-2 rounded-xl border px-2.5 py-1.5",
-                  l.allow ? "border-emerald-400/25 bg-emerald-400/[0.06]" : "border-red-400/25 bg-red-400/[0.06]"
+                  l.allow ? "border-green-400/25 bg-green-400/[0.06]" : "border-red-400/25 bg-red-400/[0.06]"
                 )}
               >
                 <span className="tnum flex-1 truncate text-[11px] font-bold">{l.plate}</span>
                 <span className="tnum text-[9.5px] font-semibold text-muted-foreground">
                   {t("anprConfidence")} {l.conf}%
                 </span>
-                <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wider", l.allow ? "bg-emerald-400/20 text-emerald-400" : "bg-red-400/20 text-red-400")}>
+                <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wider", l.allow ? "bg-green-400/20 text-green-400" : "bg-red-400/20 text-red-400")}>
                   {l.allow ? t("anprAllow") : t("anprDeny")}
                 </span>
               </div>

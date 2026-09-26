@@ -1,6 +1,6 @@
 "use client";
 /**
- * ProfileView — identity (with v26 avatar upload), garage, preferences.
+ * ProfileView - identity (with v26 avatar upload), garage, preferences.
  * v25: full profile editing (name/email/phone/NIM with validation).
  */
 import React from "react";
@@ -75,7 +75,7 @@ export function ProfileView() {
 
   const own = reservations.filter((r) => r.driverName === user.name);
   const sessions = own.filter((r) => ["COMPLETED", "CHECKED_IN"].includes(r.status)).length;
-  // v22 — personal spend = service fees + late fines of own sessions
+  // v22 - personal spend = service fees + late fines of own sessions
   const spend = own
     .filter((r) => r.status === "COMPLETED")
     .reduce((a, r) => a + r.serviceFee + r.overtimeFee, 0);
@@ -127,7 +127,7 @@ export function ProfileView() {
         </button>
 
         <div className="relative flex items-center gap-4">
-          {/* avatar (v26) — click to upload a photo */}
+          {/* avatar (v26) - click to upload a photo */}
           <div className="relative shrink-0">
             <button
               onClick={() => fileRef.current?.click()}
@@ -148,7 +148,7 @@ export function ProfileView() {
                   {initials}
                 </span>
               )}
-              {/* Camera icon overlay — always slightly visible, full on hover */}
+              {/* Camera icon overlay - always slightly visible, full on hover */}
               <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
                 <Camera className="h-5 w-5 text-white" />
               </span>
@@ -161,7 +161,7 @@ export function ProfileView() {
                 <Camera className="h-2.5 w-2.5" />
               </span>
             </button>
-            {/* binusian badge — top right */}
+            {/* binusian badge - top right */}
             <span
               className={cn(
                 "pointer-events-none absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-card",
@@ -174,7 +174,7 @@ export function ProfileView() {
                 <UserRound className="h-2.5 w-2.5 text-muted-foreground" />
               )}
             </span>
-            {/* remove photo — only when a custom photo exists */}
+            {/* remove photo - only when a custom photo exists */}
             {user.avatar && (
               <button
                 onClick={() => {
@@ -367,7 +367,7 @@ export function ProfileView() {
               aria-label={t("darkMode")}
             />
           </div>
-          {/* push notifications — hidden if SW not supported */}
+          {/* push notifications - hidden if SW not supported */}
           {mounted && typeof window !== "undefined" && "serviceWorker" in navigator && (
             <div className="border-t border-border/60">
               <div className="flex items-start gap-3 px-4 py-3.5">

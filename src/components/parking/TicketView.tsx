@@ -1,6 +1,6 @@
 "use client";
 /**
- * TicketView — bright ivory boarding-pass parking pass (v25) with the
+ * TicketView - bright ivory boarding-pass parking pass (v25) with the
  * v22 no-parking-fee checkout flow and the v26 ending-soon banner.
  */
 import React from "react";
@@ -93,7 +93,7 @@ export function TicketView({
   const elapsedH = Math.floor(elapsedMs / 3600_000);
   const elapsedM = Math.floor((elapsedMs % 3600_000) / 60_000);
 
-  // v22 — the ONLY exit charge is the late fine
+  // v22 - the ONLY exit charge is the late fine
   const plannedEnd = new Date(`${res.date}T${res.endTime}:00`).getTime();
   const estLateMin = Math.max(0, Math.round((now - plannedEnd) / 60_000));
   const estOvertime = overtimeFee(estLateMin);
@@ -128,7 +128,7 @@ export function TicketView({
         <ResStatusPill status={res.status} />
       </div>
 
-      {/* v26 — ending-soon banner with quick extend */}
+      {/* v26 - ending-soon banner with quick extend */}
       {endingSoon && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
@@ -162,25 +162,25 @@ export function TicketView({
         </motion.div>
       )}
 
-      {/* ── the ivory pass (v25) — bright in BOTH themes ── */}
+      {/* ── the ivory pass (v25) - bright in BOTH themes ── */}
       <div
         data-ticket-pass
         className="glow-soft overflow-hidden rounded-3xl border border-[#e7ddc0] bg-[#faf6e9] text-[#171310] shadow-[0_24px_60px_-28px_rgba(23,19,16,0.5)]"
       >
-        {/* top band — ink navy */}
-        <div className="relative overflow-hidden bg-[#0b1226] px-5 py-3.5">
+        {/* top band - ink navy */}
+        <div className="relative overflow-hidden bg-[#0F172A] px-5 py-3.5">
           <div aria-hidden className="absolute inset-0 opacity-[0.1]">
-            <div className="absolute -left-4 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full border-[10px] border-[#FFD60A]" />
-            <div className="absolute right-8 top-0 h-24 w-24 translate-x-6 rounded-full border-[12px] border-[#FFD60A]" />
+            <div className="absolute -left-4 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full border-[10px] border-[#3B82F6]" />
+            <div className="absolute right-8 top-0 h-24 w-24 translate-x-6 rounded-full border-[12px] border-[#3B82F6]" />
           </div>
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <TicketIcon className="h-4 w-4 text-[#FFD60A]" />
+              <TicketIcon className="h-4 w-4 text-[#3B82F6]" />
               <span className="font-display text-[13px] font-bold tracking-[0.22em] text-[#faf6e9]">
                 {t("parkingPass")}
               </span>
             </div>
-            <span className="tnum rounded-full bg-[#FFD60A] px-2.5 py-0.5 text-[11px] font-black text-[#0b1226]">
+            <span className="tnum rounded-full bg-[#3B82F6] px-2.5 py-0.5 text-[11px] font-black text-white">
               {res.code}
             </span>
           </div>
@@ -224,15 +224,15 @@ export function TicketView({
           </div>
 
           {res.status === "CHECKED_IN" && (
-            <div className="mt-3 flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5">
-              <span className="flex h-8 w-8 animate-pulse-ring items-center justify-center rounded-full bg-emerald-200">
-                <Timer className="h-4 w-4 text-emerald-700" />
+            <div className="mt-3 flex items-center gap-3 rounded-xl border border-green-300 bg-green-50 px-3.5 py-2.5">
+              <span className="flex h-8 w-8 animate-pulse-ring items-center justify-center rounded-full bg-green-200">
+                <Timer className="h-4 w-4 text-green-700" />
               </span>
               <div className="flex-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700/80">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-green-700/80">
                   {t("sessionActive")}
                 </p>
-                <p className="tnum text-sm font-bold text-emerald-700">
+                <p className="tnum text-sm font-bold text-green-700">
                   {elapsedH}h {String(elapsedM).padStart(2, "0")}m
                   {endingSoon && (
                     <span className="ml-2 font-black text-amber-600">
@@ -262,12 +262,12 @@ export function TicketView({
           )}
         </div>
 
-        {/* perforation — dark dots on ivory */}
+        {/* perforation - dark dots on ivory */}
         <div className="relative px-5">
           <div className="ticket-perf-dark border-t-2 border-dashed border-[#d8c9a3]" />
         </div>
 
-        {/* QR section — real QR encoding the reservation code */}
+        {/* QR section - real QR encoding the reservation code */}
         <div className="flex items-center gap-4 px-5 py-5">
           <span className="shrink-0 rounded-lg bg-white p-2.5 shadow-md ring-1 ring-[#e7ddc0]">
             <QRCodeSVG
@@ -321,7 +321,7 @@ export function TicketView({
                 "flex h-13 w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold transition-all",
                 canCheckIn
                   ? "glow-primary bg-primary text-primary-foreground hover:scale-[1.01] active:scale-[0.98]"
-                  : "border border-emerald-400/30 bg-emerald-400/10 text-emerald-600 dark:text-emerald-300"
+                  : "border border-green-400/30 bg-green-400/10 text-green-600 dark:text-green-300"
               )}
             >
               <LogIn className="h-4.5 w-4.5" />
@@ -360,7 +360,7 @@ export function TicketView({
                     const ok = extendSession(res.id, 1);
                     toast(
                       ok
-                        ? `${t("extendOk")} — ${
+                        ? `${t("extendOk")} - ${
                             useParkir.getState().reservations.find((r) => r.id === res.id)?.endTime ?? res.endTime
                           }`
                         : t("extendFail"),
@@ -368,7 +368,7 @@ export function TicketView({
                     );
                     if (ok) onUpdate(useParkir.getState().reservations.find((r) => r.id === res.id)!);
                   }}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-400/25 bg-sky-400/[0.06] py-3 text-sm font-semibold text-sky-500 dark:text-sky-400 transition hover:bg-sky-400/10"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-blue-400/25 bg-blue-400/[0.06] py-3 text-sm font-semibold text-blue-500 dark:text-blue-400 transition hover:bg-blue-400/10"
                 >
                   <TimerReset className="h-4 w-4" />
                   {t("extendBtn")}
@@ -458,7 +458,7 @@ export function TicketView({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* check-out dialog — v22: fine row only when late, green note when on time */}
+      {/* check-out dialog - v22: fine row only when late, green note when on time */}
       <AlertDialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
         <AlertDialogContent className="rounded-3xl border-border bg-popover/95 backdrop-blur-xl">
           <AlertDialogHeader>
@@ -482,9 +482,9 @@ export function TicketView({
                 </div>
               </div>
             ) : (
-              <div className="mt-1 flex items-center gap-2.5 rounded-xl border border-emerald-400/30 bg-emerald-400/[0.08] px-3.5 py-3">
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500 dark:text-emerald-400" />
-                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-300">
+              <div className="mt-1 flex items-center gap-2.5 rounded-xl border border-green-400/30 bg-green-400/[0.08] px-3.5 py-3">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-green-500 dark:text-green-400" />
+                <p className="text-xs font-bold text-green-600 dark:text-green-300">
                   {t("onTimeFree")}
                 </p>
               </div>

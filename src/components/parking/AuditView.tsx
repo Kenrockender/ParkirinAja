@@ -1,6 +1,6 @@
 "use client";
 /**
- * AuditView — operator "Audit" tab (v23, v25 layout: no RBAC matrix).
+ * AuditView - operator "Audit" tab (v23, v25 layout: no RBAC matrix).
  * Active session context + append-only audit log with severity filter.
  */
 import React from "react";
@@ -115,9 +115,9 @@ export function AuditView() {
               <span className="tnum min-w-0 truncate text-[11px] font-bold">{r.value}</span>
             </div>
           ))}
-          <div className="flex items-start gap-2.5 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] px-3.5 py-3">
-            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-            <p className="text-[10.5px] leading-snug text-emerald-600 dark:text-emerald-300">
+          <div className="flex items-start gap-2.5 rounded-xl border border-green-400/25 bg-green-400/[0.06] px-3.5 py-3">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-green-400" />
+            <p className="text-[10.5px] leading-snug text-green-600 dark:text-green-300">
               {t("auditAppendNote")}
             </p>
           </div>

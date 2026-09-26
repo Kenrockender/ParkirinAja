@@ -1,5 +1,5 @@
 "use client";
-/** Brand bits — logo mark, deterministic mock-QR, status pill. */
+/** Brand bits - logo mark, deterministic mock-QR, status pill. */
 import React from "react";
 import { cn } from "@/lib/utils";
 import type { ResStatus, SlotStatus } from "@/lib/parking-data";
@@ -23,7 +23,7 @@ export function LogoMark({ size = 40, className }: { size?: number; className?: 
   );
 }
 
-/** Deterministic pseudo-QR grid — pure module-level PRNG (xorshift). */
+/** Deterministic pseudo-QR grid - pure module-level PRNG (xorshift). */
 function buildQrGrid(seed: string): boolean[][] {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {
@@ -54,7 +54,7 @@ function buildQrGrid(seed: string): boolean[][] {
   return grid;
 }
 
-/** Deterministic pseudo-QR from a seed string — purely decorative. */
+/** Deterministic pseudo-QR from a seed string - purely decorative. */
 export function MockQR({ seed, size = 128, className }: { seed: string; size?: number; className?: string }) {
   const cells = React.useMemo(() => buildQrGrid(seed), [seed]);
 
@@ -70,7 +70,7 @@ export function MockQR({ seed, size = 128, className }: { seed: string; size?: n
         row.map((on, c) => (
           <span
             key={`${r}-${c}`}
-            className={cn("aspect-square rounded-[0.5px]", on ? "bg-[#0b1226]" : "bg-white")}
+            className={cn("aspect-square rounded-[0.5px]", on ? "bg-[#0F172A]" : "bg-white")}
           />
         ))
       )}
@@ -91,7 +91,7 @@ export function ResStatusPill({ status }: { status: ResStatus }) {
   };
   const tone: Record<ResStatus, string> = {
     CONFIRMED: "bg-primary/15 text-primary border-primary/30",
-    CHECKED_IN: "bg-emerald-400/15 text-emerald-600 dark:text-emerald-300 border-emerald-400/30",
+    CHECKED_IN: "bg-green-400/15 text-green-600 dark:text-green-300 border-green-400/30",
     COMPLETED: "bg-slate-400/10 text-slate-500 dark:text-slate-400 border-slate-400/20",
     CANCELLED: "bg-red-400/10 text-red-500 dark:text-red-400 border-red-400/25",
     NO_SHOW: "bg-amber-400/10 text-amber-600 dark:text-amber-400 border-amber-400/25",
@@ -106,8 +106,8 @@ export function ResStatusPill({ status }: { status: ResStatus }) {
     >
       {status === "CHECKED_IN" && (
         <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-400" />
         </span>
       )}
       {labels[status]}
@@ -118,8 +118,8 @@ export function ResStatusPill({ status }: { status: ResStatus }) {
 /** Small glowing dot for map legend / cards */
 export function SlotDot({ status }: { status: SlotStatus }) {
   const cls: Record<SlotStatus, string> = {
-    AVAILABLE: "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]",
-    RESERVED: "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)]",
+    AVAILABLE: "bg-green-400 shadow-[0_0_8px_rgba(34,197,94,0.8)]",
+    RESERVED: "bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.7)]",
     OCCUPIED: "bg-red-400/80",
     MAINTENANCE: "bg-slate-500",
   };

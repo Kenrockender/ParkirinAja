@@ -1,9 +1,9 @@
 "use client";
 /**
- * Parkir Binus preview store — client-side simulation of the full product loop:
+ * Parkir Binus preview store - client-side simulation of the full product loop:
  * auth → browse availability → book → check-in (scan) → check-out (scan or ticket) → fines/refund.
  *
- * v22: NO parking fee — check-out charges only the late fine (denda keterlambatan).
+ * v22: NO parking fee - check-out charges only the late fine (denda keterlambatan).
  * v23: every action is instrumented into an append-only audit trail; a live gate
  *      stream simulator runs guests that NEVER touch reservations/txns/ledger.
  * v26: top-up records the payment channel; avatar upload; profile editing.
@@ -52,7 +52,7 @@ const DAY = 24 * HOUR;
 /** Max concurrent CHECKED_IN sessions per user ("sedang parkir"). */
 const MAX_ACTIVE_PARKING = 2;
 
-/** Browser-session id — shared by every audit entry of one page load. */
+/** Browser-session id - shared by every audit entry of one page load. */
 export const SESSION_ID = `sess-${uid().slice(0, 10)}`;
 
 /** Audit log cap (append-only, last 250 kept). */
@@ -76,7 +76,7 @@ interface Toast {
   tone: "success" | "error" | "info";
 }
 
-/** Push a notification (dedupe by key — auto-events reuse keys like "end:<resId>"). */
+/** Push a notification (dedupe by key - auto-events reuse keys like "end:<resId>"). */
 type PushNotif = (n: Pick<Notif, "kind" | "params"> & { key?: string; createdAt?: number; read?: boolean }) => void;
 
 interface ParkirState {
@@ -86,13 +86,13 @@ interface ParkirState {
   vehicles: Vehicle[];
   /** Slots of the active campus (mirrors slotsByCampus[campusId]). */
   slots: Slot[];
-  /** Per-campus slot worlds — Anggrek building lot & open lots. */
+  /** Per-campus slot worlds - Anggrek building lot & open lots. */
   slotsByCampus: Record<CampusId, Slot[]>;
   reservations: Reservation[];
   transactions: Txn[];
   walletBalance: number;
   toasts: Toast[];
-  /** Customer notification center (structured — rendered per-language at display time). */
+  /** Customer notification center (structured - rendered per-language at display time). */
   notifications: Notif[];
   viewWindow: TimeWindow;
   /** Active campus. */
@@ -120,14 +120,14 @@ interface ParkirState {
   markNotifsRead: () => void;
   clearNotifs: () => void;
 
-  /** Push notification permission — true when user granted and SW is registered. */
+  /** Push notification permission - true when user granted and SW is registered. */
   pushEnabled: boolean;
   setPushEnabled: (v: boolean) => void;
 
   signIn: (kind: "student" | "general" | "operator" | "microsoft") => void;
   signOut: () => void;
 
-  /** v25/v26 — edit personal data + profile photo. */
+  /** v25/v26 - edit personal data + profile photo. */
   updateProfile: (patch: { name: string; email: string; phone?: string; nim?: string }) => void;
   setAvatar: (dataUrl: string | null) => void;
 
@@ -156,7 +156,7 @@ interface ParkirState {
   /** CONFIRMED → CHECKED_IN. Returns false when blocked (already 2 active sessions). */
   checkIn: (id: string) => boolean;
 
-  /** End an active session — v22: charges ONLY the late fine. `via` feeds the audit trail. */
+  /** End an active session - v22: charges ONLY the late fine. `via` feeds the audit trail. */
   checkOut: (id: string, via?: "ticket" | "scan") =>
     | { ok: true; overtimeFee: number }
     | { ok: false; reason: "not_found" | "insufficient" };
@@ -166,7 +166,7 @@ interface ParkirState {
     | { ok: true; kind: "walkin" | "checkin" | "checkout"; reservation?: Reservation }
     | { ok: false; reason: "unknown" | "busy" | "maintenance" | "no_reservation" | "insufficient" | "max_active" };
 
-  /** Operator: end any active session on the spot — fine recorded as on-site payment */
+  /** Operator: end any active session on the spot - fine recorded as on-site payment */
   forceCheckOut: (id: string) =>
     | { ok: true; overtimeFee: number }
     | { ok: false; reason: "not_found" };
@@ -177,7 +177,7 @@ interface ParkirState {
   /** Operator: manual check-in for a confirmed reservation (bypasses customer limits) */
   manualCheckIn: (id: string) => boolean;
 
-  /** v26: top up — `note` records the payment channel (VA BCA / Kartu •••• 4242 / QRIS). */
+  /** v26: top up - `note` records the payment channel (VA BCA / Kartu •••• 4242 / QRIS). */
   topUp: (amount: number, note?: string) => void;
 
   /** v23: toggle the simulated gate WebSocket stream. */
@@ -194,7 +194,7 @@ function hashStr(s: string): number {
   return h >>> 0;
 }
 
-/** Deterministic fake IP per actor+role — 10.20.x.x operator, 114.10.x.x user, 127.0.0.1 system. */
+/** Deterministic fake IP per actor+role - 10.20.x.x operator, 114.10.x.x user, 127.0.0.1 system. */
 function fakeIp(role: AuditEntry["role"], actor: string): string {
   if (role === "SYSTEM") return "127.0.0.1";
   const h = hashStr(`${actor}|${role}`);
@@ -330,7 +330,7 @@ function seedTxns(now: number): Txn[] {
 
 // ─────────────────── Operator console demo world ───────────────────
 
-/** Deterministic PRNG — module level so the seeded world stays stable per session. */
+/** Deterministic PRNG - module level so the seeded world stays stable per session. */
 function mulberry32(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -342,7 +342,7 @@ function mulberry32(seed: number) {
   };
 }
 
-/** Drivers that "fill" the parking building while the operator is on shift — CARS only (v25). */
+/** Drivers that "fill" the parking building while the operator is on shift - CARS only (v25). */
 const OP_PEOPLE: { name: string; plate: string; vehicle: string }[] = [
   { name: "Alya Ramadhani", plate: "B 2741 AKL", vehicle: "Honda Brio" },
   { name: "Bagus Prasetyo", plate: "B 1877 TRK", vehicle: "Toyota Innova Zenix" },
@@ -358,7 +358,7 @@ const OP_PEOPLE: { name: string; plate: string; vehicle: string }[] = [
   { name: "Luna Maharani", plate: "B 7856 GHD", vehicle: "Daihatsu Ayla" },
 ];
 
-/** v23 — guest car pool for the live gate simulator (never touches real state). */
+/** v23 - guest car pool for the live gate simulator (never touches real state). */
 const LIVE_PEOPLE: { name: string; plate: string; vehicle: string }[] = [
   { name: "Raka Aditya", plate: "B 2914 KJD", vehicle: "Toyota Raize" },
   { name: "Sinta Maharani", plate: "B 1892 PLM", vehicle: "Honda Civic" },
@@ -391,7 +391,7 @@ function bkSlot(slotNumber: string): { slotId: string; slotNumber: string } {
 }
 
 /**
- * Alam Sutera live world — other parkers only, so the open lot opens at a
+ * Alam Sutera live world - other parkers only, so the open lot opens at a
  * believable ~42% occupancy (16 of 38 active bays) → NORMAL demand tier:
  * 13 walk-in sessions active now + 3 advance holds overlapping now.
  */
@@ -480,7 +480,7 @@ function seedAlamSuteraWorld(now: number): { reservations: Reservation[]; transa
 }
 
 /**
- * Bekasi live world — other parkers only, so the open lot opens at a
+ * Bekasi live world - other parkers only, so the open lot opens at a
  * believable ~42% occupancy (20 of 48 active bays) → NORMAL demand tier.
  */
 function seedBekasiWorld(now: number): { reservations: Reservation[]; transactions: Txn[] } {
@@ -754,7 +754,7 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
   return { reservations: res, transactions: txns };
 }
 
-/** v23 — derive a believable audit history from the seeded worlds. */
+/** v23 - derive a believable audit history from the seeded worlds. */
 function seedAuditLog(
   worlds: { reservations: Reservation[]; transactions: Txn[] }[],
   slotsByCampus: Record<CampusId, Slot[]>,
@@ -819,7 +819,7 @@ let liveTimer: ReturnType<typeof setInterval> | null = null;
 let liveTickN = 0;
 
 export const useParkir = create<ParkirState>((set, get) => {
-  /** Append-only audit — capped, never rewrites history. */
+  /** Append-only audit - capped, never rewrites history. */
   const audit = (
     action: AuditAction,
     opts: {
@@ -1120,7 +1120,7 @@ export const useParkir = create<ParkirState>((set, get) => {
 
     book: ({ slotId, slotNumber, type, date, startTime, endTime, vehiclePlate, vehicleName }) => {
       const { walletBalance } = get();
-      // Dynamic pricing — the service fee follows the live demand tier.
+      // Dynamic pricing - the service fee follows the live demand tier.
       const demand = demandNow(get().slots, get().reservations);
       const fee = type === "ADVANCE" ? DEMAND_TIERS[demand.tier].advanceFee : DEMAND_TIERS[demand.tier].walkInFee;
       if (walletBalance < fee) {
@@ -1211,7 +1211,7 @@ export const useParkir = create<ParkirState>((set, get) => {
       const active = reservations.find((r) => r.id === id && r.status === "CHECKED_IN");
       if (!active) return { ok: false as const, reason: "not_found" as const };
 
-      // v22 — NO parking fee. Only the late fine (per STARTED hour past the
+      // v22 - NO parking fee. Only the late fine (per STARTED hour past the
       // booked window, rounded up, uncapped). On-time exit = zero charge.
       const plannedEnd = new Date(`${active.date}T${active.endTime}:00`).getTime();
       const lateMin = Math.max(0, Math.round((now - plannedEnd) / MIN));
@@ -1341,7 +1341,7 @@ export const useParkir = create<ParkirState>((set, get) => {
       const active = get().reservations.find((r) => r.id === id && r.status === "CHECKED_IN");
       if (!active) return { ok: false as const, reason: "not_found" as const };
 
-      // v22 — only the late fine is recorded.
+      // v22 - only the late fine is recorded.
       const plannedEnd = new Date(`${active.date}T${active.endTime}:00`).getTime();
       const lateMin = Math.max(0, Math.round((now - plannedEnd) / MIN));
       const oFee = overtimeFee(lateMin);
@@ -1375,7 +1375,7 @@ export const useParkir = create<ParkirState>((set, get) => {
       const endMin = toMinutes(target.endTime);
       const next = Math.min(endMin + hours * 60, TARIFF.closeHour * 60);
       if (next <= endMin) return false;
-      // Conflict guard — don't extend into another reservation's window on the same slot.
+      // Conflict guard - don't extend into another reservation's window on the same slot.
       const nextWin: TimeWindow = { date: target.date, startTime: target.endTime, endTime: fromMinutes(next) };
       const clash = get().reservations.some(
         (r) =>
@@ -1421,7 +1421,7 @@ export const useParkir = create<ParkirState>((set, get) => {
       audit("TOP_UP", { detail: `${rupiah(amount)}${note ? ` · ${note}` : ""}` });
     },
 
-    // ── live gate stream (v23) — guests NEVER touch reservations/txns/ledger ──
+    // ── live gate stream (v23) - guests NEVER touch reservations/txns/ledger ──
     liveToggle: () => {
       const on = !get().liveOn;
       if (on) {
@@ -1531,7 +1531,7 @@ export const useParkir = create<ParkirState>((set, get) => {
   };
 });
 
-// ── e2e hook — expose the store on window for Playwright ──
+// ── e2e hook - expose the store on window for Playwright ──
 if (typeof window !== "undefined") {
   (window as unknown as { __parkir?: unknown }).__parkir = {
     getState: useParkir.getState,

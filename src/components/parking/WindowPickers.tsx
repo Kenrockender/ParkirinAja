@@ -1,5 +1,5 @@
 "use client";
-/** Shared window picker bits — date chips + half-hour time grid in popovers. */
+/** Shared window picker bits - date chips + half-hour time grid in popovers. */
 import React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useParkir } from "@/lib/store";

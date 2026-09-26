@@ -1,5 +1,5 @@
 "use client";
-/** Landing — clean dark premium hero with glow orbs + Microsoft SSO (BINUSIAN) & demo sign-in. */
+/** Landing - clean dark premium hero with glow orbs + Microsoft SSO (BINUSIAN) & demo sign-in. */
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -89,7 +89,7 @@ export function Landing() {
           className="mt-auto pt-12"
         >
           <div className="glass rounded-3xl p-4">
-            {/* Microsoft SSO — primary sign-in for BINUSIAN */}
+            {/* Microsoft SSO - primary sign-in for BINUSIAN */}
             <button
               onClick={() => setMsOpen(true)}
               className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-white text-sm font-bold text-[#1b1b1b] shadow-[0_10px_30px_-12px_rgba(255,255,255,0.35)] transition-transform hover:scale-[1.01] active:scale-[0.98]"
@@ -109,7 +109,7 @@ export function Landing() {
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={() => signIn("student")}
-                className="group flex flex-col items-center gap-2 rounded-2xl border border-primary/25 bg-primary/10 px-3 py-4 transition-all hover:bg-primary/15 hover:shadow-[0_0_28px_-6px_rgba(255,214,10,0.35)] active:scale-[0.97]"
+                className="group flex flex-col items-center gap-2 rounded-2xl border border-primary/25 bg-primary/10 px-3 py-4 transition-all hover:bg-primary/15 hover:shadow-[0_0_28px_-6px_rgba(59,130,246,0.35)] active:scale-[0.97]"
               >
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20">
                   <GraduationCap className="h-4.5 w-4.5 text-primary" />
@@ -170,7 +170,7 @@ export function Landing() {
   );
 }
 
-/** Simulated Microsoft SSO sheet — white MS-style card, campus account pick. */
+/** Simulated Microsoft SSO sheet - white MS-style card, campus account pick. */
 function MicrosoftModal({
   lang,
   onClose,
@@ -257,7 +257,7 @@ function MicrosoftModal({
         </button>
 
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[10px] font-medium text-[#a19f9d]">
-          <BadgeCheck className="h-3 w-3 text-emerald-600" />
+          <BadgeCheck className="h-3 w-3 text-green-600" />
           {t("msDemoNote")}
         </p>
       </motion.div>

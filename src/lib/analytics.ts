@@ -1,5 +1,5 @@
 /**
- * analytics.ts — deterministic 30-day synthetic dataset (v18) + derived analytics.
+ * analytics.ts - deterministic 30-day synthetic dataset (v18) + derived analytics.
  *
  * The PRNG stream below is FROZEN: every derived feature (occupancy, forecast,
  * anomalies, revenue, what-if, cash-flow) reads this dataset without consuming
@@ -27,7 +27,7 @@ export interface AnaSession {
   plannedWindowMin: number;
 }
 
-/** v22 — planned window derived WITHOUT touching the PRNG stream. */
+/** v22 - planned window derived WITHOUT touching the PRNG stream. */
 export function plannedWindowMin(isAdvance: boolean, durMin: number): number {
   if (!isAdvance) return 120;
   return [60, 120, 180][durMin % 3];
@@ -48,11 +48,11 @@ function mulberry32(seed: number) {
 
 const RND_SEED = 20260918;
 
-/** Weekday session-count ranges — Saturday is the quiet day (getDay()===6). */
+/** Weekday session-count ranges - Saturday is the quiet day (getDay()===6). */
 function sessionsForWeekday(dow: number): { min: number; max: number } {
-  if (dow === 6) return { min: 16, max: 24 }; // Saturday — quiet
-  if (dow === 0) return { min: 28, max: 38 }; // Sunday — moderate
-  return { min: 48, max: 62 }; // Mon–Fri — busy campus rhythm
+  if (dow === 6) return { min: 16, max: 24 }; // Saturday - quiet
+  if (dow === 0) return { min: 28, max: 38 }; // Sunday - moderate
+  return { min: 48, max: 62 }; // Mon–Fri - busy campus rhythm
 }
 
 /**
@@ -132,7 +132,7 @@ export function buildAnalyticsWorld(nowMs: number = Date.now()): AnaSession[] {
 /** Slots used as the capacity denominator (Anggrek active bays). */
 export const ANA_CAPACITY = 32;
 
-/** Occupancy pct per (day × hour) — share of the hour covered by parked cars. */
+/** Occupancy pct per (day × hour) - share of the hour covered by parked cars. */
 export function occupancyMatrix(world: AnaSession[]): number[][] {
   const days = [...new Set(world.map((s) => s.date))].sort();
   const byDay = new Map<string, AnaSession[]>();
@@ -165,7 +165,7 @@ export function anaDays(world: AnaSession[]): string[] {
   return [...new Set(world.map((s) => s.date))].sort();
 }
 
-/** 7 × 15 heatmap — average occupancy pct by weekday (Mon-first) × hour. */
+/** 7 × 15 heatmap - average occupancy pct by weekday (Mon-first) × hour. */
 export function heatmapMatrix(world: AnaSession[]): number[][] {
   const days = anaDays(world);
   const matrix = occupancyMatrix(world);
@@ -182,7 +182,7 @@ export function heatmapMatrix(world: AnaSession[]): number[][] {
   return sums.map((row, r) => row.map((v, h) => Math.round(v / Math.max(1, counts[r][h]))));
 }
 
-/** Hourly occupancy series (24h clock) for the last N days — forecast input. */
+/** Hourly occupancy series (24h clock) for the last N days - forecast input. */
 export function hourlyOccupancySeries(world: AnaSession[], lastDays = 14): number[] {
   const days = anaDays(world).slice(-lastDays);
   const matrix = occupancyMatrix(world);
@@ -211,8 +211,8 @@ export interface HwForecast {
 
 /**
  * Holt-Winters additive (level + trend + seasonality) over an hourly series.
- * Seasonal period is WEEKLY (168 h) when at least two weeks of data exist —
- * campus occupancy repeats weekly (quiet Saturdays) — else daily (24 h).
+ * Seasonal period is WEEKLY (168 h) when at least two weeks of data exist -
+ * campus occupancy repeats weekly (quiet Saturdays) - else daily (24 h).
  * Alpha=0.32 · beta=0.03 · gamma=0.22.
  */
 export function holtWintersForecast(series: number[], horizon: number = ANA_HORIZON): HwForecast {
@@ -256,7 +256,7 @@ export function holtWintersForecast(series: number[], horizon: number = ANA_HORI
     forecast.push(Math.max(0, level + h * trend + seasonal[(series.length + h - 1) % m]));
   }
 
-  // residual σ from the in-sample fit (last cycle only — representative)
+  // residual σ from the in-sample fit (last cycle only - representative)
   const tail = Math.min(series.length, m * 2);
   const resid = series.slice(-tail).map((v, i) => v - fitted[series.length - tail + i]);
   const mean = resid.reduce((a, b) => a + b, 0) / resid.length;
@@ -344,7 +344,7 @@ export function simulate(world: AnaSession[], overrides: Partial<Record<DemandTi
 
 // ───────────────────── CSV export ─────────────────────
 
-/** Analytics-ready CSV — the late_fee column replaced parking_fee in v22. */
+/** Analytics-ready CSV - the late_fee column replaced parking_fee in v22. */
 export function analyticsCsv(world: AnaSession[]): string {
   const header = "date,start_hour,duration_min,type,tier,service_fee,late_fee,total";
   const rows = [...world]

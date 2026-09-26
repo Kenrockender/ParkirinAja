@@ -1,17 +1,17 @@
 "use client";
 /**
- * ParkingMap — site plan of the active campus, theme-aware.
+ * ParkingMap - site plan of the active campus, theme-aware.
  * Two layouts:
- *  · "building" (Anggrek/Kemanggisan) — walled deck with exact physical layout:
+ *  · "building" (Anggrek/Kemanggisan) - walled deck with exact physical layout:
  *    Row A: A-01…A-18, pillar every 3 slots, WallStrip, Entrance
  *    Row B: B-01, RampL2↓ (spans A-02+A-03 width), B-02…B-04, WallStrip,
  *            B-05…B-07, WallStrip, B-08, WallStrip, LIFT, WC, WallStrip,
  *            B-09…B-11, WallStrip, B-12…B-14, WallStrip, RampUp, RampDown
  *    Row A walls (pillars) and Row B WallStrips are pixel-aligned vertically.
- *  · "openlot"  (Alam Sutera / Bekasi) — open lot: A(20/25) · drive lane · B(20/25).
+ *  · "openlot"  (Alam Sutera / Bekasi) - open lot: A(20/25) · drive lane · B(20/25).
  *
  * v23: when the live gate stream is connected, guest cars appear as amber
- * ringing tiles (overlay only — never in reservations/transactions).
+ * ringing tiles (overlay only - never in reservations/transactions).
  */
 import React from "react";
 import { cn } from "@/lib/utils";
@@ -43,8 +43,8 @@ import { useParkir } from "@/lib/store";
 // ── layout constants (full / compact) ──────────────────────────────────────
 const SLOT_W   = { full: 52, compact: 44 } as const;
 const SLOT_H   = { full: 64, compact: 48 } as const;
-const GAP      = 6; // px — gap between every flex child
-const PILLAR_W = 6; // px — same as WallStrip width for alignment
+const GAP      = 6; // px - gap between every flex child
+const PILLAR_W = 6; // px - same as WallStrip width for alignment
 
 /**
  * Compute the pixel width that B's left ramp must occupy so that B-02 aligns
@@ -67,9 +67,9 @@ const STYLE: Record<
   { box: string; num: string; dot: string }
 > = {
   AVAILABLE: {
-    box: "border-emerald-300 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 hover:shadow-[0_0_20px_-4px_rgba(16,185,129,0.45)] dark:border-emerald-400/35 dark:bg-emerald-400/[0.07] dark:hover:bg-emerald-400/[0.14] dark:hover:border-emerald-400/60 dark:hover:shadow-[0_0_20px_-4px_rgba(52,211,153,0.5)] cursor-pointer",
-    num: "text-emerald-700 dark:text-emerald-300",
-    dot: "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.65)] dark:bg-emerald-400 dark:shadow-[0_0_6px_rgba(52,211,153,0.9)]",
+    box: "border-green-300 bg-green-50 hover:bg-green-100 hover:border-green-400 hover:shadow-[0_0_20px_-4px_rgba(34,197,94,0.45)] dark:border-green-400/35 dark:bg-green-400/[0.07] dark:hover:bg-green-400/[0.14] dark:hover:border-green-400/60 dark:hover:shadow-[0_0_20px_-4px_rgba(34,197,94,0.5)] cursor-pointer",
+    num: "text-green-700 dark:text-green-300",
+    dot: "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.65)] dark:bg-green-400 dark:shadow-[0_0_6px_rgba(34,197,94,0.9)]",
   },
   RESERVED: {
     box: "border-amber-200 bg-amber-50 dark:border-amber-400/25 dark:bg-amber-400/[0.05]",
@@ -88,10 +88,10 @@ const STYLE: Record<
   },
 };
 
-/** Open-lot bay fills — bays sit adjacent, separated by thin paint lines (divide-x). */
+/** Open-lot bay fills - bays sit adjacent, separated by thin paint lines (divide-x). */
 const OPENLOT_FILL: Record<SlotStatus, string> = {
   AVAILABLE:
-    "bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-400/[0.07] dark:hover:bg-emerald-400/[0.14] cursor-pointer",
+    "bg-green-50 hover:bg-green-100 dark:bg-green-400/[0.07] dark:hover:bg-green-400/[0.14] cursor-pointer",
   RESERVED: "bg-amber-50 dark:bg-amber-400/[0.05]",
   OCCUPIED: "bg-red-50 dark:bg-red-400/[0.04]",
   MAINTENANCE: "bg-slate-100 dark:bg-slate-500/[0.08]",
@@ -143,7 +143,7 @@ function SlotBay({
       type="button"
       disabled={disabled || !onSlotPress}
       onClick={() => onSlotPress?.(slot)}
-      aria-label={`Slot ${slot.slotNumber} — ${status}`}
+      aria-label={`Slot ${slot.slotNumber} - ${status}`}
       title={live ? `${slot.slotNumber} · ${live.vehicle} (tamu live)` : `${slot.slotNumber} · ${status}`}
       data-live-guest={live ? slot.slotNumber : undefined}
       className={cn(
@@ -152,7 +152,7 @@ function SlotBay({
         openlot
           ? cn("rounded-none", OPENLOT_FILL[status])
           : cn("rounded-xl border", st.box),
-        live && "ring-2 ring-amber-400 ring-offset-1 ring-offset-white dark:ring-offset-[#0a0f1e]",
+        live && "ring-2 ring-amber-400 ring-offset-1 ring-offset-white dark:ring-offset-[#0F172A]",
         disabled && "cursor-default",
         !disabled && "active:scale-95",
         dimmed && "opacity-25"
@@ -170,12 +170,12 @@ function SlotBay({
       {status === "OCCUPIED" && <CarFront className={cn("h-3 w-3 text-red-400 opacity-80 dark:opacity-60", compact ? "hidden" : "block")} />}
       {status === "RESERVED" && <Clock3 className={cn("h-3 w-3 text-amber-500 opacity-70 dark:text-amber-300 dark:opacity-40", compact && "hidden")} />}
       {status === "MAINTENANCE" && <Wrench className={cn("h-3 w-3 text-slate-400 opacity-80 dark:opacity-40", compact && "hidden")} />}
-      {/* slot type badge — only shown when not occupied/reserved/maintenance */}
+      {/* slot type badge - only shown when not occupied/reserved/maintenance */}
       {status === "AVAILABLE" && slot.slotType === "EV" && (
-        <Zap className="h-2.5 w-2.5 text-emerald-500 dark:text-emerald-400" aria-label="EV Charger" />
+        <Zap className="h-2.5 w-2.5 text-green-500 dark:text-green-400" aria-label="EV Charger" />
       )}
       {status === "AVAILABLE" && slot.slotType === "DISABILITY" && (
-        <Accessibility className="h-2.5 w-2.5 text-sky-500 dark:text-sky-400" aria-label="Disability" />
+        <Accessibility className="h-2.5 w-2.5 text-blue-500 dark:text-blue-400" aria-label="Disability" />
       )}
       <span
         className={cn(
@@ -190,7 +190,7 @@ function SlotBay({
   );
 }
 
-/** Pillar — thin vertical separator between every 3-slot chunk in Row A. */
+/** Pillar - thin vertical separator between every 3-slot chunk in Row A. */
 function Pillar({ h }: { h: number }) {
   return (
     <div
@@ -202,7 +202,7 @@ function Pillar({ h }: { h: number }) {
 }
 
 /**
- * WallStrip — tembok vertical (aligned A↔B).
+ * WallStrip - tembok vertical (aligned A↔B).
  * Same visual weight as Pillar but slightly wider for physical wall feel.
  */
 function WallStrip({ h }: { h: number }) {
@@ -216,7 +216,7 @@ function WallStrip({ h }: { h: number }) {
 }
 
 /**
- * RampL2Down — ramp turun dari Lantai 2, muncul di Row B setelah B-01.
+ * RampL2Down - ramp turun dari Lantai 2, muncul di Row B setelah B-01.
  * Lebar = 2*slotW + GAP sehingga B-02 tepat sejajar dengan A-04.
  */
 function RampL2Down({ compact, h }: { compact: boolean; h: number }) {
@@ -226,7 +226,7 @@ function RampL2Down({ compact, h }: { compact: boolean; h: number }) {
     <div
       data-map-el="ramp-l2-down"
       aria-label="Ramp turun dari Lantai 2"
-      className="flex shrink-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border border-slate-300 bg-gradient-to-b from-sky-100 to-blue-50 dark:border-white/[0.12] dark:from-binus-blue/35 dark:to-binus-blue/20"
+      className="flex shrink-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border border-slate-300 bg-gradient-to-b from-blue-100 to-blue-50 dark:border-white/[0.12] dark:from-binus-blue/35 dark:to-binus-blue/20"
       style={{ width: w, height: h }}
     >
       <span aria-hidden className="flex flex-col items-center gap-0.5" style={{ opacity: 0.45 }}>
@@ -236,9 +236,9 @@ function RampL2Down({ compact, h }: { compact: boolean; h: number }) {
           </svg>
         ))}
       </span>
-      <ArrowDown className="h-4 w-4 text-blue-600 dark:text-binus-bright" />
-      <span className="text-[7.5px] font-black leading-none tracking-wider text-blue-700 dark:text-binus-bright/90">RAMP</span>
-      <span className="rounded-sm bg-blue-600/90 px-1 text-[6.5px] font-black leading-[10px] text-white dark:bg-binus-bright/90 dark:text-[#0b1226]">
+      <ArrowDown className="h-4 w-4 text-binus-blue dark:text-binus-bright" />
+      <span className="text-[7.5px] font-black leading-none tracking-wider text-binus-blue dark:text-binus-bright/90">RAMP</span>
+      <span className="rounded-sm bg-binus-blue/90 px-1 text-[6.5px] font-black leading-[10px] text-white dark:bg-binus-bright/90 dark:text-[#0F172A]">
         {lang === "id" ? "L2 ↓" : "L2 ↓"}
       </span>
     </div>
@@ -246,7 +246,7 @@ function RampL2Down({ compact, h }: { compact: boolean; h: number }) {
 }
 
 /**
- * RampUp / RampDown — dua ramp di ujung kanan Row B (naik ke L2 dan turun dari L2).
+ * RampUp / RampDown - dua ramp di ujung kanan Row B (naik ke L2 dan turun dari L2).
  * Masing-masing lebarnya = slotW sehingga bersama-sama sejajar dengan Entrance Row A
  * yang lebarnya 2*slotW + GAP (sama dengan lebar Entrance di Row A = 84/64px compact).
  */
@@ -256,12 +256,12 @@ function RampUp({ compact, h }: { compact: boolean; h: number }) {
     <div
       data-map-el="ramp-up"
       aria-label="Ramp naik ke Lantai 2"
-      className="flex shrink-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-teal-50 dark:border-emerald-400/25 dark:from-emerald-400/[0.12] dark:to-teal-400/[0.08]"
+      className="flex shrink-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border border-green-200 bg-gradient-to-b from-green-50 to-green-100 dark:border-green-400/25 dark:from-green-400/[0.12] dark:to-green-400/[0.08]"
       style={{ width: sw, height: h }}
     >
-      <ArrowUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-      <span className="text-[7.5px] font-black leading-none tracking-wider text-emerald-700 dark:text-emerald-300">RAMP</span>
-      <span className="rounded-sm bg-emerald-600/90 px-1 text-[6.5px] font-black leading-[10px] text-white dark:bg-emerald-400/90 dark:text-[#0b1226]">
+      <ArrowUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+      <span className="text-[7.5px] font-black leading-none tracking-wider text-green-700 dark:text-green-300">RAMP</span>
+      <span className="rounded-sm bg-green-600/90 px-1 text-[6.5px] font-black leading-[10px] text-white dark:bg-green-400/90 dark:text-[#0F172A]">
         L2 ↑
       </span>
     </div>
@@ -274,12 +274,12 @@ function RampDown({ compact, h }: { compact: boolean; h: number }) {
     <div
       data-map-el="ramp-down"
       aria-label="Ramp turun dari Lantai 2"
-      className="flex shrink-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border border-sky-200 bg-gradient-to-b from-sky-50 to-blue-50 dark:border-sky-400/25 dark:from-sky-400/[0.12] dark:to-blue-400/[0.08]"
+      className="flex shrink-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-b from-blue-50 to-blue-50 dark:border-blue-400/25 dark:from-blue-400/[0.12] dark:to-blue-400/[0.08]"
       style={{ width: sw, height: h }}
     >
-      <ArrowDown className="h-4 w-4 text-sky-600 dark:text-sky-400" />
-      <span className="text-[7.5px] font-black leading-none tracking-wider text-sky-700 dark:text-sky-300">RAMP</span>
-      <span className="rounded-sm bg-sky-600/90 px-1 text-[6.5px] font-black leading-[10px] text-white dark:bg-sky-400/90 dark:text-[#0b1226]">
+      <ArrowDown className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+      <span className="text-[7.5px] font-black leading-none tracking-wider text-blue-700 dark:text-blue-300">RAMP</span>
+      <span className="rounded-sm bg-blue-600/90 px-1 text-[6.5px] font-black leading-[10px] text-white dark:bg-blue-400/90 dark:text-[#0F172A]">
         L2 ↓
       </span>
     </div>
@@ -305,7 +305,7 @@ function RowSlots({
   const guestMap = useGuestMap();
   const slotH = compact ? SLOT_H.compact : SLOT_H.full;
 
-  // Open lot — one continuous strip of bays divided by thin paint lines.
+  // Open lot - one continuous strip of bays divided by thin paint lines.
   if (openlot) {
     return (
       <div className="flex items-stretch overflow-hidden rounded-xl border border-slate-300 divide-x divide-slate-300 dark:border-white/[0.12] dark:divide-white/[0.12]">
@@ -325,7 +325,7 @@ function RowSlots({
     );
   }
 
-  // Building deck — chunks of 3 slots separated by Pillars.
+  // Building deck - chunks of 3 slots separated by Pillars.
   const chunks: React.ReactNode[] = [];
   let chunk: React.ReactNode[] = [];
 
@@ -365,7 +365,7 @@ function RowSlots({
 }
 
 /**
- * RowB — Row B Kemanggisan dengan layout fisik yang tepat:
+ * RowB - Row B Kemanggisan dengan layout fisik yang tepat:
  *
  * [B-01] [RampL2↓] [B-02 B-03 B-04] [wall] [B-05 B-06 B-07] [wall]
  * [B-08] [wall] [LIFT] [WC] [wall] [B-09 B-10 B-11] [wall]
@@ -442,7 +442,7 @@ function RowB({
         {/* Ramp L2 turun dari Lantai 2 */}
         <RampL2Down compact={!!compact} h={h} />
 
-        {/* spacer pillar — align dengan Pillar Row A setelah A-03 */}
+        {/* spacer pillar - align dengan Pillar Row A setelah A-03 */}
         <Pillar h={h} />
       </div>
 
@@ -451,7 +451,7 @@ function RowB({
         {b234.map((s) => bay(s))}
       </div>
 
-      {/* Tembok setelah B-04 — sejajar pillar A setelah A-06 */}
+      {/* Tembok setelah B-04 - sejajar pillar A setelah A-06 */}
       <WallStrip h={h} />
 
       {/* B-05 B-06 B-07 */}
@@ -459,7 +459,7 @@ function RowB({
         {b567.map((s) => bay(s))}
       </div>
 
-      {/* Tembok setelah B-07 — sejajar pillar A setelah A-09 */}
+      {/* Tembok setelah B-07 - sejajar pillar A setelah A-09 */}
       <WallStrip h={h} />
 
       {/*
@@ -498,20 +498,20 @@ function RowB({
 
         {/* WC */}
         <div
-          className="flex flex-1 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-violet-200 bg-violet-50 px-1 dark:border-violet-400/30 dark:bg-violet-400/[0.07]"
+          className="flex flex-1 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-1 dark:border-slate-400/30 dark:bg-slate-400/[0.07]"
           style={{ height: h }}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            className={cn("text-violet-500 dark:text-violet-300", compact ? "h-3 w-3" : "h-4 w-4")} aria-hidden>
+            className={cn("text-slate-500 dark:text-slate-300", compact ? "h-3 w-3" : "h-4 w-4")} aria-hidden>
             <circle cx="7.5" cy="4.5" r="1.8" />
             <path d="M7.5 8v6M5.5 14h4l-1 7h-2z" strokeLinecap="round" strokeLinejoin="round" />
             <circle cx="16.5" cy="4.5" r="1.8" />
             <path d="M16.5 8v4m0 0c-1.4 0-2.5 1-2.5 2.5V21h5v-6.5c0-1.5-1.1-2.5-2.5-2.5z" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span className="text-[7.5px] font-bold text-violet-600 dark:text-violet-300">{tr(lang, "wcLabel")}</span>
+          <span className="text-[7.5px] font-bold text-slate-600 dark:text-slate-300">{tr(lang, "wcLabel")}</span>
         </div>
 
-        {/* Tembok setelah WC — satu tembok saja */}
+        {/* Tembok setelah WC - satu tembok saja */}
         <WallStrip h={h} />
       </div>
 
@@ -520,7 +520,7 @@ function RowB({
         {b91011.map((s) => bay(s))}
       </div>
 
-      {/* Tembok setelah B-11 — sejajar pillar A setelah A-15 */}
+      {/* Tembok setelah B-11 - sejajar pillar A setelah A-15 */}
       <WallStrip h={h} />
 
       {/* B-12 B-13 B-14 */}
@@ -528,10 +528,10 @@ function RowB({
         {b121314.map((s) => bay(s))}
       </div>
 
-      {/* Tembok setelah B-14 — sejajar WallStrip setelah A-18 */}
+      {/* Tembok setelah B-14 - sejajar WallStrip setelah A-18 */}
       <WallStrip h={h} />
 
-      {/* Ramp Naik + Ramp Turun — sejajar Entrance Row A (lebar total = 2*slotW + GAP) */}
+      {/* Ramp Naik + Ramp Turun - sejajar Entrance Row A (lebar total = 2*slotW + GAP) */}
       <RampUp compact={!!compact} h={h} />
       <RampDown compact={!!compact} h={h} />
     </div>
@@ -575,7 +575,7 @@ export function ParkingMap({
   return (
     <div
       className={cn(
-        "map-tint relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_50px_-24px_rgba(2,6,23,0.65)] dark:border-border dark:bg-[#0a0f1e]/80 dark:shadow-none",
+        "map-tint relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_50px_-24px_rgba(2,6,23,0.65)] dark:border-border dark:bg-[#0F172A]/80 dark:shadow-none",
         compact ? "p-3" : "p-4 sm:p-5"
       )}
       style={{
@@ -594,7 +594,7 @@ export function ParkingMap({
               {guests.length} {tr(lang, "opGuests")}
             </span>
           )}
-          <span className="tnum rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300">
+          <span className="tnum rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 dark:border-green-400/25 dark:bg-green-400/10 dark:text-green-300">
             {free}/{total} {tr(lang, "slotWord")}
           </span>
         </div>
@@ -604,22 +604,22 @@ export function ParkingMap({
         <div className="slim-scroll overflow-x-auto pb-1">
           <div style={{ width: "max-content", minWidth: "100%" }}>
           {openlot ? (
-            /* ── open lot: Row A · lane with gates · Row B — no walls, no pillars ── */
+            /* ── open lot: Row A · lane with gates · Row B - no walls, no pillars ── */
             <div className="flex flex-col gap-1.5">
               <RowSlots slots={rowA} onSlotPress={onSlotPress} compact={compact} openlot highlightSlotType={highlightSlotType} />
 
               {/* lane + MASUK (left gate) + KELUAR (right gate) */}
               <div className="flex items-stretch gap-1.5">
                 <div
-                  className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-emerald-400 bg-emerald-50 px-2 dark:border-emerald-400/40 dark:bg-emerald-400/[0.06]"
+                  className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-green-400 bg-green-50 px-2 dark:border-green-400/40 dark:bg-green-400/[0.06]"
                   style={{ width: compact ? 54 : 70, height: slotH }}
                 >
-                  <LogIn className={cn("text-emerald-600 dark:text-emerald-300", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
-                  <span className="text-[8px] font-bold tracking-wider text-emerald-700 dark:text-emerald-300">
+                  <LogIn className={cn("text-green-600 dark:text-green-300", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
+                  <span className="text-[8px] font-bold tracking-wider text-green-700 dark:text-green-300">
                     {tr(lang, "entranceLabel")}
                   </span>
                   {!compact && (
-                    <span className="flex items-center gap-0.5 text-[7px] font-semibold text-emerald-500/80 dark:text-emerald-300/60">
+                    <span className="flex items-center gap-0.5 text-[7px] font-semibold text-green-500/80 dark:text-green-300/60">
                       <ArrowRight className="h-2.5 w-2.5" /> {lang === "id" ? "arah masuk" : "way in"}
                     </span>
                   )}
@@ -659,15 +659,15 @@ export function ParkingMap({
             <RowSlots slots={rowA} onSlotPress={onSlotPress} compact={compact} highlightSlotType={highlightSlotType} />
             <WallStrip h={slotH} />
             <div
-              className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-emerald-400 bg-emerald-50 px-2 dark:border-emerald-400/40 dark:bg-emerald-400/[0.06]"
+              className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-green-400 bg-green-50 px-2 dark:border-green-400/40 dark:bg-green-400/[0.06]"
               style={{ width: entranceW, height: slotH }}
             >
-              <LogIn className={cn("text-emerald-600 dark:text-emerald-300", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
-              <span className="text-[8px] font-bold tracking-wider text-emerald-700 dark:text-emerald-300">
+              <LogIn className={cn("text-green-600 dark:text-green-300", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />
+              <span className="text-[8px] font-bold tracking-wider text-green-700 dark:text-green-300">
                 {tr(lang, "entranceLabel")}
               </span>
               {!compact && (
-                <span className="flex items-center gap-0.5 text-[7px] font-semibold text-emerald-500/80 dark:text-emerald-300/60">
+                <span className="flex items-center gap-0.5 text-[7px] font-semibold text-green-500/80 dark:text-green-300/60">
                   <ArrowLeft className="h-2.5 w-2.5" /> {lang === "id" ? "arah masuk" : "way in"}
                 </span>
               )}
@@ -682,7 +682,7 @@ export function ParkingMap({
             </span>
           </div>
 
-          {/* Row B — custom layout component */}
+          {/* Row B - custom layout component */}
           <RowB slots={rowB} onSlotPress={onSlotPress} compact={compact} highlightSlotType={highlightSlotType} />
 
           {/* bottom wall */}
@@ -694,11 +694,11 @@ export function ParkingMap({
         {/* scroll affordance fades */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-0 w-8 rounded-l-3xl bg-gradient-to-r from-white to-transparent dark:from-[#0a0f1e]"
+          className="pointer-events-none absolute inset-y-0 left-0 w-8 rounded-l-3xl bg-gradient-to-r from-white to-transparent dark:from-[#0F172A]"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-3xl bg-gradient-to-l from-white to-transparent dark:from-[#0a0f1e]"
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-3xl bg-gradient-to-l from-white to-transparent dark:from-[#0F172A]"
         />
       </div>
 
@@ -721,7 +721,7 @@ export function ParkingMap({
 export function MapLegend() {
   const lang = useParkir((s) => s.lang);
   const items: { k: SlotStatus; label: string; cls: string }[] = [
-    { k: "AVAILABLE", label: tr(lang, "available"), cls: "bg-emerald-400" },
+    { k: "AVAILABLE", label: tr(lang, "available"), cls: "bg-green-400" },
     { k: "RESERVED", label: tr(lang, "reserved"), cls: "bg-amber-400" },
     { k: "OCCUPIED", label: tr(lang, "occupied"), cls: "bg-red-400/70" },
     { k: "MAINTENANCE", label: tr(lang, "maintenance"), cls: "bg-slate-500" },
@@ -735,18 +735,18 @@ export function MapLegend() {
         </span>
       ))}
       <span className="inline-flex items-center gap-1.5">
-        <Zap className="h-2.5 w-2.5 text-emerald-500 dark:text-emerald-400" />
+        <Zap className="h-2.5 w-2.5 text-green-500 dark:text-green-400" />
         {tr(lang, "slotTypeEv")}
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <Accessibility className="h-2.5 w-2.5 text-sky-500 dark:text-sky-400" />
+        <Accessibility className="h-2.5 w-2.5 text-blue-500 dark:text-blue-400" />
         {tr(lang, "slotTypeDisability")}
       </span>
     </div>
   );
 }
 
-/** Count helper for headers — includes live guests when the stream is on. */
+/** Count helper for headers - includes live guests when the stream is on. */
 export function useMapCounts(): { free: number; total: number; pct: number; guests: number } {
   const slots = useParkir((s) => s.slots);
   const reservations = useParkir((s) => s.reservations);

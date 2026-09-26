@@ -1,6 +1,6 @@
 "use client";
 /**
- * Notification center — bell button + slide-in inbox sheet.
+ * Notification center - bell button + slide-in inbox sheet.
  *
  * Notifications are structured (kind + params) and rendered per-language at
  * display time, so the EN/ID toggle stays correct for every stored item.
@@ -77,11 +77,11 @@ const KIND_ICON: Record<NotifKind, React.ComponentType<{ className?: string }>> 
 const KIND_TONE: Record<NotifKind, string> = {
   welcome: "bg-primary/15 text-primary",
   booking: "bg-primary/15 text-primary",
-  session_start: "bg-emerald-400/15 text-emerald-400",
+  session_start: "bg-green-400/15 text-green-400",
   session_end_soon: "bg-amber-400/15 text-amber-400",
   overtime: "bg-red-400/15 text-red-400",
-  extended: "bg-sky-400/15 text-sky-400",
-  receipt: "bg-emerald-400/15 text-emerald-400",
+  extended: "bg-blue-400/15 text-blue-400",
+  receipt: "bg-green-400/15 text-green-400",
   refund: "bg-red-400/15 text-red-400",
   promo: "bg-amber-400/15 text-amber-400",
 };
@@ -196,7 +196,7 @@ export function NotifSheet({ open, onClose }: { open: boolean; onClose: () => vo
   const clearNotifs = useParkir((s) => s.clearNotifs);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
 
-  // NOTE: the sheet stays MOUNTED and slides via CSS transform — unmounting an
+  // NOTE: the sheet stays MOUNTED and slides via CSS transform - unmounting an
   // animating tree (AnimatePresence exit) trips React 19's removeChild in dev.
   return (
     <>

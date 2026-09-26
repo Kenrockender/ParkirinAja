@@ -1,6 +1,6 @@
 "use client";
 /**
- * HomeView — hero availability, availability search
+ * HomeView - hero availability, availability search
  * (date/time → count + free slot numbers), map preview, ads, heatmap.
  */
 import React from "react";
@@ -10,15 +10,12 @@ import {
   Building2,
   CalendarClock,
   CalendarDays,
-  CarFront,
   Check,
   ChevronDown,
   Clock,
-  Coffee,
   Hand,
   MapPin,
   Maximize2,
-  PartyPopper,
   Search,
   SearchX,
   Sparkles,
@@ -37,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { ParkingMap, MapLegend, useMapCounts } from "./ParkingMap";
 import { DateGrid, TimeGrid, WindowPicker, fmtDateLabel } from "./WindowPickers";
+import { NotifBell } from "./NotifCenter";
 import { useParkir } from "@/lib/store";
 import {
   ADS,
@@ -50,7 +48,6 @@ import {
   toMinutes,
   fromMinutes,
   tr,
-  type Ad,
   type Campus,
   type Lang,
   type SlotType,
@@ -67,18 +64,14 @@ import {
 
 const HEAT = buildHeatmap();
 
-const AD_ICON: Record<Ad["theme"], React.ComponentType<{ className?: string }>> = {
-  coffee: Coffee,
-  carwash: CarFront,
-  event: PartyPopper,
-};
-
 export function HomeView({
   onSlotPress,
   onOpenMap,
+  onOpenNotif,
 }: {
   onSlotPress: (slotId: string, slotNumber: string) => void;
   onOpenMap: () => void;
+  onOpenNotif: () => void;
 }) {
   const lang = useParkir((s) => s.lang);
   const user = useParkir((s) => s.user);
@@ -95,7 +88,7 @@ export function HomeView({
   const [searched, setSearched] = React.useState(false);
   const activeWin: TimeWindow | null = searched ? win : null;
 
-  /** Slot type filter — "STANDARD" means no filter (show all) */
+  /** Slot type filter - "STANDARD" means no filter (show all) */
   const [slotTypeFilter, setSlotTypeFilter] = React.useState<SlotType>("STANDARD");
 
   const results = React.useMemo(() => {
@@ -112,14 +105,14 @@ export function HomeView({
 
   const levelKey = pct > 66 ? "high" : pct > 33 ? "medium" : "low";
   const levelTone: Record<string, string> = {
-    low: "text-emerald-400",
+    low: "text-green-400",
     medium: "text-amber-400",
     high: "text-red-400",
   };
   const barTone: Record<string, string> = {
-    low: "from-emerald-400 to-emerald-300",
+    low: "from-green-400 to-green-300",
     medium: "from-amber-400 to-amber-300",
-    high: "from-red-400 to-orange-400",
+    high: "from-red-500 to-red-400",
   };
 
   return (
@@ -140,15 +133,23 @@ export function HomeView({
             <Hand className="h-4 w-4 text-primary" aria-hidden />
           </h2>
         </div>
+        <NotifBell onOpen={onOpenNotif} />
       </motion.div>
 
-      {/* v26 — ending-soon banner (own active session ≤ 30 min left) */}
+      {/* v26 - ending-soon banner (own active session ≤ 30 min left) */}
       <EndingSoonBanner />
 
-      {/* ── campus bar ── */}
-      <CampusBar campus={campus} lang={lang} onOpen={() => setPickerOpen(true)} />
+      {/* ── ads carousel ── */}
+      <motion.section
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.02 }}
+        className="space-y-2.5"
+      >
+        <AdCarousel lang={lang} />
+      </motion.section>
 
-      {/* ── hero availability / coming soon ── */}
+      {/* ── campus + availability, merged into one card ── */}
       {campus.available ? (
       <motion.section
         initial={{ opacity: 0, y: 14 }}
@@ -160,7 +161,34 @@ export function HomeView({
           aria-hidden
           className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl"
         />
-        <div className="flex items-start justify-between gap-3">
+
+        {/* campus row (tap to switch campus) */}
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          aria-label={t("campusPick")}
+          className="relative flex w-full items-center gap-2.5 text-left transition active:scale-[0.99]"
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <MapPin className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[12.5px] font-bold leading-tight">
+              {campusLabel(campus)}
+            </span>
+            <span className="block truncate text-[10px] text-muted-foreground">
+              {campus.city} · {t("campusCurrent")}
+            </span>
+          </span>
+          <span className="shrink-0 rounded-full border border-green-400/30 bg-green-400/10 px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider text-green-300">
+            {t("campusActive")}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+
+        <div className="relative my-4 border-t border-border/50" />
+
+        <div className="relative flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               {t("availabilityNow")}
@@ -190,8 +218,8 @@ export function HomeView({
               />
               <defs>
                 <linearGradient id="dialGrad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#ffd60a" />
-                  <stop offset="100%" stopColor="#f59e0b" />
+                  <stop offset="0%" stopColor="#3b82f6" />
+                  <stop offset="100%" stopColor="#1d4ed8" />
                 </linearGradient>
               </defs>
             </svg>
@@ -301,9 +329,9 @@ export function HomeView({
                 "flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11px] font-bold transition-all",
                 slotTypeFilter === f.type
                   ? f.type === "EV"
-                    ? "border-emerald-400/60 bg-emerald-400/15 text-emerald-400"
+                    ? "border-green-400/60 bg-green-400/15 text-green-400"
                     : f.type === "DISABILITY"
-                    ? "border-sky-400/60 bg-sky-400/15 text-sky-400"
+                    ? "border-blue-400/60 bg-blue-400/15 text-blue-400"
                     : "border-primary/60 bg-primary/15 text-primary"
                   : "border-border bg-card/40 text-muted-foreground hover:border-primary/30"
               )}
@@ -314,7 +342,7 @@ export function HomeView({
           ))}
         </div>
 
-        {/* Cari Slot button — moved here */}
+        {/* Cari Slot button - moved here */}
         <PredictionStrip win={win} lang={lang} />
         <button
           onClick={() => setSearched(true)}
@@ -327,7 +355,7 @@ export function HomeView({
           </span>
         </button>
 
-        {/* results — parking map as the result (no text lists) */}
+        {/* results - parking map as the result (no text lists) */}
         <AnimatePresence initial={false}>
           {results && (
             <motion.div
@@ -390,17 +418,7 @@ export function HomeView({
       </motion.section>
       )}
 
-      {/* ── ads carousel ── */}
-      <motion.section
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, delay: 0.2 }}
-        className="space-y-2.5"
-      >
-        <AdCarousel lang={lang} />
-      </motion.section>
-
-      {/* ── heatmap (Anggrek data — active campuses only) ── */}
+      {/* ── heatmap (Anggrek data - active campuses only) ── */}
       {campus.available && <HeatmapCard lang={lang} />}
 
       {/* ── campus picker ── */}
@@ -474,45 +492,7 @@ function EndingSoonBanner() {
 
 // ─────────────────────────── campus ───────────────────────────
 
-/** Active-campus chip under the greeting — tap to switch campus. */
-function CampusBar({ campus, lang, onOpen }: { campus: Campus; lang: Lang; onOpen: () => void }) {
-  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
-  return (
-    <motion.button
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.03 }}
-      onClick={onOpen}
-      aria-label={t("campusPick")}
-      className="glass flex w-full items-center gap-2.5 rounded-2xl px-3.5 py-2.5 text-left transition hover:border-primary/30 active:scale-[0.99]"
-    >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-        <MapPin className="h-4 w-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[12.5px] font-bold leading-tight">
-          {campusLabel(campus)}
-        </span>
-        <span className="block truncate text-[10px] text-muted-foreground">
-          {campus.city} · {t("campusCurrent")}
-        </span>
-      </span>
-      <span
-        className={cn(
-          "shrink-0 rounded-full border px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider",
-          campus.available
-            ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-            : "border-primary/30 bg-primary/10 text-primary"
-        )}
-      >
-        {campus.available ? t("campusActive") : t("campusSoon")}
-      </span>
-      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-    </motion.button>
-  );
-}
-
-/** Dialog listing every campus — Coming Soon campuses stay selectable. */
+/** Dialog listing every campus - Coming Soon campuses stay selectable. */
 function CampusPickerDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const lang = useParkir((s) => s.lang);
   const campusId = useParkir((s) => s.campusId);
@@ -569,7 +549,7 @@ function CampusPickerDialog({ open, onClose }: { open: boolean; onClose: () => v
                   className={cn(
                     "shrink-0 rounded-full border px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider",
                     c.available
-                      ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                      ? "border-green-400/30 bg-green-400/10 text-green-300"
                       : "border-primary/30 bg-primary/10 text-primary"
                   )}
                 >
@@ -639,28 +619,24 @@ function ComingSoonHero({
 
 // ─────────────────────────── ads ───────────────────────────
 
+/** How long each promo banner stays on screen before auto-advancing. */
+const AD_AUTOPLAY_MS = 4500;
+
 function AdCarousel({ lang }: { lang: "id" | "en" }) {
-  const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
-  const ref = React.useRef<HTMLDivElement>(null);
   const [idx, setIdx] = React.useState(0);
+  const [paused, setPaused] = React.useState(false);
 
-  const onScroll = React.useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    const i = Math.round(el.scrollLeft / el.clientWidth);
-    setIdx(Math.max(0, Math.min(ADS.length - 1, i)));
-  }, []);
+  // Autoplay — advances on a timer, pauses while the user is
+  // hovering/touching the carousel so it never fights their swipe.
+  React.useEffect(() => {
+    if (paused || ADS.length <= 1) return;
+    const id = setInterval(() => {
+      setIdx((i) => (i + 1) % ADS.length);
+    }, AD_AUTOPLAY_MS);
+    return () => clearInterval(id);
+  }, [paused]);
 
-  const tone: Record<Ad["accent"], string> = {
-    amber: "border-amber-400/25 bg-gradient-to-r from-amber-400/[0.12] to-transparent",
-    sky: "border-sky-400/25 bg-gradient-to-r from-sky-400/[0.12] to-transparent",
-    violet: "border-violet-400/25 bg-gradient-to-r from-violet-400/[0.12] to-transparent",
-  };
-  const ico: Record<Ad["accent"], string> = {
-    amber: "bg-amber-400/15 text-amber-300",
-    sky: "bg-sky-400/15 text-sky-300",
-    violet: "bg-violet-400/15 text-violet-300",
-  };
+  const go = (i: number) => setIdx(((i % ADS.length) + ADS.length) % ADS.length);
 
   return (
     <>
@@ -672,7 +648,7 @@ function AdCarousel({ lang }: { lang: "id" | "en" }) {
           {ADS.map((_, i) => (
             <button
               key={i}
-              onClick={() => ref.current?.scrollTo({ left: i * ref.current.clientWidth, behavior: "smooth" })}
+              onClick={() => go(i)}
               aria-label={`promo ${i + 1}`}
               className={cn(
                 "h-1.5 rounded-full transition-all",
@@ -682,37 +658,64 @@ function AdCarousel({ lang }: { lang: "id" | "en" }) {
           ))}
         </div>
       </div>
+
       <div
-        ref={ref}
-        onScroll={onScroll}
-        className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1"
+        className="glow-soft relative overflow-hidden rounded-2xl"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onTouchStart={() => setPaused(true)}
+        onTouchEnd={() => setPaused(false)}
       >
-        {ADS.map((ad) => {
-          const Icon = AD_ICON[ad.theme];
-          return (
-            <a
-              key={ad.id}
+        <div className="relative aspect-[16/8.6] w-full">
+          <AnimatePresence initial={false} mode="popLayout">
+            <motion.a
+              key={ADS[idx].id}
               href="#"
               onClick={(e) => e.preventDefault()}
-              className={cn(
-                "flex w-[85%] shrink-0 snap-start items-center gap-3 rounded-2xl border p-3.5 transition hover:brightness-110",
-                tone[ad.accent]
-              )}
+              initial={{ opacity: 0, scale: 1.03 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+              className="absolute inset-0 block"
+              aria-label={ADS[idx].title}
             >
-              <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", ico[ad.accent])}>
-                <Icon className="h-5 w-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold">{ad.title}</span>
-                <span className="block truncate text-[11px] text-muted-foreground">{ad.description}</span>
-              </span>
-              <span className="shrink-0 rounded-full bg-primary px-3 py-1 text-[10px] font-black text-primary-foreground">
-                {ad.ctaText}
-              </span>
-              <span className="sr-only">(ad)</span>
-            </a>
-          );
-        })}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ADS[idx].image}
+                alt={ADS[idx].title}
+                className="h-full w-full object-cover"
+                draggable={false}
+              />
+            </motion.a>
+          </AnimatePresence>
+        </div>
+
+        {/* prev/next arrows */}
+        <button
+          onClick={() => go(idx - 1)}
+          aria-label={lang === "id" ? "Promo sebelumnya" : "Previous promo"}
+          className="absolute left-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55"
+        >
+          <ChevronDown className="h-4 w-4 rotate-90" />
+        </button>
+        <button
+          onClick={() => go(idx + 1)}
+          aria-label={lang === "id" ? "Promo berikutnya" : "Next promo"}
+          className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55"
+        >
+          <ChevronDown className="h-4 w-4 -rotate-90" />
+        </button>
+
+        {/* autoplay progress bar for the active slide */}
+        <div className="absolute inset-x-0 bottom-0 h-[3px] bg-black/20">
+          <motion.div
+            key={`${ADS[idx].id}-${paused}`}
+            className="h-full bg-primary"
+            initial={{ width: "0%" }}
+            animate={{ width: paused ? "0%" : "100%" }}
+            transition={{ duration: paused ? 0 : AD_AUTOPLAY_MS / 1000, ease: "linear" }}
+          />
+        </div>
       </div>
     </>
   );
@@ -721,9 +724,9 @@ function AdCarousel({ lang }: { lang: "id" | "en" }) {
 // ─────────────────────────── heatmap ───────────────────────────
 
 function heatColor(v: number): string {
-  if (v < 0.25) return `rgba(52, 211, 153, ${0.12 + v * 0.5})`;
-  if (v < 0.55) return `rgba(255, 214, 10, ${0.15 + v * 0.55})`;
-  return `rgba(248, 113, 113, ${0.25 + v * 0.6})`;
+  if (v < 0.25) return `rgba(34, 197, 94, ${0.12 + v * 0.5})`;
+  if (v < 0.55) return `rgba(245, 158, 11, ${0.15 + v * 0.55})`;
+  return `rgba(239, 68, 68, ${0.25 + v * 0.6})`;
 }
 
 function HeatmapCard({ lang }: { lang: "id" | "en" }) {
@@ -792,10 +795,10 @@ function HeatmapCard({ lang }: { lang: "id" | "en" }) {
             <p className="tnum truncate text-[11px] font-bold">{busiest}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-400/[0.08] px-2.5 py-2">
-          <TrendingDown className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+        <div className="flex items-center gap-2 rounded-xl bg-green-400/[0.08] px-2.5 py-2">
+          <TrendingDown className="h-3.5 w-3.5 shrink-0 text-green-400" />
           <div className="min-w-0">
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-emerald-400/80">{t("quietest")}</p>
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-green-400/80">{t("quietest")}</p>
             <p className="tnum truncate text-[11px] font-bold">{quietest}</p>
           </div>
         </div>
@@ -807,7 +810,7 @@ function HeatmapCard({ lang }: { lang: "id" | "en" }) {
 // ─────────────────────────── AI Prediction Strip ───────────────────────────
 
 /**
- * PredictionStrip — reads the 48h Holt-Winters forecast and shows predicted
+ * PredictionStrip - reads the 48h Holt-Winters forecast and shows predicted
  * occupancy for the currently selected booking window.
  * Memoized once per mount; re-evaluates when win.date or win.startTime changes.
  */
@@ -824,7 +827,7 @@ function PredictionStrip({
 }) {
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
 
-  // Build forecast once — deterministic, no need to recompute
+  // Build forecast once - deterministic, no need to recompute
   const forecast = React.useMemo(() => {
     if (!forecastCache.forecast) {
       const world = buildAnalyticsWorld();
@@ -856,13 +859,13 @@ function PredictionStrip({
 
   const ringColor =
     level === "low"
-      ? { stroke: "#34d399", fill: "rgba(52,211,153,0.12)" }
+      ? { stroke: "#22c55e", fill: "rgba(34,197,94,0.12)" }
       : level === "medium"
-      ? { stroke: "#fbbf24", fill: "rgba(251,191,36,0.12)" }
-      : { stroke: "#f87171", fill: "rgba(248,113,113,0.12)" };
+      ? { stroke: "#f59e0b", fill: "rgba(245,158,11,0.12)" }
+      : { stroke: "#ef4444", fill: "rgba(239,68,68,0.12)" };
 
   const textColor =
-    level === "low" ? "text-emerald-400" : level === "medium" ? "text-amber-400" : "text-red-400";
+    level === "low" ? "text-green-400" : level === "medium" ? "text-amber-400" : "text-red-400";
 
   const R = 14;
   const circ = 2 * Math.PI * R;

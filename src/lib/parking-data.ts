@@ -1,5 +1,5 @@
 /**
- * Parkir Binus — domain types, tariffs, business logic, bilingual strings & mock seed.
+ * Parkir Binus - domain types, tariffs, business logic, bilingual strings & mock seed.
  * Ported from the original PRD v1.0 logic (parking.ts) and adapted for the live preview.
  */
 
@@ -24,7 +24,7 @@ export interface Slot {
   rowLabel: "A" | "B";
   colIndex: number;
   status: "ACTIVE" | "MAINTENANCE";
-  /** Special slot designation — EV charger or disability-accessible bay. */
+  /** Special slot designation - EV charger or disability-accessible bay. */
   slotType: SlotType;
 }
 
@@ -41,7 +41,7 @@ export interface Reservation {
   endTime: string; // HH:mm
   status: ResStatus;
   serviceFee: number;
-  /** Late fine — the ONLY exit charge (Rp5.000 per STARTED hour, rounded up, uncapped). */
+  /** Late fine - the ONLY exit charge (Rp5.000 per STARTED hour, rounded up, uncapped). */
   overtimeFee: number;
   refundAmount: number;
   vehiclePlate: string;
@@ -59,7 +59,7 @@ export interface Vehicle {
   brand: string | null;
   model: string | null;
   color: string | null;
-  /** Car body type — MPV/SUV/Crossover/Sedan/Hatchback/Pick-up/Van. */
+  /** Car body type - MPV/SUV/Crossover/Sedan/Hatchback/Pick-up/Van. */
   bodyType?: string | null;
 }
 
@@ -85,12 +85,12 @@ export type NotifKind =
   | "promo";
 
 /**
- * Structured notification — title/body are rendered per-language at display
+ * Structured notification - title/body are rendered per-language at display
  * time (params + kind → i18n template), so the EN/ID toggle stays correct.
  */
 export interface Notif {
   id: string;
-  /** Dedupe key for auto-events (e.g. "end:<resId>") — pushes with an existing key are ignored. */
+  /** Dedupe key for auto-events (e.g. "end:<resId>") - pushes with an existing key are ignored. */
   key?: string;
   kind: NotifKind;
   params: Record<string, string | number>;
@@ -105,6 +105,8 @@ export interface Ad {
   theme: "coffee" | "carwash" | "event";
   ctaText: string;
   accent: string;
+  /** Full promo banner image shown in the carousel (public/ path). */
+  image: string;
 }
 
 // ───────────────────────── Audit trail (v23) ─────────────────────────
@@ -131,7 +133,7 @@ export type AuditAction =
   | "PROFILE_UPDATE"
   | "ANPR_CHECKIN";
 
-/** Append-only audit entry — actor, role, fake IP, severity, target & detail. */
+/** Append-only audit entry - actor, role, fake IP, severity, target & detail. */
 export interface AuditEntry {
   id: string;
   /** Browser-session id shared by every entry of one page load. */
@@ -150,7 +152,7 @@ export interface AuditEntry {
 
 export type LiveEventKind = "in" | "out";
 
-/** One simulated gate event — guests NEVER touch reservations/txns/ledger. */
+/** One simulated gate event - guests NEVER touch reservations/txns/ledger. */
 export interface LiveEvent {
   id: string;
   at: number;
@@ -177,7 +179,7 @@ export type LiveConnStatus = "offline" | "connecting" | "live";
 // ─────────────────────────── Tariffs ────────────────────────────
 
 /**
- * NO PARKING FEE — users pay only the dynamic service fee + late fines.
+ * NO PARKING FEE - users pay only the dynamic service fee + late fines.
  * Walk-in = tier base price + flat surcharge (all walk-ins = base + 10K).
  */
 export const TARIFF = {
@@ -233,7 +235,7 @@ export function campusLabel(c: Campus): string {
   return c.building ? `${c.name} · ${c.building}` : c.name;
 }
 
-/** QR payload prefix per campus — keeps physical slot codes unique across campuses. */
+/** QR payload prefix per campus - keeps physical slot codes unique across campuses. */
 export function campusCodePrefix(id: CampusId): string {
   return id === "anggrek" ? "PB" : id === "alamsutera" ? "AS" : "BKS";
 }
@@ -247,10 +249,10 @@ export function campusForSlot(slotId: string): CampusId {
 
 // ─────────────────────── Dynamic pricing ───────────────────────
 //
-// The demand tier is derived from real-time occupancy — the share of active
+// The demand tier is derived from real-time occupancy - the share of active
 // (non-maintenance) slots that are occupied or reserved right now:
 //   < 40%  → LOW    (Reserve 15K  / Walk-in 25K)
-//   40–75% → NORMAL (Reserve 20K  / Walk-in 30K — the classic tariff)
+//   40–75% → NORMAL (Reserve 20K  / Walk-in 30K - the classic tariff)
 //   > 75%  → HIGH   (Reserve 30K  / Walk-in 35K)
 // Overtime stays flat Rp5.000/hour for every tier.
 
@@ -370,7 +372,7 @@ export function slotStatusForWindow(
   for (const r of reservations) {
     if (r.slotId !== slot.id) continue;
     if (r.status === "CHECKED_IN") {
-      // A parked car physically occupies its slot until it checks out —
+      // A parked car physically occupies its slot until it checks out -
       // even when it has overstayed its booked window (overdue case).
       const rStart = r.checkedInAt ?? new Date(`${r.date}T${r.startTime}:00`).getTime();
       const rEnd = Math.max(new Date(`${r.date}T${r.endTime}:00`).getTime(), now);
@@ -397,7 +399,7 @@ export function refundAmount(
 }
 
 /**
- * Late fine — the ONLY exit charge: Rp5.000 per STARTED hour past the
+ * Late fine - the ONLY exit charge: Rp5.000 per STARTED hour past the
  * booked window, rounded UP, uncapped (20 min → 5K, 61 min → 10K, 10 h → 50K).
  */
 export function overtimeFee(minutesLate: number): number {
@@ -409,7 +411,7 @@ export function rupiah(n: number): string {
   return `Rp${n.toLocaleString("id-ID")}`;
 }
 
-/** Privacy: mask a plate for customer-facing live views — "B 2741 AKL" → "B 2••• ••L". */
+/** Privacy: mask a plate for customer-facing live views - "B 2741 AKL" → "B 2••• ••L". */
 export function maskPlate(plate: string): string {
   const chars = plate.split("");
   let seen = 0;
@@ -439,7 +441,7 @@ export function uid(): string {
 
 // ───────────────── Car brands & body types (v25) ─────────────────
 
-/** 25 popular car brands in Indonesia (incl. EV marques) — cars only, bukan motor. */
+/** 25 popular car brands in Indonesia (incl. EV marques) - cars only, bukan motor. */
 export const CAR_BRANDS: string[] = [
   "Toyota",
   "Daihatsu",
@@ -533,7 +535,7 @@ export function luhnValid(cardNumber: string): boolean {
   return sum % 10 === 0;
 }
 
-/** Expiry "MM/YY" — valid format and not in the past (current month still OK). */
+/** Expiry "MM/YY" - valid format and not in the past (current month still OK). */
 export function expiryValid(mmYy: string, now: Date = new Date()): boolean {
   const m = /^(\d{2})\/(\d{2})$/.exec(mmYy.trim());
   if (!m) return false;
@@ -553,7 +555,7 @@ export function cardBrand(number: string): "Visa" | "Mastercard" | "JCB" | null 
   return null;
 }
 
-/** QRIS payload string — merchant + NMID + amount + timestamp (simulated EMV-lite). */
+/** QRIS payload string - merchant + NMID + amount + timestamp (simulated EMV-lite). */
 export function qrisPayload(amount: number, at: Date = new Date()): string {
   return [
     "00020101021126",
@@ -572,7 +574,7 @@ export type Lang = "id" | "en";
 const dict = {
   id: {
     appName: "Parkir Binus",
-    tagline: "Slot parkir kampus — pasti ada tempat",
+    tagline: "Slot parkir kampus - pasti ada tempat",
     heroTitle: "Parkir tanpa drama.",
     heroSub: "Reservasi slot favoritmu di Gedung Parkir Anggrek, scan QR untuk masuk & keluar. Selesai.",
     signIn: "Masuk dengan Microsoft",
@@ -583,7 +585,7 @@ const dict = {
     msModalSub: "Gunakan akun Microsoft kampus (@binus.ac.id)",
     msContinue: "Lanjutkan",
     msWorking: "Memverifikasi akun…",
-    msDemoNote: "Demo — SSO Microsoft disimulasikan",
+    msDemoNote: "Demo - SSO Microsoft disimulasikan",
     msVerified: "BINUSIAN terverifikasi",
     signInNote: "Akun Microsoft @binus.ac.id terdeteksi sebagai BINUSIAN · email lain = non-BINUSIAN",
     demoAccounts: "Pilih akun demo",
@@ -591,10 +593,10 @@ const dict = {
     general: "Pengguna umum",
     nonBinusian: "NON-BINUSIAN",
     binusianOnly: "Khusus BINUSIAN",
-    guestBookingNote: "Booking jadwal hanya untuk BINUSIAN. Non-BINUSIAN tetap bisa parkir — scan QR di slot untuk sesi walk-in.",
-    maxActiveToast: "Batas tercapai — maksimal 2 kendaraan sedang parkir",
+    guestBookingNote: "Booking jadwal hanya untuk BINUSIAN. Non-BINUSIAN tetap bisa parkir - scan QR di slot untuk sesi walk-in.",
+    maxActiveToast: "Batas tercapai - maksimal 2 kendaraan sedang parkir",
     activeSessions: "sedang parkir",
-    footerNote: "Preview UI — data simulasi",
+    footerNote: "Preview UI - data simulasi",
     // nav
     navHome: "Beranda",
     navHistory: "Riwayat",
@@ -653,8 +655,8 @@ const dict = {
     windowLabel: "Jendela waktu",
     // map
     parkingMap: "Peta Parkir",
-    floorLabel: "LANTAI 1 — GEDUNG PARKIR ANGGREK",
-    floorLabelOpen: "LANTAI 1 — AREA PARKIR",
+    floorLabel: "LANTAI 1 - GEDUNG PARKIR ANGGREK",
+    floorLabelOpen: "LANTAI 1 - AREA PARKIR",
     slotWord: "slot",
     available: "Kosong",
     reserved: "Terbooking",
@@ -678,7 +680,7 @@ const dict = {
     walletBalance: "Saldo dompet",
     balanceAfter: "Saldo setelahnya",
     payAndBook: "Bayar & Booking",
-    insufficient: "Saldo tidak cukup — top up dulu di Dompet",
+    insufficient: "Saldo tidak cukup - top up dulu di Dompet",
     bookSuccess: "Booking berhasil",
     window: "Jendela waktu",
     vehicle: "Kendaraan",
@@ -691,8 +693,8 @@ const dict = {
     scanExit: "Scan untuk keluar",
     checkOutBtn: "Selesaikan & Keluar",
     checkoutConfirmTitle: "Selesaikan sesi parkir?",
-    checkoutConfirmDesc: "Tidak ada biaya parkir — hanya denda keterlambatan (jika telat) yang ditagih dari saldo dompetmu.",
-    onTimeFree: "Masih sesuai jadwal — tanpa biaya tambahan",
+    checkoutConfirmDesc: "Tidak ada biaya parkir - hanya denda keterlambatan (jika telat) yang ditagih dari saldo dompetmu.",
+    onTimeFree: "Masih sesuai jadwal - tanpa biaya tambahan",
     estOvertime: "Estimasi denda telat",
     totalDue: "Total ditagih",
     cancelBooking: "Batalkan booking",
@@ -794,12 +796,12 @@ const dict = {
     scanDenied: "Scan ditolak",
     badCode: "Kode tidak dikenali",
     slotBusy: "Slot sedang terisi",
-    checkinOk: "Check-in berhasil — selamat parkir",
-    checkoutOk: "Berhasil keluar — sampai jumpa",
+    checkinOk: "Check-in berhasil - selamat parkir",
+    checkoutOk: "Berhasil keluar - sampai jumpa",
     // operator
     operatorBadge: "OPERATOR",
     operatorGreeting: "Shift kamu aktif",
-    liveMonitor: "Monitor slot — live",
+    liveMonitor: "Monitor slot - live",
     inBuilding: "Sedang di dalam",
     reservedNow: "Terbooking",
     inMaintenance: "Perawatan",
@@ -850,8 +852,8 @@ const dict = {
     btnExtend: "+1 Jam",
     btnForce: "Akhiri",
     extendOk: "Window parkir diperpanjang 1 jam",
-    extendFail: "Tidak bisa memperpanjang — slot sudah dipesan atau sudah jam tutup",
-    forceOk: "Sesi diakhiri — biaya dicatat",
+    extendFail: "Tidak bisa memperpanjang - slot sudah dipesan atau sudah jam tutup",
+    forceOk: "Sesi diakhiri - biaya dicatat",
     manualInOk: "Check-in manual berhasil",
     recapTitle: "Ringkasan Hari Ini",
     recapVehicles: "Kendaraan dilayani",
@@ -862,7 +864,7 @@ const dict = {
     txnLogTitle: "Log Transaksi",
     // slot QR (operator)
     qrSlotsTitle: "QR Slot Parkir",
-    qrSlotsSub: "{n} QR unik — satu untuk tiap slot, dipasang permanen",
+    qrSlotsSub: "{n} QR unik - satu untuk tiap slot, dipasang permanen",
     qrPrintAll: "Cetak Semua",
     qrPrintHint: "A4 · {p} halaman · 8 kartu per halaman",
     qrDownload: "Unduh PNG",
@@ -873,7 +875,7 @@ const dict = {
     qrSaved: "QR diunduh",
     // extend session (customer ticket)
     extendBtn: "Perpanjang +1 Jam",
-    extendHint: "Jendela +1 jam — bebas denda jika keluar sebelum jadwal baru",
+    extendHint: "Jendela +1 jam - bebas denda jika keluar sebelum jadwal baru",
     // notification center
     notifTitle: "Notifikasi",
     notifEmpty: "Belum ada notifikasi",
@@ -888,21 +890,21 @@ const dict = {
     notifKWelcomeTitle: "Selamat datang di Parkir Binus",
     notifKWelcomeBody: "Update sesi parkir, struk, dan promo akan muncul di sini.",
     notifKBookingTitle: "Booking dikonfirmasi",
-    notifKBookingBody: "Slot {slot} ({code}) — jangan lupa check-in di lokasi.",
+    notifKBookingBody: "Slot {slot} ({code}) - jangan lupa check-in di lokasi.",
     notifKSessionStartTitle: "Sesi parkir dimulai",
     notifKSessionStartBody: "Slot {slot} aktif hingga {end}. Selamat parkir!",
     notifKSessionEndSoonTitle: "Sesi segera berakhir",
-    notifKSessionEndSoonBody: "Slot {slot} berakhir dalam {minutes} menit — perpanjang atau keluar tepat waktu.",
+    notifKSessionEndSoonBody: "Slot {slot} berakhir dalam {minutes} menit - perpanjang atau keluar tepat waktu.",
     notifKOvertimeTitle: "Lembur berjalan",
-    notifKOvertimeBody: "Sesi {slot} melewati jadwal — Rp5.000/jam ditagih saat keluar.",
+    notifKOvertimeBody: "Sesi {slot} melewati jadwal - Rp5.000/jam ditagih saat keluar.",
     notifKExtendedTitle: "Sesi diperpanjang",
     notifKExtendedBody: "Slot {slot} kini berlaku hingga {end}.",
     notifKReceiptTitle: "Sesi selesai",
-    notifKReceiptBody: "Slot {slot} selesai — total {total}. Rincian tersimpan di Riwayat.",
+    notifKReceiptBody: "Slot {slot} selesai - total {total}. Rincian tersimpan di Riwayat.",
     notifKRefundTitle: "Refund diterima",
     notifKRefundBody: "{amount} dikembalikan untuk {code}.",
     notifKPromoTitle: "Promo kampus",
-    notifKPromoBody: "Kopi Rp15.000 di Fusion Cafe — tunjukkan pass parkirmu.",
+    notifKPromoBody: "Kopi Rp15.000 di Fusion Cafe - tunjukkan pass parkirmu.",
     // operator csv export
     csvExport: "Ekspor CSV",
     csvExportTitle: "Laporan Operasional",
@@ -911,7 +913,7 @@ const dict = {
     campusCurrent: "Kampus aktif",
     campusPick: "Pilih Kampus",
     campusPickSub: "Pilih lokasi kampus untuk melihat parkir",
-    campusPickNote: "Kampus Coming Soon bisa dipilih — layout parkir menyusul",
+    campusPickNote: "Kampus Coming Soon bisa dipilih - layout parkir menyusul",
     campusActive: "Aktif",
     campusSoon: "Coming Soon",
     campusSoonNote: "Layout & jumlah slot parkir sedang disiapkan",
@@ -934,9 +936,9 @@ const dict = {
     dynNextLow: "Naik ke Normal di 40%",
     dynNextNormal: "Naik ke High di atas 75%",
     dynNextHigh: "Turun ke Normal di 75%",
-    dynBannerLow: "Harga lebih hemat — parkir sedang sepi",
-    dynBannerNormal: "Harga standar — okupansi normal",
-    dynBannerHigh: "Harga lebih tinggi — parkir hampir penuh",
+    dynBannerLow: "Harga lebih hemat - parkir sedang sepi",
+    dynBannerNormal: "Harga standar - okupansi normal",
+    dynBannerHigh: "Harga lebih tinggi - parkir hampir penuh",
     dynPriceNote: "Harga menyesuaikan permintaan secara real-time",
     dynWalkinNow: "Tarif walk-in saat ini",
     // operator tabs (v23–v24)
@@ -966,7 +968,7 @@ const dict = {
     liveMapNote: "Cincin kuning = tamu live",
     liveTickerIn: "masuk",
     liveTickerOut: "keluar",
-    liveNote: "Tamu live hanya overlay — tidak mengubah reservasi, transaksi, atau jurnal.",
+    liveNote: "Tamu live hanya overlay - tidak mengubah reservasi, transaksi, atau jurnal.",
     // finance (v23)
     finKpiRevenue: "Pendapatan bersih",
     finKpiSessions: "Sesi berbayar",
@@ -992,7 +994,7 @@ const dict = {
     finBepSessions: "sesi / bulan",
     finBepRunrate: "Run-rate saat ini",
     finBepSafety: "Margin aman",
-    finBepNever: "CM ≤ 0 — tidak pernah impas",
+    finBepNever: "CM ≤ 0 - tidak pernah impas",
     // invoice & PPN (v24)
     invTitle: "Faktur & PPN 11%",
     invRecapInvoices: "Faktur",
@@ -1023,7 +1025,7 @@ const dict = {
     auditActor: "Aktor",
     auditIp: "Alamat IP",
     auditSso: "SSO Microsoft",
-    auditAppendNote: "Log bersifat append-only — entri tidak dapat diubah atau dihapus.",
+    auditAppendNote: "Log bersifat append-only - entri tidak dapat diubah atau dihapus.",
     auditLogTitle: "Log Audit",
     auditFilterAll: "Semua",
     auditFilterOps: "Aksi operator",
@@ -1062,7 +1064,7 @@ const dict = {
     apiRun: "Jalankan",
     apiRunning: "Menjalankan…",
     apiCurl: "Pratinjau cURL",
-    apiSimNote: "Endpoint tulis (POST) bersifat simulasi — state aplikasi tidak pernah berubah.",
+    apiSimNote: "Endpoint tulis (POST) bersifat simulasi - state aplikasi tidak pernah berubah.",
     apiStatus: "Status",
     apiLatency: "Latensi",
     epSlots: "Status semua slot kampus aktif",
@@ -1084,7 +1086,7 @@ const dict = {
     archData: "Data",
     archDataVal: "Store In-Memory · Prisma (siap DB) · Ekspor CSV",
     erdTitle: "Diagram ER · 8 Entitas",
-    erdNote: "LIVE_EVENT hanya tampilan — tidak pernah menulis ke entitas lain.",
+    erdNote: "LIVE_EVENT hanya tampilan - tidak pernah menulis ke entitas lain.",
     erdCardinality: "1 : n",
     stackTitle: "Tech Stack",
     chgTitle: "Changelog",
@@ -1092,7 +1094,7 @@ const dict = {
     chgV19: "Konsol ANPR + broadcast promo operator",
     chgV20: "Tembok & gerbang pada peta gedung",
     chgV21: "Ramp L2 pada denah",
-    chgV22: "Model harga baru: tanpa biaya parkir — hanya biaya layanan dinamis + denda telat",
+    chgV22: "Model harga baru: tanpa biaya parkir - hanya biaya layanan dinamis + denda telat",
     chgV23: "Live gate stream · jejak audit append-only · jurnal ganda + neraca saldo + BEP",
     chgV24: "Dokumentasi API + playground · ERD & arsitektur · faktur PPN 11% · proyeksi arus kas",
     chgV25: "Dropdown merek mobil (25 merek) · ramp L2 seamless · top up nominal bebas · tiket ivory · edit profil",
@@ -1141,9 +1143,9 @@ const dict = {
     anaMcFeaturesVal: "Okupansi per jam · hari dalam minggu · profil mingguan",
     anaMcMape: "MAPE (in-sample)",
     anaMcHoldOutMape: "MAPE (hold-out 7 hari)",
-    anaMcAlpha: "α — pemulusan level",
-    anaMcBeta: "β — pemulusan tren",
-    anaMcGamma: "γ — pemulusan musiman",
+    anaMcAlpha: "α - pemulusan level",
+    anaMcBeta: "β - pemulusan tren",
+    anaMcGamma: "γ - pemulusan musiman",
     anaMcSeasonal: "Periode musiman",
     anaMcTrain: "Data latih",
     anaMcHoldOut: "Data uji (hold-out)",
@@ -1154,9 +1156,9 @@ const dict = {
     anaMcLimitText: "Data sintetis deterministik; belum divalidasi pada data riil; akurasi menurun di horizon >48 jam.",
     // prediction strip (customer HomeView)
     aiPredictLabel: "Prediksi AI",
-    aiPredictLow: "Diprediksi sepi — waktu yang bagus untuk parkir",
-    aiPredictMed: "Diprediksi cukup ramai — disarankan pesan lebih awal",
-    aiPredictHigh: "Diprediksi sangat ramai — segera pesan untuk amankan slot",
+    aiPredictLow: "Diprediksi sepi - waktu yang bagus untuk parkir",
+    aiPredictMed: "Diprediksi cukup ramai - disarankan pesan lebih awal",
+    aiPredictHigh: "Diprediksi sangat ramai - segera pesan untuk amankan slot",
     aiPredictNote: "Berdasarkan model Holt-Winters 30 hari",
     anaAnomalyTitle: "Anomali Okupansi · Z-Score",
     anaAnomalyEmpty: "Tidak ada anomali terdeteksi",
@@ -1197,7 +1199,7 @@ const dict = {
     profileSaved: "Profil diperbarui",
     // payments (v26)
     payDialogTitle: "Pilih Metode Top Up",
-    payDialogSub: "Simulasi gateway pembayaran — Virtual Account, Kartu, atau QRIS",
+    payDialogSub: "Simulasi gateway pembayaran - Virtual Account, Kartu, atau QRIS",
     payVa: "Virtual Account",
     payVaSub: "8 bank · BCA, Mandiri, BNI, BRI, dll.",
     payCard: "Kartu Kredit / Debit",
@@ -1225,7 +1227,7 @@ const dict = {
     payDone: "Top up berhasil",
     // ending soon (v26)
     endSoonTitle: "Waktu parkir hampir habis",
-    endSoonBody: "Slot {slot} berakhir dalam {minutes} menit — perpanjang sekarang agar bebas denda.",
+    endSoonBody: "Slot {slot} berakhir dalam {minutes} menit - perpanjang sekarang agar bebas denda.",
     endSoonToast: "Sesi {slot} berakhir dalam {minutes} menit",
     // avatar (v26)
     avatarChange: "Ganti foto profil",
@@ -1240,7 +1242,7 @@ const dict = {
   },
   en: {
     appName: "Parkir Binus",
-    tagline: "Campus parking — a spot, guaranteed",
+    tagline: "Campus parking - a spot, guaranteed",
     heroTitle: "Parking, minus the drama.",
     heroSub: "Reserve your favorite slot at Anggrek Parking Building, scan the QR to enter & exit. Done.",
     signIn: "Sign in with Microsoft",
@@ -1251,7 +1253,7 @@ const dict = {
     msModalSub: "Use your campus Microsoft account (@binus.ac.id)",
     msContinue: "Continue",
     msWorking: "Verifying account…",
-    msDemoNote: "Demo — Microsoft SSO simulated",
+    msDemoNote: "Demo - Microsoft SSO simulated",
     msVerified: "Verified BINUSIAN",
     signInNote: "@binus.ac.id Microsoft accounts are detected as BINUSIAN · other emails = non-BINUSIAN",
     demoAccounts: "Pick a demo account",
@@ -1259,10 +1261,10 @@ const dict = {
     general: "General user",
     nonBinusian: "NON-BINUSIAN",
     binusianOnly: "BINUSIAN only",
-    guestBookingNote: "Scheduled booking is BINUSIAN-only. Guests can still park — scan the on-site slot QR for a walk-in session.",
-    maxActiveToast: "Limit reached — max 2 vehicles parked at once",
+    guestBookingNote: "Scheduled booking is BINUSIAN-only. Guests can still park - scan the on-site slot QR for a walk-in session.",
+    maxActiveToast: "Limit reached - max 2 vehicles parked at once",
     activeSessions: "parked now",
-    footerNote: "UI preview — simulated data",
+    footerNote: "UI preview - simulated data",
     navHome: "Home",
     navHistory: "History",
     navWallet: "Wallet",
@@ -1318,8 +1320,8 @@ const dict = {
     tapChipToBook: "Tap a slot number to book",
     windowLabel: "Time window",
     parkingMap: "Parking Map",
-    floorLabel: "LEVEL 1 — ANGGREK PARKING BUILDING",
-    floorLabelOpen: "LEVEL 1 — PARKING AREA",
+    floorLabel: "LEVEL 1 - ANGGREK PARKING BUILDING",
+    floorLabelOpen: "LEVEL 1 - PARKING AREA",
     slotWord: "slots",
     available: "Free",
     reserved: "Booked",
@@ -1342,7 +1344,7 @@ const dict = {
     walletBalance: "Wallet balance",
     balanceAfter: "Balance after",
     payAndBook: "Pay & Book",
-    insufficient: "Insufficient balance — top up in Wallet first",
+    insufficient: "Insufficient balance - top up in Wallet first",
     bookSuccess: "Booking confirmed",
     window: "Time window",
     vehicle: "Vehicle",
@@ -1354,8 +1356,8 @@ const dict = {
     scanExit: "Scan to exit",
     checkOutBtn: "Finish & Exit",
     checkoutConfirmTitle: "End parking session?",
-    checkoutConfirmDesc: "No parking fee — only a late fine (if any) is charged from your wallet.",
-    onTimeFree: "Still on schedule — no extra charge",
+    checkoutConfirmDesc: "No parking fee - only a late fine (if any) is charged from your wallet.",
+    onTimeFree: "Still on schedule - no extra charge",
     estOvertime: "Estimated late fine",
     totalDue: "Total charged",
     cancelBooking: "Cancel booking",
@@ -1452,11 +1454,11 @@ const dict = {
     scanDenied: "Scan rejected",
     badCode: "Unknown code",
     slotBusy: "Slot is occupied",
-    checkinOk: "Checked in — happy parking",
-    checkoutOk: "Checked out — see you soon",
+    checkinOk: "Checked in - happy parking",
+    checkoutOk: "Checked out - see you soon",
     operatorBadge: "OPERATOR",
     operatorGreeting: "Your shift is active",
-    liveMonitor: "Slot monitor — live",
+    liveMonitor: "Slot monitor - live",
     inBuilding: "Currently in",
     reservedNow: "Booked",
     inMaintenance: "Maintenance",
@@ -1507,8 +1509,8 @@ const dict = {
     btnExtend: "+1 Hour",
     btnForce: "End",
     extendOk: "Parking window extended by 1 hour",
-    extendFail: "Cannot extend — slot is booked or past closing time",
-    forceOk: "Session ended — fees recorded",
+    extendFail: "Cannot extend - slot is booked or past closing time",
+    forceOk: "Session ended - fees recorded",
     manualInOk: "Manual check-in successful",
     recapTitle: "Today's Recap",
     recapVehicles: "Vehicles served",
@@ -1519,7 +1521,7 @@ const dict = {
     txnLogTitle: "Transaction Log",
     // slot QR (operator)
     qrSlotsTitle: "Slot QR Codes",
-    qrSlotsSub: "{n} unique QRs — one per slot, mounted permanently",
+    qrSlotsSub: "{n} unique QRs - one per slot, mounted permanently",
     qrPrintAll: "Print All",
     qrPrintHint: "A4 · {p} pages · 8 cards per page",
     qrDownload: "Download PNG",
@@ -1530,7 +1532,7 @@ const dict = {
     qrSaved: "QR downloaded",
     // extend session (customer ticket)
     extendBtn: "Extend +1 Hour",
-    extendHint: "Window +1 hour — fine-free if you leave before the new time",
+    extendHint: "Window +1 hour - fine-free if you leave before the new time",
     // notification center
     notifTitle: "Notifications",
     notifEmpty: "No notifications yet",
@@ -1545,21 +1547,21 @@ const dict = {
     notifKWelcomeTitle: "Welcome to Parkir Binus",
     notifKWelcomeBody: "Parking session updates, receipts and promos will appear here.",
     notifKBookingTitle: "Booking confirmed",
-    notifKBookingBody: "Slot {slot} ({code}) — don't forget to check in on site.",
+    notifKBookingBody: "Slot {slot} ({code}) - don't forget to check in on site.",
     notifKSessionStartTitle: "Parking started",
     notifKSessionStartBody: "Slot {slot} is yours until {end}. Happy parking!",
     notifKSessionEndSoonTitle: "Session ending soon",
-    notifKSessionEndSoonBody: "Slot {slot} ends in {minutes} minutes — extend or leave on time.",
+    notifKSessionEndSoonBody: "Slot {slot} ends in {minutes} minutes - extend or leave on time.",
     notifKOvertimeTitle: "Overtime running",
-    notifKOvertimeBody: "Slot {slot} is past its window — Rp5,000/hour charged at checkout.",
+    notifKOvertimeBody: "Slot {slot} is past its window - Rp5,000/hour charged at checkout.",
     notifKExtendedTitle: "Session extended",
     notifKExtendedBody: "Slot {slot} now runs until {end}.",
     notifKReceiptTitle: "Session complete",
-    notifKReceiptBody: "Slot {slot} finished — total {total}. Details saved in History.",
+    notifKReceiptBody: "Slot {slot} finished - total {total}. Details saved in History.",
     notifKRefundTitle: "Refund received",
     notifKRefundBody: "{amount} refunded for {code}.",
     notifKPromoTitle: "Campus promo",
-    notifKPromoBody: "Rp15,000 coffee at Fusion Cafe — show your parking pass.",
+    notifKPromoBody: "Rp15,000 coffee at Fusion Cafe - show your parking pass.",
     // operator csv export
     csvExport: "Export CSV",
     csvExportTitle: "Operations Report",
@@ -1568,7 +1570,7 @@ const dict = {
     campusCurrent: "Active campus",
     campusPick: "Select Campus",
     campusPickSub: "Pick a campus location to view parking",
-    campusPickNote: "Coming Soon campuses are selectable — parking layout to follow",
+    campusPickNote: "Coming Soon campuses are selectable - parking layout to follow",
     campusActive: "Active",
     campusSoon: "Coming Soon",
     campusSoonNote: "Parking layout & slot count are being prepared",
@@ -1591,9 +1593,9 @@ const dict = {
     dynNextLow: "Up to Normal at 40%",
     dynNextNormal: "Up to High above 75%",
     dynNextHigh: "Down to Normal at 75%",
-    dynBannerLow: "Cheaper rate — parking is quiet",
-    dynBannerNormal: "Standard rate — normal occupancy",
-    dynBannerHigh: "Higher rate — parking nearly full",
+    dynBannerLow: "Cheaper rate - parking is quiet",
+    dynBannerNormal: "Standard rate - normal occupancy",
+    dynBannerHigh: "Higher rate - parking nearly full",
     dynPriceNote: "Prices adjust to demand in real time",
     dynWalkinNow: "Current walk-in rate",
     // operator tabs (v23–v24)
@@ -1623,7 +1625,7 @@ const dict = {
     liveMapNote: "Yellow ring = live guest",
     liveTickerIn: "entered",
     liveTickerOut: "left",
-    liveNote: "Live guests are overlay-only — they never change reservations, transactions, or the journal.",
+    liveNote: "Live guests are overlay-only - they never change reservations, transactions, or the journal.",
     // finance (v23)
     finKpiRevenue: "Net revenue",
     finKpiSessions: "Paid sessions",
@@ -1649,7 +1651,7 @@ const dict = {
     finBepSessions: "sessions / month",
     finBepRunrate: "Current run-rate",
     finBepSafety: "Safety margin",
-    finBepNever: "CM ≤ 0 — never breaks even",
+    finBepNever: "CM ≤ 0 - never breaks even",
     // invoice & PPN (v24)
     invTitle: "Invoices & 11% VAT",
     invRecapInvoices: "Invoices",
@@ -1680,7 +1682,7 @@ const dict = {
     auditActor: "Actor",
     auditIp: "IP address",
     auditSso: "Microsoft SSO",
-    auditAppendNote: "The log is append-only — entries cannot be edited or deleted.",
+    auditAppendNote: "The log is append-only - entries cannot be edited or deleted.",
     auditLogTitle: "Audit Log",
     auditFilterAll: "All",
     auditFilterOps: "Operator actions",
@@ -1719,7 +1721,7 @@ const dict = {
     apiRun: "Run",
     apiRunning: "Running…",
     apiCurl: "cURL preview",
-    apiSimNote: "Write endpoints (POST) are simulated — app state is never mutated.",
+    apiSimNote: "Write endpoints (POST) are simulated - app state is never mutated.",
     apiStatus: "Status",
     apiLatency: "Latency",
     epSlots: "Live status of every slot on the active campus",
@@ -1741,7 +1743,7 @@ const dict = {
     archData: "Data",
     archDataVal: "In-memory Store · Prisma (DB-ready) · CSV export",
     erdTitle: "ER Diagram · 8 Entities",
-    erdNote: "LIVE_EVENT is display-only — it never writes to other entities.",
+    erdNote: "LIVE_EVENT is display-only - it never writes to other entities.",
     erdCardinality: "1 : n",
     stackTitle: "Tech Stack",
     chgTitle: "Changelog",
@@ -1749,7 +1751,7 @@ const dict = {
     chgV19: "ANPR console + operator promo broadcast",
     chgV20: "Walls & gates on the building map",
     chgV21: "L2 ramp on the site plan",
-    chgV22: "New pricing model: no parking fee — dynamic service fee + late fines only",
+    chgV22: "New pricing model: no parking fee - dynamic service fee + late fines only",
     chgV23: "Live gate stream · append-only audit trail · double-entry journal + trial balance + BEP",
     chgV24: "API docs + playground · ERD & architecture · 11% VAT invoices · cash-flow projection",
     chgV25: "Car-brand dropdown (25 brands) · seamless L2 ramp · custom top-up · ivory ticket · profile editing",
@@ -1798,9 +1800,9 @@ const dict = {
     anaMcFeaturesVal: "Hourly occupancy · day of week · weekly profile",
     anaMcMape: "MAPE (in-sample)",
     anaMcHoldOutMape: "MAPE (7-day hold-out)",
-    anaMcAlpha: "α — level smoothing",
-    anaMcBeta: "β — trend smoothing",
-    anaMcGamma: "γ — seasonal smoothing",
+    anaMcAlpha: "α - level smoothing",
+    anaMcBeta: "β - trend smoothing",
+    anaMcGamma: "γ - seasonal smoothing",
     anaMcSeasonal: "Seasonal period",
     anaMcTrain: "Training data",
     anaMcHoldOut: "Test data (hold-out)",
@@ -1811,9 +1813,9 @@ const dict = {
     anaMcLimitText: "Deterministic synthetic data; not validated on real data; accuracy degrades beyond a 48h horizon.",
     // prediction strip (customer HomeView)
     aiPredictLabel: "AI Prediction",
-    aiPredictLow: "Predicted quiet — great time to park",
-    aiPredictMed: "Predicted moderately busy — book early recommended",
-    aiPredictHigh: "Predicted very busy — book now to secure your slot",
+    aiPredictLow: "Predicted quiet - great time to park",
+    aiPredictMed: "Predicted moderately busy - book early recommended",
+    aiPredictHigh: "Predicted very busy - book now to secure your slot",
     aiPredictNote: "Based on 30-day Holt-Winters model",
     anaAnomalyTitle: "Occupancy Anomalies · Z-Score",
     anaAnomalyEmpty: "No anomalies detected",
@@ -1854,7 +1856,7 @@ const dict = {
     profileSaved: "Profile updated",
     // payments (v26)
     payDialogTitle: "Choose Top-Up Method",
-    payDialogSub: "Simulated payment gateway — Virtual Account, Card, or QRIS",
+    payDialogSub: "Simulated payment gateway - Virtual Account, Card, or QRIS",
     payVa: "Virtual Account",
     payVaSub: "8 banks · BCA, Mandiri, BNI, BRI, etc.",
     payCard: "Credit / Debit Card",
@@ -1882,7 +1884,7 @@ const dict = {
     payDone: "Top-up successful",
     // ending soon (v26)
     endSoonTitle: "Parking time is running out",
-    endSoonBody: "Slot {slot} ends in {minutes} minutes — extend now to stay fine-free.",
+    endSoonBody: "Slot {slot} ends in {minutes} minutes - extend now to stay fine-free.",
     endSoonToast: "Session {slot} ends in {minutes} minutes",
     // avatar (v26)
     avatarChange: "Change profile photo",
@@ -1908,7 +1910,7 @@ export const ROW_A = 18;
 export const ROW_B_LEFT = 8;
 export const ROW_B_RIGHT = 6;
 
-/** Building deck geometry — shared width constants for the site plan & tests. */
+/** Building deck geometry - shared width constants for the site plan & tests. */
 export const DECK = {
   slotW: 52,
   slotWCompact: 44,
@@ -1920,7 +1922,7 @@ export const DECK = {
 } as const;
 
 /**
- * L2 ramp block (v25) — ONE seamless child replacing the old wall·ramp·wall
+ * L2 ramp block (v25) - ONE seamless child replacing the old wall·ramp·wall
  * triple. The flanking walls are INTEGRATED as 8px edge strips inside the same
  * box, so no dark slit can appear between tembok A / tembok B and the ramp.
  */
@@ -1932,7 +1934,7 @@ export const L2RAMP_BLOCK_W = {
   full: L2RAMP_BODY_W.full + 2 * L2RAMP_WALL_W + 2 * L2RAMP_GAP, // 84+28 = 112
 } as const;
 
-/** Alam Sutera open lot: 20 + 20 bays, no pillars/walls — paint-line divisions. */
+/** Alam Sutera open lot: 20 + 20 bays, no pillars/walls - paint-line divisions. */
 export const AS_ROW_A = 20;
 export const AS_ROW_B = 20;
 
@@ -2039,28 +2041,40 @@ export function buildHeatmap(): number[][] {
 
 export const ADS: Ad[] = [
   {
-    id: "ad-1",
-    title: "Kopi Rp15.000",
-    description: "Fusion Cafe — show your parking pass",
+    id: "ad-aw",
+    title: "Promo Spesial A&W",
+    description: "Nikmati menu favorit A&W dengan harga lebih spesial",
     theme: "coffee",
-    ctaText: "Claim",
+    ctaText: "Klaim",
     accent: "amber",
+    image: "/ads/promo-aw.png",
   },
   {
-    id: "ad-2",
-    title: "Free car wash",
-    description: "Every 5th parking session this month",
+    id: "ad-hokben",
+    title: "Pesta Bento HokBen",
+    description: "Paket hemat bento premium untuk keluarga",
     theme: "carwash",
-    ctaText: "Detail",
+    ctaText: "Lihat",
     accent: "sky",
+    image: "/ads/promo-hokben.jpg",
   },
   {
-    id: "ad-3",
-    title: "Campus fest 2026",
-    description: "Gedung Anggrek hall — free entry w/ student ID",
+    id: "ad-starbucks",
+    title: "Promo Spesial Starbucks",
+    description: "Nikmati rasa favoritmu dengan harga lebih spesial",
     theme: "event",
-    ctaText: "See",
+    ctaText: "Klaim",
     accent: "violet",
+    image: "/ads/promo-starbucks.png",
+  },
+  {
+    id: "ad-yoshinoya",
+    title: "Promo Yoshinoya Lebih Nikmat",
+    description: "Bowl favorit semua orang, rasakan gyudon dan menu spesial",
+    theme: "coffee",
+    ctaText: "Pesan",
+    accent: "amber",
+    image: "/ads/promo-yoshinoya.png",
   },
 ];
 
