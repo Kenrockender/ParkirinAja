@@ -235,7 +235,7 @@ export function ScannerView({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex flex-col bg-[#04060d]"
+        className="fixed inset-0 z-50 flex flex-col bg-[#04060d] pt-[env(safe-area-inset-top)]"
       >
         <div className="flex items-center justify-between px-4 pb-2 pt-5">
           <div className="flex items-center gap-2.5">
@@ -274,7 +274,7 @@ export function ScannerView({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex flex-col bg-[#04060d]"
+      className="fixed inset-0 z-50 flex flex-col bg-[#04060d] pt-[env(safe-area-inset-top)]"
     >
       {/* ── real camera video feed ── */}
       <video

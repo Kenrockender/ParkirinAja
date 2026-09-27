@@ -213,7 +213,7 @@ export function NotifSheet({ open, onClose }: { open: boolean; onClose: () => vo
         aria-label={t("notifTitle")}
         aria-hidden={!open}
         className={cn(
-          "fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-[380px] flex-col border-l border-border/60 bg-background/95 backdrop-blur-xl transition-transform duration-300 ease-out",
+          "fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-[380px] flex-col border-l border-border/60 bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur-xl transition-transform duration-300 ease-out",
           open ? "translate-x-0" : "pointer-events-none translate-x-full"
         )}
       >

@@ -152,14 +152,6 @@ export function ProfileView() {
               <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
                 <Camera className="h-5 w-5 text-white" />
               </span>
-              {/* Small persistent camera badge bottom-right */}
-              <span
-                aria-hidden
-                data-avatar-cam
-                className="pointer-events-none absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-card bg-binus-bright text-white shadow-sm"
-              >
-                <Camera className="h-2.5 w-2.5" />
-              </span>
             </button>
             {/* binusian badge - top right */}
             <span

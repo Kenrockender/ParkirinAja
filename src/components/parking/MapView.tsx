@@ -62,7 +62,7 @@ export function MapView({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className="fixed inset-0 z-40 flex flex-col bg-background/95 backdrop-blur-xl"
+      className="fixed inset-0 z-40 flex flex-col bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur-xl"
     >
       {/* header */}
       <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-5">

@@ -41,7 +41,7 @@ export function Landing() {
         <div className="absolute bottom-[-10%] right-[10%] h-72 w-72 rounded-full bg-binus-blue/40 blur-[100px]" />
       </div>
 
-      <main className="relative mx-auto flex w-full max-w-md flex-1 flex-col px-6 pb-10 pt-16">
+      <main className="relative mx-auto flex w-full max-w-md flex-1 flex-col px-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-[calc(4rem+env(safe-area-inset-top))]">
         {/* Brand */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}

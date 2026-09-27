@@ -394,7 +394,7 @@ function Toasts() {
   const toasts = useParkir((s) => s.toasts);
   const dismiss = useParkir((s) => s.dismissToast);
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-4 z-[70] flex flex-col items-center gap-2 px-4">
+    <div className="pointer-events-none fixed inset-x-0 top-[calc(1rem+env(safe-area-inset-top))] z-[70] flex flex-col items-center gap-2 px-4">
       <AnimatePresence>
         {toasts.map((tst) => (
           <motion.button
