@@ -177,11 +177,11 @@ export function NotifBell({ onOpen }: { onOpen: () => void }) {
     <button
       onClick={onOpen}
       aria-label={tr(lang, "notifUnreadAria")}
-      className="relative flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card/50 text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
+      className="relative flex h-10 w-10 items-center justify-center text-muted-foreground transition hover:text-foreground active:scale-90"
     >
-      <Bell className="h-3.5 w-3.5" />
+      <Bell className="h-6 w-6" />
       {unread > 0 && (
-        <span className="tnum absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[8.5px] font-black text-white shadow-sm">
+        <span className="tnum absolute right-0.5 top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white shadow-sm">
           {unread > 9 ? "9+" : unread}
         </span>
       )}
