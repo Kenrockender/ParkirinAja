@@ -396,7 +396,17 @@ function TopUpDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[400px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
+      <DialogContent
+        className={cn(
+          "max-w-[400px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl",
+          // v29 - cap the dialog to the viewport height and let it scroll
+          // internally; without this the expanded method accordion (esp.
+          // the VA bank list) could grow taller than the screen and get
+          // clipped/overflow past the viewport ("nembus") instead of
+          // scrolling in place.
+          "max-h-[calc(100dvh-2rem)] overflow-y-auto"
+        )}
+      >
         <DialogHeader className="space-y-1">
           <DialogTitle className="text-center font-display text-lg font-bold tracking-tight">
             {stage === "done" ? t("payDone") : stage === "method" ? t("payDialogTitle") : `${rupiah(amount)}`}
