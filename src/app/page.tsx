@@ -126,10 +126,11 @@ function Shell() {
               {tab === "history" && (
                 <HistoryView
                   onOpen={(id) => setView({ name: "ticket", reservationId: id })}
+                  onOpenNotif={() => setNotifOpen(true)}
                 />
               )}
-              {tab === "wallet" && <WalletView />}
-              {tab === "profile" && <ProfileView />}
+              {tab === "wallet" && <WalletView onOpenNotif={() => setNotifOpen(true)} />}
+              {tab === "profile" && <ProfileView onOpenNotif={() => setNotifOpen(true)} />}
             </motion.div>
           )}
 

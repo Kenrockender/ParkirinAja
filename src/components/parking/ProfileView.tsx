@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useTheme } from "next-themes";
+import { NotifBell } from "./NotifCenter";
 import { useParkir } from "@/lib/store";
 import { rupiah, tr, type Vehicle } from "@/lib/parking-data";
 import { VehicleModal } from "./VehicleModal";
@@ -40,7 +41,7 @@ const NIM_RE = /^\d{8,10}$/;
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
-export function ProfileView() {
+export function ProfileView({ onOpenNotif }: { onOpenNotif: () => void }) {
   const lang = useParkir((s) => s.lang);
   const setLang = useParkir((s) => s.setLang);
   const user = useParkir((s) => s.user);
@@ -114,7 +115,10 @@ export function ProfileView() {
 
   return (
     <div className="space-y-4">
-      <h2 className="font-display text-xl font-bold tracking-tight">{t("profileTitle")}</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold tracking-tight">{t("profileTitle")}</h2>
+        <NotifBell onOpen={onOpenNotif} />
+      </div>
 
       {/* identity card */}
       <motion.section

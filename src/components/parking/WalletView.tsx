@@ -31,6 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { NotifBell } from "./NotifCenter";
 import { useParkir } from "@/lib/store";
 import {
   CARD_ADMIN_FEE,
@@ -99,7 +100,7 @@ type PayMethod = "va" | "card" | "qris";
  *  number screen) or settling a payment still advances to a dedicated stage. */
 type PayStage = "method" | "va-pay" | "processing" | "done";
 
-export function WalletView() {
+export function WalletView({ onOpenNotif }: { onOpenNotif: () => void }) {
   const lang = useParkir((s) => s.lang);
   const balance = useParkir((s) => s.walletBalance);
   const transactions = useParkir((s) => s.transactions);
@@ -152,7 +153,10 @@ export function WalletView() {
 
   return (
     <div className="space-y-4">
-      <h2 className="font-display text-xl font-bold tracking-tight">{t("walletTitle")}</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold tracking-tight">{t("walletTitle")}</h2>
+        <NotifBell onOpen={onOpenNotif} />
+      </div>
 
       {/* balance hero */}
       <motion.section

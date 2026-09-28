@@ -4,13 +4,20 @@ import React from "react";
 import { motion } from "framer-motion";
 import { ChevronRight, Clock3, History as HistoryIcon, Timer, Zap } from "lucide-react";
 import { ResStatusPill } from "./Brand";
+import { NotifBell } from "./NotifCenter";
 import { useParkir } from "@/lib/store";
 import { campusForSlot, rupiah, tr, TARIFF } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
 
 type Filter = "all" | "upcoming" | "active" | "done";
 
-export function HistoryView({ onOpen }: { onOpen: (id: string) => void }) {
+export function HistoryView({
+  onOpen,
+  onOpenNotif,
+}: {
+  onOpen: (id: string) => void;
+  onOpenNotif: () => void;
+}) {
   const lang = useParkir((s) => s.lang);
   const user = useParkir((s) => s.user);
   const allReservations = useParkir((s) => s.reservations);
@@ -50,7 +57,10 @@ export function HistoryView({ onOpen }: { onOpen: (id: string) => void }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="font-display text-xl font-bold tracking-tight">{t("historyTitle")}</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold tracking-tight">{t("historyTitle")}</h2>
+        <NotifBell onOpen={onOpenNotif} />
+      </div>
 
       {/* filters */}
       <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
