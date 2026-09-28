@@ -398,7 +398,15 @@ function TopUpDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          "max-w-[400px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl",
+          // v29 - "sm:max-w-[400px]" instead of an unconditional
+          // "max-w-[400px]" so the base dialog's own
+          // "max-w-[calc(100%-2rem)]" side margin still applies on narrow
+          // phones (< 432px wide). Overriding it outright made the dialog
+          // stretch to the full viewport width with no side gutter on
+          // phones narrower than 400px, so it looked glued to the left/right
+          // edges. sm:max-w caps it at 400px only once the screen is wide
+          // enough that the margin is no longer needed.
+          "sm:max-w-[400px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl",
           // v29 - cap the dialog to the viewport height and let it scroll
           // internally; without this the expanded method accordion (esp.
           // the VA bank list) could grow taller than the screen and get
