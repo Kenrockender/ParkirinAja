@@ -13,6 +13,7 @@ import {
   buildAlamSuteraSlots,
   buildBekasiSlots,
   buildSlots,
+  campusCodePrefix,
   dateStr,
   demandNow,
   DEMAND_TIERS,
@@ -55,8 +56,8 @@ const MAX_ACTIVE_PARKING = 2;
 /** Browser-session id - shared by every audit entry of one page load. */
 export const SESSION_ID = `sess-${uid().slice(0, 10)}`;
 
-/** Audit log cap (append-only, last 250 kept). */
-const AUDIT_CAP = 250;
+/** Audit log cap (append-only, last 400 kept - v29: raised alongside the bigger seed world). */
+const AUDIT_CAP = 400;
 
 export interface User {
   name: string;
@@ -164,7 +165,10 @@ interface ParkirState {
   /** Scan a slot QR → walk-in start, check-in, or check-out depending on state */
   scanSlot: (slotNumber: string) =>
     | { ok: true; kind: "walkin" | "checkin" | "checkout"; reservation?: Reservation }
-    | { ok: false; reason: "unknown" | "busy" | "maintenance" | "no_reservation" | "insufficient" | "max_active" };
+    | {
+        ok: false;
+        reason: "unknown" | "busy" | "maintenance" | "no_reservation" | "insufficient" | "max_active" | "wrong_campus";
+      };
 
   /** Operator: end any active session on the spot - fine recorded as on-site payment */
   forceCheckOut: (id: string) =>
@@ -296,6 +300,51 @@ function seedReservations(now: number): Reservation[] {
       status: "NO_SHOW",
       createdAt: now - 24 * DAY,
     }),
+    // v29 - more history: completed walk-in two weeks ago, on time
+    mk({
+      slotId: "slot-A-16",
+      slotNumber: "A-16",
+      date: dateStr(new Date(now - 14 * DAY)),
+      startTime: "11:00",
+      endTime: "13:00",
+      status: "COMPLETED",
+      type: "WALK_IN",
+      serviceFee: DEMAND_TIERS.NORMAL.walkInFee,
+      createdAt: now - 14 * DAY,
+      checkedInAt: now - 14 * DAY,
+      checkedOutAt: now - 14 * DAY + 105 * MIN,
+    }),
+    // Cancelled 5 days ago, still inside the 10-min window → 100% refund
+    mk({
+      slotId: "slot-A-08",
+      slotNumber: "A-08",
+      date: dateStr(new Date(now - 5 * DAY)),
+      startTime: "16:00",
+      endTime: "18:00",
+      status: "CANCELLED",
+      createdAt: now - 5 * DAY - 6 * MIN,
+      refundAmount: TARIFF.advanceFee,
+    }),
+    // Reservation window lapsed without ever being confirmed/paid
+    mk({
+      slotId: "slot-B-04",
+      slotNumber: "B-04",
+      date: dateStr(new Date(now - 10 * DAY)),
+      startTime: "07:00",
+      endTime: "09:00",
+      status: "EXPIRED",
+      createdAt: now - 10 * DAY - 30 * MIN,
+    }),
+    // Further-out upcoming booking
+    mk({
+      slotId: "slot-B-14",
+      slotNumber: "B-14",
+      date: dateStr(new Date(now + 10 * DAY)),
+      startTime: "10:00",
+      endTime: "12:00",
+      status: "CONFIRMED",
+      createdAt: now - 6 * HOUR,
+    }),
   ];
 }
 
@@ -320,12 +369,21 @@ function defaultWindow(): TimeWindow {
 
 function seedTxns(now: number): Txn[] {
   return [
+    { id: uid(), type: "TOP_UP", amount: 100000, createdAt: now - 24 * DAY, note: "VA Mandiri" },
+    { id: uid(), type: "SERVICE_FEE", amount: DEMAND_TIERS.NORMAL.walkInFee, createdAt: now - 20 * DAY, note: "PB-VWX2210" },
+    { id: uid(), type: "TOP_UP", amount: 200000, createdAt: now - 15 * DAY, note: "Kartu •••• 4242" },
+    { id: uid(), type: "SERVICE_FEE", amount: DEMAND_TIERS.NORMAL.walkInFee, createdAt: now - 14 * DAY, note: "PB-YXZ8814" },
+    { id: uid(), type: "TOP_UP", amount: 100000, createdAt: now - 11 * DAY, note: "VA BNI" },
+    { id: uid(), type: "SERVICE_FEE", amount: TARIFF.advanceFee, createdAt: now - 10 * DAY, note: "PB-EXP4471" },
     { id: uid(), type: "TOP_UP", amount: 100000, createdAt: now - 9 * DAY, note: "VA BCA" },
     { id: uid(), type: "SERVICE_FEE", amount: TARIFF.advanceFee, createdAt: now - 8 * DAY, note: "PB-KLM8241" },
     { id: uid(), type: "REFUND", amount: TARIFF.advanceFee / 2, createdAt: now - 7 * DAY, note: "PB-KLM8241" },
+    { id: uid(), type: "SERVICE_FEE", amount: TARIFF.advanceFee, createdAt: now - 5 * DAY - 6 * MIN, note: "PB-CNL9032" },
+    { id: uid(), type: "REFUND", amount: TARIFF.advanceFee, createdAt: now - 5 * DAY, note: "PB-CNL9032" },
     { id: uid(), type: "TOP_UP", amount: 150000, createdAt: now - 3 * DAY, note: "QRIS" },
     { id: uid(), type: "SERVICE_FEE", amount: TARIFF.advanceFee, createdAt: now - 2 * DAY, note: "PB-QRT3310" },
     { id: uid(), type: "OVERTIME", amount: TARIFF.overtimeFeePerHour, createdAt: now - 88 * MIN, note: "PB-QRT3310" },
+    { id: uid(), type: "SERVICE_FEE", amount: TARIFF.advanceFee, createdAt: now - 6 * HOUR, note: "PB-LWK7723" },
     { id: uid(), type: "SERVICE_FEE", amount: TARIFF.advanceFee, createdAt: now - 4 * MIN, note: "PB-JHD5527" },
   ];
 }
@@ -358,6 +416,11 @@ const OP_PEOPLE: { name: string; plate: string; vehicle: string }[] = [
   { name: "Jihan Aprilia", plate: "B 9023 UIO", vehicle: "Honda Brio" },
   { name: "Kevin Wijaya", plate: "B 1123 PAS", vehicle: "Nissan Livina" },
   { name: "Luna Maharani", plate: "B 7856 GHD", vehicle: "Daihatsu Ayla" },
+  // v29 - extra drivers for the enlarged demo world
+  { name: "Muhammad Reza", plate: "B 2290 FRT", vehicle: "Toyota Fortuner" },
+  { name: "Naila Putri", plate: "B 5541 JHQ", vehicle: "Honda Mobilio" },
+  { name: "Oscar Fernandez", plate: "B 8813 KLW", vehicle: "Mazda CX-5" },
+  { name: "Putri Anjani", plate: "B 3367 MNB", vehicle: "Suzuki XL7" },
 ];
 
 /** v23 - guest car pool for the live gate simulator (never touches real state). */
@@ -433,6 +496,11 @@ function seedAlamSuteraWorld(now: number): { reservations: Reservation[]; transa
     { off: 22, hrs: 3, p: 10, slot: "B-17" },
     { off: 12, hrs: 2, p: 11, slot: "B-19" },
     { off: 5, hrs: 2, p: 4, slot: "B-20" },
+    // v29 - a few more walk-ins to flesh out the campus
+    { off: 210, hrs: 2, p: 12, slot: "A-01" },
+    { off: 168, hrs: 3, p: 13, slot: "A-04" },
+    { off: 96, hrs: 2, p: 14, slot: "A-16" },
+    { off: 58, hrs: 2, p: 15, slot: "B-01" },
   ];
   for (const a of actives) {
     const inAt = now - a.off * MIN;
@@ -457,6 +525,7 @@ function seedAlamSuteraWorld(now: number): { reservations: Reservation[]; transa
     { off: 40, hrs: 2, p: 2, slot: "A-12" },
     { off: 25, hrs: 3, p: 7, slot: "B-04" },
     { off: 15, hrs: 2, p: 9, slot: "B-10" },
+    { off: 8, hrs: 2, p: 13, slot: "A-19" },
   ];
   for (const h of holds) {
     const startAt = now - h.off * MIN;
@@ -525,6 +594,11 @@ function seedBekasiWorld(now: number): { reservations: Reservation[]; transactio
     { off: 64, hrs: 3, p: 2, slot: "B-22" },
     { off: 41, hrs: 2, p: 3, slot: "B-24" },
     { off: 18, hrs: 2, p: 4, slot: "B-25" },
+    // v29 - a few more walk-ins to flesh out the campus
+    { off: 200, hrs: 2, p: 12, slot: "A-06" },
+    { off: 145, hrs: 3, p: 13, slot: "A-16" },
+    { off: 90, hrs: 2, p: 14, slot: "B-14" },
+    { off: 52, hrs: 2, p: 15, slot: "B-23" },
   ];
   for (const a of actives) {
     const inAt = now - a.off * MIN;
@@ -549,6 +623,7 @@ function seedBekasiWorld(now: number): { reservations: Reservation[]; transactio
     { off: 44, hrs: 2, p: 5, slot: "A-12" },
     { off: 27, hrs: 3, p: 7, slot: "B-06" },
     { off: 13, hrs: 2, p: 9, slot: "B-20" },
+    { off: 6, hrs: 2, p: 13, slot: "A-23" },
   ];
   for (const h of holds) {
     const startAt = now - h.off * MIN;
@@ -620,6 +695,11 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
     { off: 47, hrs: 3, p: 9, slot: "A-17" },
     { off: 26, hrs: 2, p: 10, slot: "B-13" },
     { off: 9, hrs: 2, p: 11, slot: "A-01" },
+    // v29 - more concurrent sessions for a busier-looking floor
+    { off: 205, hrs: 2, p: 12, slot: "A-03" },
+    { off: 150, hrs: 3, p: 13, slot: "B-07" },
+    { off: 84, hrs: 2, p: 14, slot: "A-11" },
+    { off: 33, hrs: 2, p: 15, slot: "B-02" },
   ];
   for (const a of actives) {
     const inAt = Math.max(t0, now - a.off * MIN);
@@ -650,6 +730,10 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
     { off: 205, dur: 45, planned: 1, p: 5, slot: "B-05", advance: false },
     { off: 115, dur: 70, planned: 2, p: 10, slot: "A-13", advance: true },
     { off: 62, dur: 35, planned: 1, p: 3, slot: "B-12", advance: false },
+    // v29 - a few more completed visits earlier today
+    { off: 370, dur: 80, planned: 2, p: 12, slot: "A-02", advance: false },
+    { off: 250, dur: 110, planned: 2, p: 13, slot: "B-10", advance: true },
+    { off: 145, dur: 50, planned: 1, p: 14, slot: "A-18", advance: false },
   ];
   for (const d of done) {
     const inAt = Math.max(t0, now - d.off * MIN);
@@ -683,6 +767,9 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
     { startOff: -20, hrs: 2, p: 4, slot: "A-07", createdOff: 190 },
     { startOff: 55, hrs: 2, p: 6, slot: "B-01", createdOff: 120 },
     { startOff: 180, hrs: 2, p: 11, slot: "A-15", createdOff: 65 },
+    // v29 - more of today's/tomorrow's bookings for a fuller schedule view
+    { startOff: 260, hrs: 2, p: 12, slot: "B-08", createdOff: 40 },
+    { startOff: 340, hrs: 3, p: 13, slot: "A-02", createdOff: 20 },
   ];
   for (const u of upcoming) {
     let startAt = now + u.startOff * MIN;
@@ -717,12 +804,14 @@ function seedOperatorWorld(now: number): { reservations: Reservation[]; transact
     { off: 35, amount: 100000 },
     { off: 130, amount: 50000 },
     { off: 260, amount: 150000 },
+    { off: 340, amount: 200000 },
+    { off: 400, amount: 100000 },
   ];
   for (const tp of tops) addTxn("TOP_UP", tp.amount, Math.max(t0, now - tp.off * MIN), "QRIS");
 
-  // ── 7 days × 8 historical check-ins → peak-hours chart ──
-  for (let d = 1; d <= 7; d++) {
-    for (let k = 0; k < 8; k++) {
+  // ── 14 days × 12 historical check-ins → peak-hours chart (v29 - was 7×8) ──
+  for (let d = 1; d <= 14; d++) {
+    for (let k = 0; k < 12; k++) {
       const ds = dateStr(new Date(now - d * DAY));
       const hour = OP_HIST_HOURS[Math.floor(rnd() * OP_HIST_HOURS.length)];
       const minute = Math.floor(rnd() * 55);
@@ -1249,8 +1338,23 @@ export const useParkir = create<ParkirState>((set, get) => {
 
     scanSlot: (slotNumberRaw) => {
       const now = Date.now();
-      const { slots, reservations, walletBalance } = get();
-      const code = slotNumberRaw.trim().toUpperCase().replace(/^(PB|AS|BKS)-?/, "");
+      const { slots, reservations, walletBalance, campusId } = get();
+      const raw = slotNumberRaw.trim().toUpperCase();
+      const prefixMatch = raw.match(/^(PB|AS|BKS)-?(.*)$/);
+      // v29 - the QR's campus prefix (PB/AS/BKS) is validated against the
+      // currently active campus instead of being discarded. Previously the
+      // prefix was stripped and thrown away, so scanning e.g. a Bekasi QR
+      // (BKS-A-07) while the app was on Anggrek would silently check the
+      // scanner into Anggrek's own slot A-07 - a real cross-campus
+      // collision, since every campus reuses the same A-01..A-xx numbering.
+      if (prefixMatch) {
+        const scannedPrefix = prefixMatch[1];
+        const activePrefix = campusCodePrefix(campusId);
+        if (scannedPrefix !== activePrefix) {
+          return { ok: false as const, reason: "wrong_campus" as const };
+        }
+      }
+      const code = raw.replace(/^(PB|AS|BKS)-?/, "");
       const slot = slots.find(
         (s) => s.slotNumber === code || s.slotNumber === code.replace("-", "") || `slot-${code.replace("-", "-")}` === s.id
       );

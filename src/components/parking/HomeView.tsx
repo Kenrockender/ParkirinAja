@@ -633,16 +633,24 @@ const AD_AUTOPLAY_MS = 4500;
 function AdCarousel({ lang }: { lang: "id" | "en" }) {
   const [idx, setIdx] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
+  /** v28 - tracks an in-progress drag gesture on its own, separate from
+   *  hover/touch pause. A drag can carry the pointer outside the carousel
+   *  bounds (fast swipes), which fires onMouseLeave/onTouchEnd and would
+   *  otherwise resume the autoplay timer WHILE Framer Motion's drag gesture
+   *  is still active - the interval then swaps the slide's key mid-gesture
+   *  and the dragged element gets unmounted out from under the pointer,
+   *  which is what caused the glitch/error while swiping. */
+  const [dragging, setDragging] = React.useState(false);
 
   // Autoplay — advances on a timer, pauses while the user is
-  // hovering/touching the carousel so it never fights their swipe.
+  // hovering/touching/dragging the carousel so it never fights their swipe.
   React.useEffect(() => {
-    if (paused || ADS.length <= 1) return;
+    if (paused || dragging || ADS.length <= 1) return;
     const id = setInterval(() => {
       setIdx((i) => (i + 1) % ADS.length);
     }, AD_AUTOPLAY_MS);
     return () => clearInterval(id);
-  }, [paused]);
+  }, [paused, dragging]);
 
   const go = (i: number) => setIdx(((i % ADS.length) + ADS.length) % ADS.length);
 
@@ -684,7 +692,23 @@ function AdCarousel({ lang }: { lang: "id" | "en" }) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute inset-0 block"
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.65}
+              onDragStart={() => setDragging(true)}
+              onDragEnd={(_, info) => {
+                const SWIPE_DIST = 55;
+                const SWIPE_VELOCITY = 400;
+                if (info.offset.x < -SWIPE_DIST || info.velocity.x < -SWIPE_VELOCITY) {
+                  go(idx + 1);
+                } else if (info.offset.x > SWIPE_DIST || info.velocity.x > SWIPE_VELOCITY) {
+                  go(idx - 1);
+                }
+                // release on next tick so the click-suppression from the
+                // drag gesture doesn't also swallow a legit tap right after.
+                setTimeout(() => setDragging(false), 0);
+              }}
+              className="absolute inset-0 block cursor-grab touch-pan-y active:cursor-grabbing"
               aria-label={ADS[idx].title}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -224,6 +224,7 @@ export function ScannerView({
         : res.reason === "busy"     ? t("slotBusy")
         : res.reason === "insufficient" ? t("insufficient")
         : res.reason === "max_active"   ? t("maxActiveToast")
+        : res.reason === "wrong_campus" ? t("scanWrongCampus")
         : t("scanDenied");
       toast(msg, "error");
       scheduleDecodeLoop();

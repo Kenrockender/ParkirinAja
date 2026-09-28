@@ -58,62 +58,35 @@ const TXN_ICON: Record<TxnType, React.ComponentType<{ className?: string }>> = {
   REFUND: ArrowDownLeft,
 };
 
-// ── Real bank logo SVGs ───────────────────────────────────────────────────────
+// ── Real bank logo assets ─────────────────────────────────────────────────────
+/** v28 - user supplied the actual bank logo artwork in /logo/bank (each bank
+ *  as a different file type: png/webp/svg). Copied into /public/bank-logos
+ *  with normalized names so they can be referenced by id here. */
+const BANK_LOGO_SRC: Record<string, string> = {
+  bca: "/bank-logos/bca.png",
+  mandiri: "/bank-logos/mandiri.webp",
+  bni: "/bank-logos/bni.webp",
+  bri: "/bank-logos/bri.webp",
+  cimb: "/bank-logos/cimb.svg",
+  danamon: "/bank-logos/danamon.svg",
+  permata: "/bank-logos/permata.webp",
+  bsi: "/bank-logos/bsi.webp",
+};
 
 function BankLogo({ id, className }: { id: string; className?: string }) {
-  // Each logo is a minimal inline SVG faithfully representing the bank's mark
-  if (id === "bca") return (
-    <svg viewBox="0 0 48 20" className={className} aria-label="BCA">
-      <rect width="48" height="20" rx="3" fill="#0d5bb5" />
-      <text x="24" y="14.5" textAnchor="middle" fill="white" fontSize="9" fontWeight="800" fontFamily="Arial,sans-serif">BCA</text>
-    </svg>
+  const src = BANK_LOGO_SRC[id];
+  if (!src) return <span className={className}>{id.toUpperCase()}</span>;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center justify-center overflow-hidden rounded-[3px] bg-white p-0.5",
+        className
+      )}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={id.toUpperCase()} className="h-full w-full object-contain" draggable={false} />
+    </span>
   );
-  if (id === "mandiri") return (
-    <svg viewBox="0 0 56 20" className={className} aria-label="Mandiri">
-      <rect width="56" height="20" rx="3" fill="#123e7c" />
-      {/* Mandiri's characteristic yellow wave bar */}
-      <rect x="0" y="14" width="56" height="6" rx="3" fill="#f0a500" />
-      <text x="28" y="11" textAnchor="middle" fill="white" fontSize="7.5" fontWeight="800" fontFamily="Arial,sans-serif">mandiri</text>
-    </svg>
-  );
-  if (id === "bni") return (
-    <svg viewBox="0 0 48 20" className={className} aria-label="BNI">
-      <rect width="48" height="20" rx="3" fill="#f28f2a" />
-      <text x="24" y="14.5" textAnchor="middle" fill="white" fontSize="9" fontWeight="800" fontFamily="Arial,sans-serif">BNI</text>
-    </svg>
-  );
-  if (id === "bri") return (
-    <svg viewBox="0 0 48 20" className={className} aria-label="BRI">
-      <rect width="48" height="20" rx="3" fill="#1a5fa8" />
-      <text x="24" y="14.5" textAnchor="middle" fill="white" fontSize="9" fontWeight="800" fontFamily="Arial,sans-serif">BRI</text>
-    </svg>
-  );
-  if (id === "cimb") return (
-    <svg viewBox="0 0 56 20" className={className} aria-label="CIMB Niaga">
-      <rect width="56" height="20" rx="3" fill="#b91c3c" />
-      <text x="28" y="14" textAnchor="middle" fill="white" fontSize="7.5" fontWeight="800" fontFamily="Arial,sans-serif">CIMB</text>
-    </svg>
-  );
-  if (id === "danamon") return (
-    <svg viewBox="0 0 60 20" className={className} aria-label="Danamon">
-      <rect width="60" height="20" rx="3" fill="#00497f" />
-      <text x="30" y="14" textAnchor="middle" fill="white" fontSize="7" fontWeight="800" fontFamily="Arial,sans-serif">Danamon</text>
-    </svg>
-  );
-  if (id === "permata") return (
-    <svg viewBox="0 0 60 20" className={className} aria-label="Permata">
-      <rect width="60" height="20" rx="3" fill="#2f7d4f" />
-      <text x="30" y="14" textAnchor="middle" fill="white" fontSize="7" fontWeight="800" fontFamily="Arial,sans-serif">Permata</text>
-    </svg>
-  );
-  if (id === "bsi") return (
-    <svg viewBox="0 0 48 20" className={className} aria-label="BSI">
-      <rect width="48" height="20" rx="3" fill="#1e7d6f" />
-      <text x="24" y="14.5" textAnchor="middle" fill="white" fontSize="9" fontWeight="800" fontFamily="Arial,sans-serif">BSI</text>
-    </svg>
-  );
-  // fallback
-  return <span className={className}>{id.toUpperCase()}</span>;
 }
 
 const QUICK_AMOUNTS = [50000, 100000, 200000, 500000];
@@ -947,6 +920,12 @@ function TxnGroup({
         {items.map((x, i) => {
           const Icon = TXN_ICON[x.type];
           const credit = x.type === "TOP_UP" || x.type === "REFUND";
+          // v28 - VA top-ups are recorded as "VA <short>" (e.g. "VA BCA"); match
+          // it back to the bank so the history shows its real logo + full name
+          // instead of just the bare short code.
+          const vaBank = x.note?.startsWith("VA ")
+            ? VA_BANKS.find((b) => x.note === `VA ${b.short}`)
+            : undefined;
           return (
             <div
               key={x.id}
@@ -969,8 +948,9 @@ function TxnGroup({
                 <p className="truncate text-[13px] font-semibold leading-tight">
                   {txnLabel[x.type]}
                 </p>
-                <p className="tnum truncate text-[10.5px] text-muted-foreground">
-                  {x.note ? `${x.note} · ` : ""}
+                <p className="tnum flex items-center gap-1 truncate text-[10.5px] text-muted-foreground">
+                  {vaBank && <BankLogo id={vaBank.id} className="h-3 w-6 shrink-0 rounded-[2px]" />}
+                  {vaBank ? `${vaBank.name} · ` : x.note ? `${x.note} · ` : ""}
                   {new Date(x.createdAt).toLocaleTimeString(lang === "id" ? "id-ID" : "en-US", {
                     hour: "2-digit",
                     minute: "2-digit",

@@ -50,12 +50,7 @@ export function HistoryView({ onOpen }: { onOpen: (id: string) => void }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-xl font-bold tracking-tight">{t("historyTitle")}</h2>
-        <span className="tnum rounded-full border border-border bg-card/60 px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
-          {reservations.length}
-        </span>
-      </div>
+      <h2 className="font-display text-xl font-bold tracking-tight">{t("historyTitle")}</h2>
 
       {/* filters */}
       <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
@@ -127,12 +122,9 @@ export function HistoryView({ onOpen }: { onOpen: (id: string) => void }) {
 
                 <div className="flex items-center gap-3.5">
                   {/* slot block */}
-                  <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
                     <span className="tnum font-display text-sm font-bold leading-none text-gradient-gold">
                       {r.slotNumber}
-                    </span>
-                    <span className="mt-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {r.type === "WALK_IN" ? "walk-in" : "advance"}
                     </span>
                   </div>
 
@@ -145,6 +137,9 @@ export function HistoryView({ onOpen }: { onOpen: (id: string) => void }) {
                       <Clock3 className="h-3 w-3" />
                       {dateFmt} · {r.startTime}–{r.endTime}
                     </p>
+                    <span className="mt-1 inline-block rounded-full border border-border bg-card/60 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {r.type === "WALK_IN" ? "walk-in" : "advance"}
+                    </span>
                   </div>
 
                   <div className="flex shrink-0 flex-col items-end gap-1.5">
