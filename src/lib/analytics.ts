@@ -373,13 +373,17 @@ export interface ModelParams {
   gamma: number;
   /** Seasonal period used (168 = weekly, 24 = daily). */
   seasonalPeriod: number;
-  /** In-sample MAPE from the full training run. */
+  /** In-sample MAPE from the full training run (uses the full ANA_DAYS window). */
   inSampleMape: number;
-  /** Hold-out MAPE: train on first 23 days, evaluate on last 7 days. */
+  /** Hold-out MAPE: train on the first `trainingDays` days, evaluate on the last `holdOutDays`. */
   holdOutMape: number;
-  /** Number of sessions in the 30-day training dataset. */
+  /** Number of days used for the hold-out split's training slice. */
+  trainingDays: number;
+  /** Number of sessions in that training slice. */
   trainingSessions: number;
-  /** Number of sessions used as hold-out. */
+  /** Number of days held out for evaluation. */
+  holdOutDays: number;
+  /** Number of sessions in the hold-out slice. */
   holdOutSessions: number;
 }
 
@@ -438,7 +442,9 @@ export function computeModelParams(world: AnaSession[]): ModelParams {
     seasonalPeriod: fullSeries.length >= 336 ? 168 : 24,
     inSampleMape: fullForecast.mape,
     holdOutMape,
+    trainingDays: splitIdx,
     trainingSessions: trainWorld.length,
+    holdOutDays: days.length - splitIdx,
     holdOutSessions: testWorld.length,
   };
 }

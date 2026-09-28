@@ -7,23 +7,21 @@
  * every method is recorded on the transaction note.
  */
 import React from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDownLeft,
   Banknote,
-  Building2,
   Check,
+  ChevronDown,
   Copy,
   CreditCard,
   Landmark,
   Loader2,
   Plus,
-  QrCode,
   QrCode as QrIcon,
   Smartphone,
   TimerReset,
   Wallet as WalletIcon,
-  X,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -35,12 +33,14 @@ import {
 } from "@/components/ui/dialog";
 import { useParkir } from "@/lib/store";
 import {
+  CARD_ADMIN_FEE,
   cardBrand,
   expiryValid,
   formatCardNumber,
   groupVa,
   luhnValid,
   qrisPayload,
+  QRIS_ADMIN_FEE,
   rupiah,
   tr,
   vaNumberFor,
@@ -121,7 +121,10 @@ const MIN_TOPUP = 10_000;
 const MAX_TOPUP = 10_000_000;
 
 type PayMethod = "va" | "card" | "qris";
-type PayStage = "method" | "va" | "va-pay" | "card" | "qris" | "processing" | "done";
+/** v27 - "va"/"card"/"qris" no longer jump to a full-screen stage; they expand
+ *  in place as an accordion under the method list. Only picking a bank (→ VA
+ *  number screen) or settling a payment still advances to a dedicated stage. */
+type PayStage = "method" | "va-pay" | "processing" | "done";
 
 export function WalletView() {
   const lang = useParkir((s) => s.lang);
@@ -312,6 +315,8 @@ function TopUpDialog({
   const toast = useParkir((s) => s.toast);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   const [stage, setStage] = React.useState<PayStage>("method");
+  /** v27 - which method row is expanded open in the accordion (null = all collapsed). */
+  const [expandedMethod, setExpandedMethod] = React.useState<PayMethod | null>(null);
   const [bank, setBank] = React.useState<VaBank | null>(null);
   const [vaNumber, setVaNumber] = React.useState("");
   const [vaExpires, setVaExpires] = React.useState<Date | null>(null);
@@ -328,6 +333,7 @@ function TopUpDialog({
   React.useEffect(() => {
     if (open) {
       setStage("method");
+      setExpandedMethod(null);
       setBank(null);
       setCopied(false);
       setSettledNote("");
@@ -350,6 +356,11 @@ function TopUpDialog({
     setVaNumber(vaNumberFor(b.prefix, amount, seedRand));
     setVaExpires(new Date(Date.now() + 24 * 3600_000));
     setStage("va-pay");
+  }
+
+  function backToMethods() {
+    setStage("method");
+    setBank(null);
   }
 
   function copyVa() {
@@ -406,11 +417,6 @@ function TopUpDialog({
     settle(`Kartu •••• ${last4}`);
   }
 
-  const inputCls = (bad?: boolean, tnum = true) =>
-    `${tnum ? "tnum " : ""}h-11 w-full rounded-xl border bg-white/[0.05] px-3.5 text-[13px] font-bold ${tnum ? "tracking-wide " : ""}placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground/40 focus:outline-none transition ${
-      bad ? "border-red-400/70 focus:border-red-400" : "border-border focus:border-primary/50"
-    }`;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[400px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
@@ -423,6 +429,9 @@ function TopUpDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {/* v27 - accordion: each method expands in place instead of navigating
+            to a separate full-screen stage. Picking a bank inside the VA panel
+            still advances to the dedicated "va-pay" (VA number) stage below. */}
         {stage === "method" && (
           <div data-pay-methods className="mt-4 space-y-2">
             {(
@@ -431,49 +440,115 @@ function TopUpDialog({
                 { k: "card" as PayMethod, icon: CreditCard, title: t("payCard"), sub: t("payCardSub") },
                 { k: "qris" as PayMethod, icon: Smartphone, title: t("payQris"), sub: t("payQrisSub") },
               ] as const
-            ).map((m) => (
-              <button
-                key={m.k}
-                data-pay-method={m.k}
-                onClick={() => {
-                  if (m.k === "va") setStage("va");
-                  else if (m.k === "card") setStage("card");
-                  else setStage("qris");
-                }}
-                className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card/50 p-3.5 text-left transition hover:border-primary/40 hover:bg-card/80 active:scale-[0.99]"
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary">
-                  <m.icon className="h-4.5 w-4.5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold leading-tight">{m.title}</span>
-                  <span className="block truncate text-[11px] text-muted-foreground">{m.sub}</span>
-                </span>
-                <span className="tnum shrink-0 text-sm font-black text-primary">{rupiah(amount)}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* ── VA flow ── */}
-        {stage === "va" && (
-          <div data-va-banks className="mt-4">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-              {t("payVaPickBank")}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {VA_BANKS.map((b) => (
-                <button
-                  key={b.id}
-                  data-va-bank={b.short}
-                  onClick={() => pickBank(b)}
-                  className="flex items-center gap-2.5 rounded-xl border border-border bg-card/50 px-3 py-2.5 text-left transition hover:border-primary/40 hover:bg-card/80 active:scale-[0.98]"
+            ).map((m) => {
+              const isOpen = expandedMethod === m.k;
+              return (
+                <div
+                  key={m.k}
+                  className={cn(
+                    "overflow-hidden rounded-2xl border transition-colors",
+                    isOpen ? "border-primary/40 bg-card/80" : "border-border bg-card/50"
+                  )}
                 >
-                  <BankLogo id={b.id} className="h-5 w-10 shrink-0 rounded" />
-                  <span className="min-w-0 flex-1 truncate text-[11.5px] font-bold">{b.name}</span>
-                </button>
-              ))}
-            </div>
+                  <button
+                    data-pay-method={m.k}
+                    aria-expanded={isOpen}
+                    onClick={() => setExpandedMethod(isOpen ? null : m.k)}
+                    className="flex w-full items-start gap-3 p-3.5 text-left transition hover:bg-card/80 active:scale-[0.99]"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary">
+                      <m.icon className="h-4.5 w-4.5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-bold leading-tight">{m.title}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">{m.sub}</span>
+                      {/* v27 - real bank logo chips so VA is recognizable at a glance */}
+                      {m.k === "va" && (
+                        <span className="mt-1.5 flex items-center gap-1">
+                          {["bca", "mandiri", "bni", "bri"].map((id) => (
+                            <BankLogo key={id} id={id} className="h-4 w-9 shrink-0 rounded-[3px]" />
+                          ))}
+                          <span className="text-[9.5px] font-semibold text-muted-foreground">+4</span>
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex shrink-0 flex-col items-end gap-1 self-center">
+                      <span className="tnum text-sm font-black text-primary">{rupiah(amount)}</span>
+                      <ChevronDown
+                        className={cn(
+                          "h-3.5 w-3.5 text-muted-foreground transition-transform",
+                          isOpen && "rotate-180 text-primary"
+                        )}
+                      />
+                    </span>
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="border-t border-border/60 p-3.5 pt-3">
+                          {/* ── VA: vertical scrollable bank list, each with its own admin fee + total ── */}
+                          {m.k === "va" && (
+                            <div data-va-banks>
+                              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                                {t("payVaPickBank")}
+                              </p>
+                              <div className="max-h-[260px] space-y-1.5 overflow-y-auto pr-1">
+                                {VA_BANKS.map((b) => (
+                                  <button
+                                    key={b.id}
+                                    data-va-bank={b.short}
+                                    onClick={() => pickBank(b)}
+                                    className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-card/60 px-3 py-2.5 text-left transition hover:border-primary/40 hover:bg-card active:scale-[0.98]"
+                                  >
+                                    <BankLogo id={b.id} className="h-5 w-10 shrink-0 rounded" />
+                                    <span className="min-w-0 flex-1 truncate text-[11.5px] font-bold">{b.name}</span>
+                                    <span className="tnum shrink-0 text-right text-[9.5px] leading-tight text-muted-foreground">
+                                      {t("payAdminFee")} {rupiah(b.adminFee)}
+                                      <br />
+                                      <span className="font-bold text-primary">{rupiah(amount + b.adminFee)}</span>
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* ── Card: inline form ── */}
+                          {m.k === "card" && <CardForm
+                            amount={amount}
+                            lang={lang}
+                            cardNo={cardNo}
+                            cardName={cardName}
+                            cardExp={cardExp}
+                            cardCvv={cardCvv}
+                            cardErrors={cardErrors}
+                            setCardNo={setCardNo}
+                            setCardName={setCardName}
+                            setCardExp={setCardExp}
+                            setCardCvv={setCardCvv}
+                            setCardErrors={setCardErrors}
+                            onSubmit={submitCard}
+                            t={t}
+                          />}
+
+                          {/* ── QRIS: scannable code ── */}
+                          {m.k === "qris" && (
+                            <QrisPanel amount={amount} lang={lang} t={t} onPaid={() => settle("QRIS")} />
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -486,7 +561,7 @@ function TopUpDialog({
                 <p className="text-[10px] text-muted-foreground">{bank.short} Virtual Account</p>
               </div>
               <button
-                onClick={() => setStage("va")}
+                onClick={backToMethods}
                 className="shrink-0 rounded-full border border-border px-2.5 py-1 text-[10px] font-bold text-muted-foreground transition hover:text-foreground"
               >
                 {lang === "id" ? "Ganti" : "Change"}
@@ -510,9 +585,19 @@ function TopUpDialog({
               </button>
             </div>
 
-            <div className="flex items-center justify-between rounded-xl bg-white/[0.03] px-3.5 py-2.5 text-xs">
-              <span className="text-muted-foreground">{lang === "id" ? "Jumlah" : "Amount"}</span>
-              <span className="tnum font-black text-primary">{rupiah(amount)}</span>
+            <div className="space-y-1.5 rounded-xl bg-white/[0.03] px-3.5 py-2.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{lang === "id" ? "Jumlah" : "Amount"}</span>
+                <span className="tnum font-bold">{rupiah(amount)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t("payAdminFee")}</span>
+                <span className="tnum font-bold">{rupiah(bank.adminFee)}</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-border/60 pt-1.5">
+                <span className="font-bold text-muted-foreground">{t("payTotalDue")}</span>
+                <span className="tnum font-black text-primary">{rupiah(amount + bank.adminFee)}</span>
+              </div>
             </div>
             {vaExpires && (
               <div className="flex items-center justify-between rounded-xl bg-white/[0.03] px-3.5 py-2.5 text-xs">
@@ -533,195 +618,6 @@ function TopUpDialog({
             <button
               onClick={() => settle(`VA ${bank.short}`)}
               data-va-check
-              className="glow-primary flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-black text-primary-foreground transition active:scale-[0.98]"
-            >
-              <Check className="h-4.5 w-4.5" />
-              {t("payVaCheck")}
-            </button>
-          </div>
-        )}
-
-        {/* ── card flow ── */}
-        {stage === "card" && (
-          <div data-card-form className="mt-4 space-y-3">
-            {/* live card preview */}
-            <div
-              className="relative aspect-[1.686/1] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e3a8a] via-[#1d4ed8] to-[#312e81] p-4 text-white shadow-lg"
-            >
-              <div aria-hidden className="absolute -right-10 -top-14 h-36 w-36 rounded-full bg-white/[0.08]" />
-              <div aria-hidden className="absolute -bottom-16 -left-8 h-32 w-32 rounded-full bg-white/[0.06]" />
-              <div className="relative flex h-full flex-col justify-between">
-                <div className="flex items-start justify-between">
-                  <span className="h-7 w-9 rounded-md bg-gradient-to-br from-amber-200 to-amber-400 shadow-inner" />
-                  {(() => {
-                    const brand = cardBrand(cardNo);
-                    return brand ? (
-                      <span className="text-sm font-black italic tracking-tight">{brand}</span>
-                    ) : (
-                      <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/50">
-                        Parkir Pay
-                      </span>
-                    );
-                  })()}
-                </div>
-                <p className="tnum font-display text-[17px] font-bold tracking-[0.12em]">
-                  {formatCardNumber(cardNo) || "•••• •••• •••• ••••"}
-                </p>
-                <div className="flex items-end justify-between">
-                  <div className="min-w-0">
-                    <p className="text-[7.5px] font-bold uppercase tracking-[0.18em] text-white/50">
-                      {t("payCardName")}
-                    </p>
-                    <p className="truncate text-[11px] font-bold uppercase">
-                      {cardName || "NAMA LENGKAP"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[7.5px] font-bold uppercase tracking-[0.18em] text-white/50">
-                      {t("payCardExpiry")}
-                    </p>
-                    <p className="tnum text-[11px] font-bold">{cardExp || "MM/YY"}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                {t("payCardNumber")}
-              </p>
-              <input
-                value={formatCardNumber(cardNo)}
-                onChange={(e) => {
-                  setCardNo(e.target.value.replace(/\D/g, "").slice(0, 16));
-                  if (cardErrors.number) setCardErrors({ ...cardErrors, number: false });
-                }}
-                inputMode="numeric"
-                placeholder="4242 4242 4242 4242"
-                data-card-number
-                className={inputCls(cardErrors.number)}
-              />
-              {cardErrors.number && (
-                <p className="mt-1 text-[10px] font-semibold text-red-400">{t("payCardInvalid")}</p>
-              )}
-            </div>
-            <div>
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                {t("payCardName")}
-              </p>
-              <input
-                value={cardName}
-                onChange={(e) => {
-                  setCardName(e.target.value);
-                  if (cardErrors.name) setCardErrors({ ...cardErrors, name: false });
-                }}
-                placeholder="BUDI SANTOSO"
-                data-card-name
-                className={inputCls(cardErrors.name, false)}
-              />
-              {cardErrors.name && (
-                <p className="mt-1 text-[10px] font-semibold text-red-400">{t("payCardNameErr")}</p>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              <div>
-                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                  {t("payCardExpiry")}
-                </p>
-                <input
-                  value={cardExp}
-                  onChange={(e) => {
-                    let v = e.target.value.replace(/\D/g, "").slice(0, 4);
-                    if (v.length > 2) v = `${v.slice(0, 2)}/${v.slice(2)}`;
-                    setCardExp(v);
-                    if (cardErrors.exp) setCardErrors({ ...cardErrors, exp: false });
-                  }}
-                  inputMode="numeric"
-                  placeholder="12/28"
-                  data-card-expiry
-                  className={inputCls(cardErrors.exp)}
-                />
-                {cardErrors.exp && (
-                  <p className="mt-1 text-[10px] font-semibold text-red-400">{t("payCardExpErr")}</p>
-                )}
-              </div>
-              <div>
-                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                  {t("payCardCvv")}
-                </p>
-                <input
-                  value={cardCvv}
-                  onChange={(e) => {
-                    setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 3));
-                    if (cardErrors.cvv) setCardErrors({ ...cardErrors, cvv: false });
-                  }}
-                  inputMode="numeric"
-                  type="password"
-                  placeholder="•••"
-                  data-card-cvv
-                  className={inputCls(cardErrors.cvv)}
-                />
-                {cardErrors.cvv && (
-                  <p className="mt-1 text-[10px] font-semibold text-red-400">{t("payCardCvvErr")}</p>
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={submitCard}
-              data-card-submit
-              className="glow-primary flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-black text-primary-foreground transition active:scale-[0.98]"
-            >
-              <CreditCard className="h-4.5 w-4.5" />
-              {lang === "id" ? "Bayar" : "Pay"} {rupiah(amount)}
-            </button>
-            <button
-              onClick={() => {
-                setCardErrors({});
-                setCardNo("");
-                setCardName("");
-                setCardExp("");
-                setCardCvv("");
-              }}
-              className="mx-auto flex items-center gap-1 text-[11px] font-semibold text-muted-foreground transition hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5" /> {t("close")}
-            </button>
-          </div>
-        )}
-
-        {/* ── QRIS flow ── */}
-        {stage === "qris" && (
-          <div data-qris className="mt-4 space-y-3">
-            <div className="rounded-2xl bg-white p-4 text-center shadow-md">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="rounded bg-[#0F172A] px-1.5 py-0.5 text-[8px] font-black tracking-widest text-white">
-                  QRIS
-                </span>
-                <span className="rounded bg-red-600 px-1.5 py-0.5 text-[8px] font-black tracking-widest text-white">
-                  QRIS
-                </span>
-              </div>
-              <QRCodeSVG
-                value={qrisPayload(amount)}
-                size={188}
-                bgColor="#ffffff"
-                fgColor="#000000"
-                level="M"
-                marginSize={1}
-              />
-              <p className="mt-2 text-[10px] font-black tracking-wide text-[#0F172A]">
-                {t("payQrisMerchant")}
-              </p>
-              <p className="tnum text-[13px] font-black text-[#b91c1c]">Rp{amount.toLocaleString("id-ID")}</p>
-            </div>
-            <p className="text-center text-[11px] font-semibold text-muted-foreground">
-              {t("payQrisTitle")}
-            </p>
-            <p className="text-center text-[10px] text-muted-foreground/70">{t("payQrisSub")}</p>
-            <button
-              onClick={() => settle("QRIS")}
-              data-qris-check
               className="glow-primary flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-black text-primary-foreground transition active:scale-[0.98]"
             >
               <Check className="h-4.5 w-4.5" />
@@ -760,6 +656,274 @@ function TopUpDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ───────────────────────── Card form (v27 - inline accordion panel) ─────────────────────────
+
+function CardForm({
+  amount,
+  lang,
+  cardNo,
+  cardName,
+  cardExp,
+  cardCvv,
+  cardErrors,
+  setCardNo,
+  setCardName,
+  setCardExp,
+  setCardCvv,
+  setCardErrors,
+  onSubmit,
+  t,
+}: {
+  amount: number;
+  lang: "id" | "en";
+  cardNo: string;
+  cardName: string;
+  cardExp: string;
+  cardCvv: string;
+  cardErrors: Record<string, boolean>;
+  setCardNo: (v: string) => void;
+  setCardName: (v: string) => void;
+  setCardExp: (v: string) => void;
+  setCardCvv: (v: string) => void;
+  setCardErrors: (v: Record<string, boolean>) => void;
+  onSubmit: () => void;
+  t: (k: Parameters<typeof tr>[1]) => string;
+}) {
+  const inputCls = (bad?: boolean, tnum = true) =>
+    `${tnum ? "tnum " : ""}h-11 w-full rounded-xl border bg-white/[0.05] px-3.5 text-[13px] font-bold ${tnum ? "tracking-wide " : ""}placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground/40 focus:outline-none transition ${
+      bad ? "border-red-400/70 focus:border-red-400" : "border-border focus:border-primary/50"
+    }`;
+
+  return (
+    <div data-card-form className="space-y-3">
+      {/* live card preview */}
+      <div className="relative aspect-[1.686/1] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e3a8a] via-[#1d4ed8] to-[#312e81] p-4 text-white shadow-lg">
+        <div aria-hidden className="absolute -right-10 -top-14 h-36 w-36 rounded-full bg-white/[0.08]" />
+        <div aria-hidden className="absolute -bottom-16 -left-8 h-32 w-32 rounded-full bg-white/[0.06]" />
+        <div className="relative flex h-full flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <span className="h-7 w-9 rounded-md bg-gradient-to-br from-amber-200 to-amber-400 shadow-inner" />
+            {(() => {
+              const brand = cardBrand(cardNo);
+              return brand ? (
+                <span className="text-sm font-black italic tracking-tight">{brand}</span>
+              ) : (
+                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/50">
+                  Parkir Pay
+                </span>
+              );
+            })()}
+          </div>
+          <p className="tnum font-display text-[17px] font-bold tracking-[0.12em]">
+            {formatCardNumber(cardNo) || "•••• •••• •••• ••••"}
+          </p>
+          <div className="flex items-end justify-between">
+            <div className="min-w-0">
+              <p className="text-[7.5px] font-bold uppercase tracking-[0.18em] text-white/50">
+                {t("payCardName")}
+              </p>
+              <p className="truncate text-[11px] font-bold uppercase">
+                {cardName || "NAMA LENGKAP"}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[7.5px] font-bold uppercase tracking-[0.18em] text-white/50">
+                {t("payCardExpiry")}
+              </p>
+              <p className="tnum text-[11px] font-bold">{cardExp || "MM/YY"}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          {t("payCardNumber")}
+        </p>
+        <input
+          value={formatCardNumber(cardNo)}
+          onChange={(e) => {
+            setCardNo(e.target.value.replace(/\D/g, "").slice(0, 16));
+            if (cardErrors.number) setCardErrors({ ...cardErrors, number: false });
+          }}
+          inputMode="numeric"
+          placeholder="4242 4242 4242 4242"
+          data-card-number
+          className={inputCls(cardErrors.number)}
+        />
+        {cardErrors.number && (
+          <p className="mt-1 text-[10px] font-semibold text-red-400">{t("payCardInvalid")}</p>
+        )}
+      </div>
+      <div>
+        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          {t("payCardName")}
+        </p>
+        <input
+          value={cardName}
+          onChange={(e) => {
+            setCardName(e.target.value);
+            if (cardErrors.name) setCardErrors({ ...cardErrors, name: false });
+          }}
+          placeholder="BUDI SANTOSO"
+          data-card-name
+          className={inputCls(cardErrors.name, false)}
+        />
+        {cardErrors.name && (
+          <p className="mt-1 text-[10px] font-semibold text-red-400">{t("payCardNameErr")}</p>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2.5">
+        <div>
+          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+            {t("payCardExpiry")}
+          </p>
+          <input
+            value={cardExp}
+            onChange={(e) => {
+              let v = e.target.value.replace(/\D/g, "").slice(0, 4);
+              if (v.length > 2) v = `${v.slice(0, 2)}/${v.slice(2)}`;
+              setCardExp(v);
+              if (cardErrors.exp) setCardErrors({ ...cardErrors, exp: false });
+            }}
+            inputMode="numeric"
+            placeholder="12/28"
+            data-card-expiry
+            className={inputCls(cardErrors.exp)}
+          />
+          {cardErrors.exp && (
+            <p className="mt-1 text-[10px] font-semibold text-red-400">{t("payCardExpErr")}</p>
+          )}
+        </div>
+        <div>
+          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+            {t("payCardCvv")}
+          </p>
+          <input
+            value={cardCvv}
+            onChange={(e) => {
+              setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 3));
+              if (cardErrors.cvv) setCardErrors({ ...cardErrors, cvv: false });
+            }}
+            inputMode="numeric"
+            type="password"
+            placeholder="•••"
+            data-card-cvv
+            className={inputCls(cardErrors.cvv)}
+          />
+          {cardErrors.cvv && (
+            <p className="mt-1 text-[10px] font-semibold text-red-400">{t("payCardCvvErr")}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-1.5 rounded-xl bg-white/[0.03] px-3.5 py-2.5 text-xs">
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">{t("payAdminFee")}</span>
+          <span className="tnum font-bold">{rupiah(CARD_ADMIN_FEE)}</span>
+        </div>
+        <div className="flex items-center justify-between border-t border-border/60 pt-1.5">
+          <span className="font-bold text-muted-foreground">{t("payTotalDue")}</span>
+          <span className="tnum font-black text-primary">{rupiah(amount + CARD_ADMIN_FEE)}</span>
+        </div>
+      </div>
+
+      <button
+        onClick={onSubmit}
+        data-card-submit
+        className="glow-primary flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-black text-primary-foreground transition active:scale-[0.98]"
+      >
+        <CreditCard className="h-4.5 w-4.5" />
+        {lang === "id" ? "Bayar" : "Pay"} {rupiah(amount + CARD_ADMIN_FEE)}
+      </button>
+    </div>
+  );
+}
+
+// ───────────────────────── QRIS panel (v27 - redesigned inline accordion panel) ─────────────────────────
+
+function QrisPanel({
+  amount,
+  lang,
+  t,
+  onPaid,
+}: {
+  amount: number;
+  lang: "id" | "en";
+  t: (k: Parameters<typeof tr>[1]) => string;
+  onPaid: () => void;
+}) {
+  return (
+    <div data-qris className="space-y-3">
+      {/* QRIS card - white ticket-style panel, matching real QRIS branding conventions */}
+      <div className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-md">
+        <div className="flex items-center justify-between bg-[#0F172A] px-4 py-2">
+          <span className="text-[10px] font-black tracking-[0.16em] text-white">QRIS</span>
+          <span className="rounded bg-red-600 px-1.5 py-0.5 text-[8px] font-black tracking-widest text-white">
+            {lang === "id" ? "STANDAR" : "STANDARD"}
+          </span>
+        </div>
+        <div className="flex flex-col items-center gap-3 px-5 py-5">
+          <div className="rounded-xl border border-[#e5e7eb] p-2.5">
+            <QRCodeSVG
+              value={qrisPayload(amount + QRIS_ADMIN_FEE)}
+              size={172}
+              bgColor="#ffffff"
+              fgColor="#000000"
+              level="M"
+              marginSize={0}
+            />
+          </div>
+          <div className="text-center">
+            <p className="text-[11px] font-black leading-tight text-[#0F172A]">
+              {t("payQrisMerchant")}
+            </p>
+            <p className="tnum mt-0.5 text-[15px] font-black text-[#b91c1c]">
+              {rupiah(amount + QRIS_ADMIN_FEE)}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between border-t border-[#e5e7eb] px-4 py-2 text-[10px]">
+          <span className="text-[#6b7280]">
+            {t("payAdminFee")} {rupiah(QRIS_ADMIN_FEE)}
+          </span>
+          <span className="font-bold text-[#0F172A]">
+            {t("payTotalDue")} {rupiah(amount + QRIS_ADMIN_FEE)}
+          </span>
+        </div>
+        {/* supported wallets strip - visually anchors "scan with any app" */}
+        <div className="flex items-center justify-center gap-1.5 border-t border-[#e5e7eb] bg-[#fafafa] px-4 py-2">
+          {["GoPay", "OVO", "DANA", "ShopeePay"].map((w) => (
+            <span
+              key={w}
+              className="rounded-full border border-[#e5e7eb] bg-white px-2 py-0.5 text-[8.5px] font-bold text-[#4b5563]"
+            >
+              {w}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-2.5">
+        <QrIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold leading-snug">{t("payQrisTitle")}</p>
+          <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">{t("payQrisSub")}</p>
+        </div>
+      </div>
+
+      <button
+        onClick={onPaid}
+        data-qris-check
+        className="glow-primary flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-black text-primary-foreground transition active:scale-[0.98]"
+      >
+        <Check className="h-4.5 w-4.5" />
+        {t("payVaCheck")}
+      </button>
+    </div>
   );
 }
 

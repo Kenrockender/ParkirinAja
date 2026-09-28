@@ -135,7 +135,7 @@ export function AnprConsole({ className }: { className?: string }) {
 
   function onConfirmCheckin() {
     if (!matchedRes) return;
-    const ok = manualCheckIn(matchedRes.id);
+    const ok = manualCheckIn(matchedRes.id, "anpr");
     toast(ok ? t("anprCheckinOk") : t("anprCheckinFail"), ok ? "success" : "error");
     if (ok) reset();
   }

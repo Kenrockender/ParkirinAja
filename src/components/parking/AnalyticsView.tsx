@@ -314,12 +314,12 @@ export function AnalyticsView() {
             <div className="grid grid-cols-2 gap-1.5">
               <div className="rounded-xl border border-border bg-card/50 px-2.5 py-2">
                 <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">{t("anaMcTrain")}</p>
-                <p className="tnum mt-0.5 text-[11px] font-bold">30 {lang === "id" ? "hari" : "days"}</p>
+                <p className="tnum mt-0.5 text-[11px] font-bold">{modelParams.trainingDays} {lang === "id" ? "hari" : "days"}</p>
                 <p className="tnum text-[9px] text-muted-foreground">{modelParams.trainingSessions.toLocaleString()} {lang === "id" ? "sesi" : "sessions"}</p>
               </div>
               <div className="rounded-xl border border-border bg-card/50 px-2.5 py-2">
                 <p className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">{t("anaMcHoldOut")}</p>
-                <p className="tnum mt-0.5 text-[11px] font-bold">7 {lang === "id" ? "hari" : "days"}</p>
+                <p className="tnum mt-0.5 text-[11px] font-bold">{modelParams.holdOutDays} {lang === "id" ? "hari" : "days"}</p>
                 <p className="tnum text-[9px] text-muted-foreground">{modelParams.holdOutSessions.toLocaleString()} {lang === "id" ? "sesi" : "sessions"}</p>
               </div>
             </div>

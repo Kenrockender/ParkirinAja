@@ -50,12 +50,13 @@ const ACTION_META: Record<AuditAction, { icon: React.ComponentType<{ className?:
   CAMPUS_SWITCHED: { icon: ArrowLeftRight, labelKey: "aCampusSwitched" },
   PROMO_BROADCAST: { icon: Megaphone, labelKey: "aPromoBroadcast" },
   PROFILE_UPDATE: { icon: UserRoundPen, labelKey: "aProfileUpdate" },
-  ANPR_CHECKIN: { icon: ScanLine, labelKey: "anprTitle" },
+  ANPR_CHECKIN: { icon: ScanLine, labelKey: "aAnprCheckin" },
 };
 
 const OPERATOR_ACTIONS = new Set<AuditAction>([
   "FORCE_CHECKOUT",
   "MANUAL_CHECKIN",
+  "ANPR_CHECKIN",
   "SLOT_MAINTENANCE",
   "SLOT_REACTIVATED",
   "PROMO_BROADCAST",

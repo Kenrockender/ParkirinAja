@@ -183,7 +183,11 @@ export function ScannerView({
   // ── lifecycle: start camera when overlay opens ────────────────────────────
 
   React.useEffect(() => {
-    if (!open) {
+    // Coming Soon campuses render a static gate screen with no <video>
+    // element at all - never request the camera in that case, otherwise the
+    // user gets a permission prompt and a live stream for a UI that can't
+    // show it.
+    if (!open || !campus.available) {
       stopCamera();
       // Reset state in a microtask to avoid synchronous setState-in-effect
       const t = setTimeout(() => {
@@ -201,7 +205,7 @@ export function ScannerView({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     startCamera();
     return () => stopCamera();
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, campus.available]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── business logic (unchanged from original) ─────────────────────────────
 

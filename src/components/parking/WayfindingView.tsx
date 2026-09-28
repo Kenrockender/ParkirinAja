@@ -8,8 +8,8 @@
  *  · openlot   (Alam Sutera / Bekasi) - MASUK gate left side, KELUAR right side
  */
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Navigation, X } from "lucide-react";
+import { motion } from "framer-motion";
+import { MapPin, Navigation } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -37,12 +37,11 @@ const LANE_H    = 28;   // height of lane strip
 const LEFT_GATE_X  = 28;   // MASUK gate centre (openlot)
 const RIGHT_GATE_X = SVG_W - 28; // KELUAR / Anggrek entrance centre
 const SLOT_STEP    = 8;    // pixels per slot column index (scaled to fit SVG)
-const ROW_A_START_X = 32;  // X of col-0 for Row A
-const ROW_B_START_X = 32;  // X of col-0 for Row B
+const SLOT_START_X = 32;   // X of col-0 (shared by both Row A and Row B)
 
 /** Map a slot's colIndex → SVG X, clamped so it stays inside the canvas. */
 function slotX(colIndex: number): number {
-  return Math.min(ROW_A_START_X + colIndex * SLOT_STEP, SVG_W - 20);
+  return Math.min(SLOT_START_X + colIndex * SLOT_STEP, SVG_W - 20);
 }
 
 // ─── Path computation ─────────────────────────────────────────────────────────

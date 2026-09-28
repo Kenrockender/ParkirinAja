@@ -66,6 +66,18 @@ export function ProfileView() {
   const fileRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => setMounted(true), []);
 
+  // v26 - `pushEnabled` lives in the in-memory store, which resets on reload.
+  // The browser's own Notification permission is remembered across reloads
+  // (the permission prompt only ever fires from this toggle), so "granted"
+  // is a reliable signal the user turned this on in a previous session -
+  // re-sync the toggle instead of showing it stuck "off" after every reload.
+  // Note: sw.js itself is registered app-wide in layout.tsx for offline/PWA
+  // support regardless of this setting, so its presence alone isn't a signal.
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof Notification === "undefined") return;
+    if (Notification.permission === "granted") setPushEnabled(true);
+  }, [setPushEnabled]);
+
   const initials = user.name
     .split(" ")
     .map((p) => p[0])

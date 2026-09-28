@@ -174,8 +174,10 @@ interface ParkirState {
   /** Extend a session/booking window by N hours (capped at closing time) */
   extendSession: (id: string, hours: number) => boolean;
 
-  /** Operator: manual check-in for a confirmed reservation (bypasses customer limits) */
-  manualCheckIn: (id: string) => boolean;
+  /** Operator: manual check-in for a confirmed reservation (bypasses customer limits).
+   *  `source` picks which audit action gets logged - "manual" (default, operator
+   *  typed/tapped it in) or "anpr" (confirmed via the ANPR plate-match console). */
+  manualCheckIn: (id: string, source?: "manual" | "anpr") => boolean;
 
   /** v26: top up - `note` records the payment channel (VA BCA / Kartu •••• 4242 / QRIS). */
   topUp: (amount: number, note?: string) => void;
@@ -1399,7 +1401,7 @@ export const useParkir = create<ParkirState>((set, get) => {
       return true;
     },
 
-    manualCheckIn: (id) => {
+    manualCheckIn: (id, source = "manual") => {
       const target = get().reservations.find((r) => r.id === id && r.status === "CONFIRMED");
       if (!target) return false;
       const now = Date.now();
@@ -1408,7 +1410,11 @@ export const useParkir = create<ParkirState>((set, get) => {
           r.id === id ? { ...r, status: "CHECKED_IN" as ResStatus, checkedInAt: now } : r
         ),
       }));
-      audit("MANUAL_CHECKIN", { severity: "warning", target: target.slotNumber, detail: target.code });
+      audit(source === "anpr" ? "ANPR_CHECKIN" : "MANUAL_CHECKIN", {
+        severity: "warning",
+        target: target.slotNumber,
+        detail: target.code,
+      });
       return true;
     },
 

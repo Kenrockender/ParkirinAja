@@ -5,6 +5,44 @@
 
 ---
 
+## ✅ Verification Status (checked against live codebase)
+
+**All 8 tasks (0–7) are implemented and verified working in the current codebase.**
+This document is kept as a historical record of the plan; it no longer describes
+pending work. See the per-task status table and notes below.
+
+| # | Feature | Status |
+|---|---------|--------|
+| 0 | Remove all emoji → SVG icons | ✅ Done — zero emoji remain in `src/**` |
+| 1 | EV & disability slot types | ✅ Done — minor index discrepancy, see note below |
+| 2 | Wayfinding — animated path + text steps | ✅ Done — `WayfindingView.tsx` exists, wired into `TicketView.tsx` |
+| 3 | ANPR — simulated plate recognition | ✅ Done — `AnprConsole.tsx` exists, wired into `OperatorView.tsx` |
+| 4 | Receipt / invoice PDF download | ✅ Done — `jspdf` installed, `src/lib/invoice.ts` implemented |
+| 5 | Push notifications via Service Worker | ✅ Done — `public/sw.js`, `pushEnabled` in store, toggle in `ProfileView.tsx` |
+| 6 | DS showcase — model card + prediction widget | ✅ Done — MAPE (in-sample + hold-out), α/β/γ shown; see naming note below |
+| 7 | Real camera QR scanner | ✅ Done — `BarcodeDetector` + `@zxing/browser` fallback implemented |
+
+### Notes on discrepancies found during verification
+
+1. **Task 1 slot placement — correction:** an earlier pass of this verification
+   incorrectly flagged a mismatch here. Re-checked against the actual
+   `colIndex` (0-based) → `slotNumber` (1-based) mapping: Anggrek uses
+   `colIndex 16/17` → **A-17/A-18**, Alam Sutera uses `colIndex 18/19` →
+   **A-19/A-20**, Bekasi uses `colIndex 23/24` → **A-24/A-25**. All three match
+   this plan's specification exactly. No discrepancy exists.
+2. **Task 6 function naming** — this plan calls for a `computeMAPE(world)`
+   function. The actual implementation computes in-sample MAPE inline inside
+   `holtWintersForecast()` and hold-out MAPE inline inside the model-card data
+   builder, rather than as one standalone exported function with that name.
+   The output (MAPE, α, β, γ) matches all acceptance criteria.
+3. **Duplicate nested project folder** — a `ParkirinAja/ParkirinAja/` directory
+   exists inside this workspace root containing its own `.git` and a full copy
+   of this project (including `AnprConsole.tsx`, `WayfindingView.tsx`,
+   `invoice.ts`). It is unrelated to this plan's execution but was found during
+   verification and should be reviewed/removed if unintentional.
+
+---
+
 ## Overview
 
 | # | Feature | Target Files |
@@ -21,18 +59,24 @@
 
 ## Codebase Context
 
+> Historical snapshot from before execution — kept for reference only.
+> As of verification, `jspdf`, `@zxing/browser`, `@zxing/library` are all
+> installed, `public/sw.js` exists, and MAPE is computed and exposed in
+> `analytics.ts` / `AnalyticsView.tsx`. See the verification table above for
+> the current state.
+
 - **Stack:** Next.js 16, React 19, TypeScript, Tailwind 4, Shadcn/Radix, Zustand, Framer Motion, Lucide React
 - **Data:** All simulated in Zustand store — Prisma schema is placeholder only, no real backend
 - **Campuses:** Anggrek (building layout, 32 slots), Alam Sutera (open-lot, 40 slots), Bekasi (open-lot, 50 slots)
-- **Emoji scope:** Only one emoji found — `👋` in `HomeView.tsx` line 125; i18n strings are emoji-free
-- **Analytics:** `src/lib/analytics.ts` has frozen 30-day dataset, Holt-Winters forecast, z-score anomaly detection — MAPE not yet computed or exposed
-- **PDF:** No PDF library installed — add `jspdf`
-- **Service Worker:** None exists yet — `public/sw.js` is the target location
+- **Emoji scope (at plan time):** Only one emoji found — `👋` in `HomeView.tsx` line 125; i18n strings are emoji-free
+- **Analytics (at plan time):** `src/lib/analytics.ts` has frozen 30-day dataset, Holt-Winters forecast, z-score anomaly detection — MAPE not yet computed or exposed
+- **PDF (at plan time):** No PDF library installed — add `jspdf`
+- **Service Worker (at plan time):** None exists yet — `public/sw.js` is the target location
 - **Icons:** All existing icons use Lucide React — stay consistent
 
 ---
 
-## Task 0 — Remove All Emoji, Replace with SVG Icons
+## Task 0 — Remove All Emoji, Replace with SVG Icons ✅ DONE
 
 **Objective:** Replace every emoji character in the codebase with a semantically
 equivalent Lucide icon so the UI is fully consistent and professional.
@@ -52,7 +96,7 @@ equivalent Lucide icon so the UI is fully consistent and professional.
 
 ---
 
-## Task 1 — EV & Disability Slot Types
+## Task 1 — EV & Disability Slot Types ✅ DONE (see slot-index note above)
 
 **Objective:** Add `EV` and `DISABILITY` slot subtypes to the data model, render them
 with distinct icons on ParkingMap, allow filtered search in HomeView, and show a type
@@ -101,7 +145,7 @@ badge in BookingView.
 
 ---
 
-## Task 2 — Wayfinding: Animated Path + Step-by-Step Directions
+## Task 2 — Wayfinding: Animated Path + Step-by-Step Directions ✅ DONE
 
 **Objective:** Add a "Panduan Rute" button on TicketView (for CONFIRMED and CHECKED_IN
 reservations) that opens a dialog showing an animated SVG path from the entrance to
@@ -145,7 +189,7 @@ the booked slot, plus numbered text directions below the map.
 
 ---
 
-## Task 3 — ANPR: Simulated License Plate Recognition
+## Task 3 — ANPR: Simulated License Plate Recognition ✅ DONE
 
 **Objective:** Add an "ANPR Kamera" collapsible card to the operator Monitor tab.
 Operator uploads a plate photo → simulated AI detection result with confidence score
@@ -192,7 +236,7 @@ Operator uploads a plate photo → simulated AI detection result with confidence
 
 ---
 
-## Task 4 — Receipt / Invoice PDF Download
+## Task 4 — Receipt / Invoice PDF Download ✅ DONE
 
 **Objective:** Add a "Unduh Kwitansi" button to TicketView for COMPLETED reservations
 that generates and downloads a clean PDF invoice.
@@ -238,7 +282,7 @@ that generates and downloads a clean PDF invoice.
 
 ---
 
-## Task 5 — Push Notifications via Service Worker
+## Task 5 — Push Notifications via Service Worker ✅ DONE
 
 **Objective:** Register a Service Worker so session-ending alerts are delivered as
 native OS push notifications even when the app tab is backgrounded — with a
@@ -294,7 +338,7 @@ permission toggle in ProfileView preferences.
 
 ---
 
-## Task 6 — Data Science Showcase: Model Card + Prediction Widget
+## Task 6 — Data Science Showcase: Model Card + Prediction Widget ✅ DONE (see MAPE-naming note above)
 
 **Objective:** (a) Add a structured ML Model Card below the Holt-Winters forecast
 chart in AnalyticsView, exposing model parameters and MAPE. (b) Add a "Prediksi AI"
@@ -364,7 +408,7 @@ busyness for the selected booking window.
 
 ---
 
-## Task 7 — Real Camera QR Scanner
+## Task 7 — Real Camera QR Scanner ✅ DONE
 
 **Objective:** Replace the simulated camera feed in `ScannerView.tsx` with a real
 live camera stream that actually reads QR codes. The physical QR prints in
@@ -471,7 +515,7 @@ flash animation → onResult() → ticket / toast
 
 ---
 
-## Execution Order
+## Execution Order (as originally planned — all steps completed)
 
 ```
 Task 0 (emoji)  → Task 1 (EV/disability) → Task 2 (wayfinding)
@@ -482,22 +526,24 @@ Task 5           → Task 6 (DS showcase)
 Task 7 (camera QR) — independent, can run any time after Task 0
 ```
 
-Tasks 2 and 3 can run in parallel after Task 1.
-Task 7 is independent — it only touches `ScannerView.tsx` and does not
-conflict with any other task. Can be done at any point.
-Task 6 is last because it touches HomeView (modified in Task 1) and analytics.ts.
+Tasks 2 and 3 ran in parallel after Task 1.
+Task 7 was independent — it only touches `ScannerView.tsx` and did not
+conflict with any other task.
+Task 6 ran last because it touches HomeView (modified in Task 1) and analytics.ts.
 
 ---
 
-## Dependencies to Install
+## Dependencies Installed
 
 ```bash
 bun add jspdf
 bun add @zxing/browser @zxing/library
 ```
 
-No other new dependencies required — Lucide React, Framer Motion, Zustand, and
-the existing analytics engine cover all other features.
+Confirmed present in `package.json`: `jspdf@^2.5.2`, `@zxing/browser@^0.2.1`,
+`@zxing/library@^0.23.0`. No other new dependencies were required — Lucide
+React, Framer Motion, Zustand, and the existing analytics engine cover all
+other features.
 
 ---
 

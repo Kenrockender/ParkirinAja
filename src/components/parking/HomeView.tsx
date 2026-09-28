@@ -99,6 +99,14 @@ export function HomeView({
     return { freeSlots };
   }, [activeWin, slots, reservations]);
 
+  /** Free slots matching the active type filter - drives the headline count so it
+   *  stays consistent with which slots are dimmed on the map. */
+  const filteredFreeCount = React.useMemo(() => {
+    if (!results) return 0;
+    if (slotTypeFilter === "STANDARD") return results.freeSlots.length;
+    return results.freeSlots.filter((s) => s.slotType === slotTypeFilter).length;
+  }, [results, slotTypeFilter]);
+
   const hour = new Date().getHours();
   const greet =
     hour < 11 ? t("goodMorning") : hour < 18 ? t("goodAfternoon") : t("goodEvening");
@@ -375,7 +383,7 @@ export function HomeView({
                     </p>
                     <div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
                       <span className="tnum font-display text-2xl font-bold leading-none text-gradient-gold">
-                        {results.freeSlots.length}
+                        {filteredFreeCount}
                       </span>
                       <span className="tnum text-[11px] font-medium text-muted-foreground">
                         {t("slotsFound")} · {fmtDateLabel(activeWin!.date, lang)} {activeWin!.startTime}–{activeWin!.endTime}
@@ -391,7 +399,7 @@ export function HomeView({
                   </button>
                 </div>
 
-                {results.freeSlots.length === 0 && (
+                {filteredFreeCount === 0 && (
                   <div className="flex items-center gap-3 rounded-xl bg-red-400/[0.07] px-3 py-3">
                     <SearchX className="h-5 w-5 shrink-0 text-red-400" />
                     <div>
@@ -838,18 +846,19 @@ function PredictionStrip({
     return forecastCache.forecast;
   }, []);
 
-  // Map the selected startTime → forecast hour index
+  // Map the selected date + startTime → forecast hour index.
+  // forecast[i] represents (i+1) hours ahead of "now" (the forecast build time),
+  // so this needs the FULL date+time delta, not just hour-of-day - otherwise
+  // picking a date several days out would silently collapse to "next occurrence
+  // of that hour within 24h", ignoring the date the user actually picked.
   const predicted = React.useMemo(() => {
-    const [hh] = win.startTime.split(":").map(Number);
-    // The forecast covers 48 hours from "now". Map the selected time
-    // to the nearest matching hour in the forecast array.
-    const nowH = new Date().getHours();
-    const targetH = hh;
-    // delta hours from now (wrap next day if needed)
-    let delta = targetH - nowH;
-    if (delta < 0) delta += 24;
-    // keep within [0, forecast.length)
-    const idx = Math.min(delta, forecast.length - 1);
+    const target = new Date(`${win.date}T${win.startTime}:00`);
+    const now = new Date();
+    const diffHours = Math.round((target.getTime() - now.getTime()) / 3_600_000);
+    // Clamp into the forecast's covered range: dates in the past (or "now")
+    // fall back to the nearest point, dates beyond the 48h horizon fall back
+    // to the furthest point the model actually covers.
+    const idx = Math.min(Math.max(diffHours - 1, 0), forecast.length - 1);
     return Math.round(forecast[idx]);
   }, [forecast, win.startTime, win.date]);
 

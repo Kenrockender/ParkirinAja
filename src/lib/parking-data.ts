@@ -481,19 +481,28 @@ export interface VaBank {
   /** Real Indonesian VA issuer prefix. */
   prefix: string;
   color: string;
+  /** v27 - flat payment-gateway admin fee for this VA channel (Rupiah), charged
+   *  on top of the top-up amount - mirrors real VA aggregator pricing where each
+   *  bank has a slightly different rate. The wallet is still credited the full
+   *  top-up amount; only the "total dibayarkan" shown to the user is higher. */
+  adminFee: number;
 }
 
 /** 8 Indonesian banks with their real VA issuer prefixes. */
 export const VA_BANKS: VaBank[] = [
-  { id: "bca", name: "Bank BCA", short: "BCA", prefix: "8808", color: "#0d5bb5" },
-  { id: "mandiri", name: "Bank Mandiri", short: "Mandiri", prefix: "89508", color: "#123e7c" },
-  { id: "bni", name: "Bank BNI", short: "BNI", prefix: "9889", color: "#f28f2a" },
-  { id: "bri", name: "Bank BRI", short: "BRI", prefix: "8881", color: "#1a5fa8" },
-  { id: "cimb", name: "CIMB Niaga", short: "CIMB", prefix: "8027", color: "#b91c3c" },
-  { id: "danamon", name: "Bank Danamon", short: "Danamon", prefix: "8717", color: "#00497f" },
-  { id: "permata", name: "Bank Permata", short: "Permata", prefix: "8528", color: "#2f7d4f" },
-  { id: "bsi", name: "Bank Syariah Indonesia", short: "BSI", prefix: "7109", color: "#1e7d6f" },
+  { id: "bca", name: "Bank BCA", short: "BCA", prefix: "8808", color: "#0d5bb5", adminFee: 4000 },
+  { id: "mandiri", name: "Bank Mandiri", short: "Mandiri", prefix: "89508", color: "#123e7c", adminFee: 4000 },
+  { id: "bni", name: "Bank BNI", short: "BNI", prefix: "9889", color: "#f28f2a", adminFee: 2500 },
+  { id: "bri", name: "Bank BRI", short: "BRI", prefix: "8881", color: "#1a5fa8", adminFee: 2500 },
+  { id: "cimb", name: "CIMB Niaga", short: "CIMB", prefix: "8027", color: "#b91c3c", adminFee: 4000 },
+  { id: "danamon", name: "Bank Danamon", short: "Danamon", prefix: "8717", color: "#00497f", adminFee: 3500 },
+  { id: "permata", name: "Bank Permata", short: "Permata", prefix: "8528", color: "#2f7d4f", adminFee: 3500 },
+  { id: "bsi", name: "Bank Syariah Indonesia", short: "BSI", prefix: "7109", color: "#1e7d6f", adminFee: 2500 },
 ];
+
+/** v27 - flat admin fees for the other two top-up channels (Rupiah). */
+export const CARD_ADMIN_FEE = 3000;
+export const QRIS_ADMIN_FEE = 750;
 
 /**
  * 16-digit Virtual Account number: issuer prefix + amount tail + random digits,
@@ -1043,6 +1052,7 @@ const dict = {
     aForceCheckout: "Paksa akhiri sesi",
     aSessionExtended: "Sesi diperpanjang",
     aManualCheckin: "Check-in manual",
+    aAnprCheckin: "Check-in via ANPR",
     aTopUp: "Top up dompet",
     aSlotMaintenance: "Slot masuk perawatan",
     aSlotReactivated: "Slot kembali aktif",
@@ -1213,6 +1223,8 @@ const dict = {
     payCopy: "Salin",
     payCopied: "Nomor VA disalin",
     payVaCheck: "Saya sudah bayar",
+    payAdminFee: "Biaya admin",
+    payTotalDue: "Total dibayarkan",
     payCardNumber: "Nomor kartu",
     payCardName: "Nama di kartu",
     payCardExpiry: "MM/YY",
@@ -1700,6 +1712,7 @@ const dict = {
     aForceCheckout: "Force check-out",
     aSessionExtended: "Session extended",
     aManualCheckin: "Manual check-in",
+    aAnprCheckin: "Check-in via ANPR",
     aTopUp: "Wallet top-up",
     aSlotMaintenance: "Slot put into maintenance",
     aSlotReactivated: "Slot back in service",
@@ -1870,6 +1883,8 @@ const dict = {
     payCopy: "Copy",
     payCopied: "VA number copied",
     payVaCheck: "I've paid",
+    payAdminFee: "Admin fee",
+    payTotalDue: "Total to pay",
     payCardNumber: "Card number",
     payCardName: "Name on card",
     payCardExpiry: "MM/YY",
