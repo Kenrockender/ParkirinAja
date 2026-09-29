@@ -449,7 +449,7 @@ function TopUpDialog({
                     data-pay-method={m.k}
                     aria-expanded={isOpen}
                     onClick={() => setExpandedMethod(isOpen ? null : m.k)}
-                    className="flex w-full items-start gap-3 p-3.5 text-left transition hover:bg-card/80 active:scale-[0.99]"
+                    className="@container/payrow flex w-full flex-wrap items-start gap-3 p-3.5 text-left transition hover:bg-card/80 active:scale-[0.99]"
                   >
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary">
                       <m.icon className="h-4.5 w-4.5" />
@@ -457,21 +457,53 @@ function TopUpDialog({
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-bold leading-tight">{m.title}</span>
                       <span className="block truncate text-[11px] text-muted-foreground">{m.sub}</span>
-                      {/* v27 - real bank logo chips so VA is recognizable at a glance */}
+                      {/* v30 - real bank logo chips, sized by container query instead of a
+                          fixed count. This row measures ITS OWN available width (not the
+                          viewport), so it always fits: the fewest logos + a bigger "+N" show
+                          by default, and more logos reveal as room allows - no manual
+                          breakpoint per phone model, no horizontal overflow on narrow screens. */}
                       {m.k === "va" && (
-                        <span className="mt-1.5 flex items-center gap-1">
-                          {["bca", "mandiri", "bni", "bri"].map((id) => (
-                            <BankLogo key={id} id={id} className="h-4 w-9 shrink-0 rounded-[3px]" />
-                          ))}
-                          <span className="text-[9.5px] font-semibold text-muted-foreground">+4</span>
+                        <span className="@container/valogos mt-1.5 flex items-center gap-1 overflow-hidden">
+                          <BankLogo id="bca" className="h-4 w-9 shrink-0 rounded-[3px]" />
+                          <BankLogo
+                            id="mandiri"
+                            className="hidden h-4 w-9 shrink-0 rounded-[3px] @[120px]/valogos:flex"
+                          />
+                          <BankLogo
+                            id="bni"
+                            className="hidden h-4 w-9 shrink-0 rounded-[3px] @[165px]/valogos:flex"
+                          />
+                          <BankLogo
+                            id="bri"
+                            className="hidden h-4 w-9 shrink-0 rounded-[3px] @[210px]/valogos:flex"
+                          />
+                          <span className="shrink-0 text-[9.5px] font-semibold text-muted-foreground @[120px]/valogos:hidden">
+                            +7
+                          </span>
+                          <span className="hidden shrink-0 text-[9.5px] font-semibold text-muted-foreground @[120px]/valogos:inline @[165px]/valogos:hidden">
+                            +6
+                          </span>
+                          <span className="hidden shrink-0 text-[9.5px] font-semibold text-muted-foreground @[165px]/valogos:inline @[210px]/valogos:hidden">
+                            +5
+                          </span>
+                          <span className="hidden shrink-0 text-[9.5px] font-semibold text-muted-foreground @[210px]/valogos:inline">
+                            +4
+                          </span>
                         </span>
                       )}
                     </span>
-                    <span className="flex shrink-0 flex-col items-end gap-1 self-center">
+                    {/* v30 - price + chevron: on a narrow container this row has no
+                        spare width next to the icon/title, so instead of clipping
+                        (the accordion card's overflow-hidden was silently cutting
+                        it off) it drops to its own full-width row below the title.
+                        Once the row has enough room it goes back to the original
+                        right-aligned column. basis-full forces the wrap itself -
+                        it doesn't rely on the browser running out of space. */}
+                    <span className="ml-[52px] flex basis-full items-center justify-between @[260px]/payrow:ml-0 @[260px]/payrow:flex-col @[260px]/payrow:items-end @[260px]/payrow:gap-1 @[260px]/payrow:basis-auto @[260px]/payrow:self-center">
                       <span className="tnum text-sm font-black text-primary">{rupiah(amount)}</span>
                       <ChevronDown
                         className={cn(
-                          "h-3.5 w-3.5 text-muted-foreground transition-transform",
+                          "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
                           isOpen && "rotate-180 text-primary"
                         )}
                       />
