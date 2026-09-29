@@ -1,6 +1,7 @@
 "use client";
-/** Shared window picker bits - date chips + half-hour time grid in popovers. */
+/** Shared window picker bits - full-month calendar + half-hour time grid in popovers. */
 import React from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useParkir } from "@/lib/store";
 import {
@@ -48,7 +49,7 @@ export function WindowPicker({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-64 rounded-2xl border-border bg-popover/95 p-3 backdrop-blur-xl"
+        className="w-72 rounded-2xl border-border bg-popover/95 p-3 backdrop-blur-xl"
         align="center"
       >
         {children(() => setOpen(false))}
@@ -57,32 +58,154 @@ export function WindowPicker({
   );
 }
 
+/** How far ahead bookings can be made - "sebulan" (a month) from today. */
+const BOOKING_RANGE_DAYS = 30;
+
+const MONTH_LABELS: Record<Lang, string[]> = {
+  id: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"],
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+};
+
+function stripTime(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/** Monday-first weekday index (0=Mon..6=Sun), matching DAY_LABELS' order. */
+function mondayIndex(d: Date): number {
+  return d.getDay() === 0 ? 6 : d.getDay() - 1;
+}
+
+/**
+ * Full month calendar - picks any date within a rolling "sebulan" (30-day)
+ * booking window. Past days and days beyond the window are shown but greyed
+ * out/disabled instead of disappearing, so the calendar always reads as a
+ * real month grid.
+ */
 export function DateGrid({ value, onPick }: { value: string; onPick: (d: string) => void }) {
   const lang = useParkir((s) => s.lang);
-  const days = Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 86400_000));
+  const today = React.useMemo(() => stripTime(new Date()), []);
+  const maxDate = React.useMemo(() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + BOOKING_RANGE_DAYS);
+    return d;
+  }, [today]);
+
+  const selectedDate = React.useMemo(() => new Date(`${value}T00:00:00`), [value]);
+  const [viewYear, setViewYear] = React.useState(selectedDate.getFullYear());
+  const [viewMonth, setViewMonth] = React.useState(selectedDate.getMonth());
+
+  const firstOfMonth = new Date(viewYear, viewMonth, 1);
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const leadingBlanks = mondayIndex(firstOfMonth);
+
+  const cells: (Date | null)[] = [
+    ...Array.from({ length: leadingBlanks }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => new Date(viewYear, viewMonth, i + 1)),
+  ];
+
+  const canGoPrev = new Date(viewYear, viewMonth, 1) > new Date(today.getFullYear(), today.getMonth(), 1);
+  const canGoNext = new Date(viewYear, viewMonth + 1, 1) <= maxDate;
+
+  function changeMonth(delta: number) {
+    const d = new Date(viewYear, viewMonth + delta, 1);
+    setViewYear(d.getFullYear());
+    setViewMonth(d.getMonth());
+  }
+
   return (
-    <div className="grid grid-cols-4 gap-1.5">
-      {days.map((d) => {
-        const ds = dateStr(d);
-        const active = ds === value;
-        return (
-          <button
-            key={ds}
-            onClick={() => onPick(ds)}
+    <div>
+      {/* month header + prev/next nav */}
+      <div className="mb-2 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => canGoPrev && changeMonth(-1)}
+          disabled={!canGoPrev}
+          aria-label={lang === "id" ? "Bulan sebelumnya" : "Previous month"}
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded-lg transition",
+            canGoPrev
+              ? "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+              : "cursor-default text-muted-foreground/25"
+          )}
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </button>
+        <span className="text-[11.5px] font-bold tracking-tight">
+          {MONTH_LABELS[lang as Lang][viewMonth]} {viewYear}
+        </span>
+        <button
+          type="button"
+          onClick={() => canGoNext && changeMonth(1)}
+          disabled={!canGoNext}
+          aria-label={lang === "id" ? "Bulan berikutnya" : "Next month"}
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded-lg transition",
+            canGoNext
+              ? "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+              : "cursor-default text-muted-foreground/25"
+          )}
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* weekday header row - Sunday (last column, Monday-first order) in red */}
+      <div className="mb-1 grid grid-cols-7">
+        {DAY_LABELS[lang as Lang].map((label, i) => (
+          <span
+            key={label}
             className={cn(
-              "flex flex-col items-center rounded-xl border px-2 py-2 transition",
-              active
-                ? "border-primary/50 bg-primary/15 text-primary"
-                : "border-border bg-card/40 hover:border-primary/30"
+              "text-center text-[8.5px] font-semibold uppercase",
+              i === 6 ? "text-red-400" : "text-muted-foreground/70"
             )}
           >
-            <span className="text-[9px] font-semibold uppercase text-muted-foreground">
-              {DAY_LABELS[lang as Lang][d.getDay() === 0 ? 6 : d.getDay() - 1]}
-            </span>
-            <span className="tnum text-sm font-bold">{d.getDate()}</span>
-          </button>
-        );
-      })}
+            {label[0]}
+          </span>
+        ))}
+      </div>
+
+      {/* day grid */}
+      <div className="grid grid-cols-7 gap-y-1">
+        {cells.map((d, i) => {
+          if (!d) return <span key={`blank-${i}`} />;
+          const ds = dateStr(d);
+          const isPast = d < today;
+          const isBeyondRange = d > maxDate;
+          // Campus is closed on Sundays - every Sunday is greyed out/disabled,
+          // same treatment as past/out-of-range days.
+          const isSunday = d.getDay() === 0;
+          const disabled = isPast || isBeyondRange || isSunday;
+          const active = ds === value;
+          const isToday = d.getTime() === today.getTime();
+          return (
+            <button
+              key={ds}
+              type="button"
+              onClick={() => !disabled && onPick(ds)}
+              disabled={disabled}
+              aria-label={
+                isSunday
+                  ? lang === "id" ? "Tutup di hari Minggu" : "Closed on Sundays"
+                  : isPast
+                    ? lang === "id" ? "Tanggal sudah lewat" : "Past date"
+                    : undefined
+              }
+              className={cn(
+                "tnum mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[11.5px] font-bold transition",
+                disabled
+                  ? "cursor-default text-muted-foreground/30"
+                  : active
+                    ? "bg-primary text-primary-foreground"
+                    : isToday
+                      ? "border border-primary/50 text-primary hover:bg-primary/10"
+                      : "text-foreground hover:bg-accent/60"
+              )}
+            >
+              {d.getDate()}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

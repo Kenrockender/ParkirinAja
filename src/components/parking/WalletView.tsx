@@ -84,7 +84,6 @@ function BankLogo({ id, className }: { id: string; className?: string }) {
         className
       )}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt={id.toUpperCase()} className="h-full w-full object-contain" draggable={false} />
     </span>
   );
@@ -114,8 +113,12 @@ export function WalletView({ onOpenNotif }: { onOpenNotif: () => void }) {
   const [custom, setCustom] = React.useState("");
   const [customErr, setCustomErr] = React.useState<string | null>(null);
 
+  /** Bumped on every new top-up so <TopUpDialog key> remounts with fresh state. */
+  const [dialogSeq, setDialogSeq] = React.useState(0);
+
   function openTopUp(value: number) {
     setAmount(value);
+    setDialogSeq((n) => n + 1);
     setDialogOpen(true);
   }
 
@@ -263,6 +266,7 @@ export function WalletView({ onOpenNotif }: { onOpenNotif: () => void }) {
       </section>
 
       <TopUpDialog
+        key={dialogSeq}
         open={dialogOpen}
         amount={amount}
         onOpenChange={(v) => setDialogOpen(v)}
@@ -307,20 +311,8 @@ function TopUpDialog({
   const [cardCvv, setCardCvv] = React.useState("");
   const [cardErrors, setCardErrors] = React.useState<Record<string, boolean>>({});
 
-  React.useEffect(() => {
-    if (open) {
-      setStage("method");
-      setExpandedMethod(null);
-      setBank(null);
-      setCopied(false);
-      setSettledNote("");
-      setCardNo("");
-      setCardName("");
-      setCardExp("");
-      setCardCvv("");
-      setCardErrors({});
-    }
-  }, [open, amount]);
+  // v31 - no reset effect: the parent remounts this component with a fresh
+  // `key` every time a top-up is started, so all state above starts clean.
 
   function pickBank(b: VaBank) {
     setBank(b);
@@ -407,12 +399,22 @@ function TopUpDialog({
           // edges. sm:max-w caps it at 400px only once the screen is wide
           // enough that the margin is no longer needed.
           "sm:max-w-[400px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl",
+          // v31 - DialogContent is a CSS grid; grid items default to
+          // min-width:auto, so any wide child could stretch the single track
+          // past the dialog and push content off to the right. Let every
+          // direct child shrink to the dialog's width instead.
+          "[&>*]:min-w-0",
           // v29 - cap the dialog to the viewport height and let it scroll
           // internally; without this the expanded method accordion (esp.
           // the VA bank list) could grow taller than the screen and get
           // clipped/overflow past the viewport ("nembus") instead of
           // scrolling in place.
-          "max-h-[calc(100dvh-2rem)] overflow-y-auto"
+          "max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain",
+          // v31 - hide the dialog's own scrollbar (scroll still works). A
+          // classic desktop scrollbar ate ~15px on the right only, so the
+          // method cards sat visibly off-center, and it popped in/out while
+          // the accordion animated, making the whole content jitter sideways.
+          "no-scrollbar"
         )}
       >
         <DialogHeader className="space-y-1">
@@ -526,7 +528,7 @@ function TopUpDialog({
                               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                                 {t("payVaPickBank")}
                               </p>
-                              <div className="max-h-[260px] space-y-1.5 overflow-y-auto pr-1">
+                              <div className="no-scrollbar max-h-[260px] space-y-1.5 overflow-y-auto overscroll-contain">
                                 {VA_BANKS.map((b) => (
                                   <button
                                     key={b.id}
@@ -1014,7 +1016,7 @@ function TxnGroup({
               <span
                 className={cn(
                   "tnum shrink-0 text-[13px] font-bold",
-                  credit ? "text-green-400" : "text-foreground"
+                  credit ? "text-green-400" : "text-red-400"
                 )}
               >
                 {credit ? "+" : "−"}

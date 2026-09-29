@@ -135,11 +135,36 @@
   }
   html {
     -webkit-tap-highlight-color: transparent;
+    /* Reserve the scrollbar's gutter permanently so the viewport width never
+       changes when a Dialog locks scrolling (see body[data-scroll-locked]
+       below for the matching half of this fix). */
+    scrollbar-gutter: stable;
   }
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "ss01" on, "cv05" on;
+    /* v31 - overflow-x lives ONLY on <body> now. Having it on both <html>
+       and <body> stopped body's overflow from propagating to the viewport,
+       turning <body> into its own (non-scrolling) scroll box - so Radix's
+       `overflow: hidden` scroll-lock on <body> never actually locked the
+       page and the scrollbar stayed visible under the dialog. */
+    overflow-x: hidden;
   }
+}
+
+/* v31 - Radix Dialog (react-remove-scroll-bar) compensates for the hidden
+   scrollbar by adding `margin-right: <scrollbar width>px !important` to
+   <body>. With `scrollbar-gutter: stable` the gutter is ALREADY reserved, so
+   that margin was applied on top of it: the page content jumped left ~15px
+   while the fixed bottom nav and fixed dialog stayed put, making the dialog
+   look off-center and the nav look shifted every time a top-up chip was
+   pressed. The gutter handles it, so cancel the extra compensation. */
+html body[data-scroll-locked] {
+  margin-right: 0 !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
+
+@layer base {
   ::selection {
     background: rgba(59, 130, 246, 0.35);
   }
