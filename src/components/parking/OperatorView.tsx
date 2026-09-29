@@ -59,7 +59,6 @@ import { AnprConsole } from "./AnprConsole";
 import { useParkir } from "@/lib/store";
 import {
   campusById,
-  campusCodePrefix,
   campusForSlot,
   dateStr,
   demandNow,
@@ -96,9 +95,12 @@ function nowWindow() {
   };
 }
 
-/** Payload encoded in every physical slot QR - parseable by the customer scanner. */
+/** Payload encoded in every physical slot QR - parseable by the customer scanner.
+ *  v33 - campus-neutral: the QR is just the slot number (e.g. "A-01"), so slot
+ *  A-01 has the exact same QR at Anggrek, Alam Sutera and Bekasi and one printed
+ *  set works everywhere. The scanner resolves it against the ACTIVE campus. */
 export function slotQrPayload(slot: Slot): string {
-  return `${campusCodePrefix(campusForSlot(slot.id))}-${slot.slotNumber}`;
+  return slot.slotNumber;
 }
 
 /** Campus-aware location line for QR cards & the print sheet. */
@@ -217,9 +219,14 @@ function LiveClock() {
   const lang = useParkir((s) => s.lang);
   const [now, setNow] = React.useState<Date | null>(null);
   React.useEffect(() => {
-    setNow(new Date());
+    // first tick scheduled (not synchronous) - keeps SSR/hydration safe and
+    // satisfies react-hooks/set-state-in-effect
+    const first = setTimeout(() => setNow(new Date()), 0);
     const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
   }, []);
   const locale = lang === "id" ? "id-ID" : "en-US";
   return (

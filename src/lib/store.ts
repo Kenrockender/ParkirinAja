@@ -1341,12 +1341,11 @@ export const useParkir = create<ParkirState>((set, get) => {
       const { slots, reservations, walletBalance, campusId } = get();
       const raw = slotNumberRaw.trim().toUpperCase();
       const prefixMatch = raw.match(/^(PB|AS|BKS)-?(.*)$/);
-      // v29 - the QR's campus prefix (PB/AS/BKS) is validated against the
-      // currently active campus instead of being discarded. Previously the
-      // prefix was stripped and thrown away, so scanning e.g. a Bekasi QR
-      // (BKS-A-07) while the app was on Anggrek would silently check the
-      // scanner into Anggrek's own slot A-07 - a real cross-campus
-      // collision, since every campus reuses the same A-01..A-xx numbering.
+      // v33 - slot QRs are now campus-neutral (just "A-01"): the same QR is
+      // used at every campus and is resolved against the ACTIVE campus below.
+      // Legacy QRs printed with a campus prefix (PB-/AS-/BKS-) still work, and
+      // since they do name a specific campus, that prefix is still checked
+      // against the active campus to avoid a cross-campus check-in.
       if (prefixMatch) {
         const scannedPrefix = prefixMatch[1];
         const activePrefix = campusCodePrefix(campusId);

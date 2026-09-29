@@ -235,7 +235,8 @@ export function campusLabel(c: Campus): string {
   return c.building ? `${c.name} · ${c.building}` : c.name;
 }
 
-/** QR payload prefix per campus - keeps physical slot codes unique across campuses. */
+/** Campus prefix used by LEGACY slot QRs (PB-/AS-/BKS-). New slot QRs are
+ *  campus-neutral (see slotQrPayload); this is kept so old prints still scan. */
 export function campusCodePrefix(id: CampusId): string {
   return id === "anggrek" ? "PB" : id === "alamsutera" ? "AS" : "BKS";
 }

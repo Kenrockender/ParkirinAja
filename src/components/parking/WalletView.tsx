@@ -409,7 +409,10 @@ function TopUpDialog({
           // the VA bank list) could grow taller than the screen and get
           // clipped/overflow past the viewport ("nembus") instead of
           // scrolling in place.
-          "max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain",
+          // v32 - height capped to the iOS SAFE area (dialog-safe-h in
+          // globals.css), not the raw 100dvh, so the expanded card/QRIS panels
+          // scroll inside the dialog instead of running up under the status bar.
+          "dialog-safe-h overflow-y-auto overscroll-contain",
           // v31 - hide the dialog's own scrollbar (scroll still works). A
           // classic desktop scrollbar ate ~15px on the right only, so the
           // method cards sat visibly off-center, and it popped in/out while

@@ -159,6 +159,23 @@
    while the fixed bottom nav and fixed dialog stayed put, making the dialog
    look off-center and the nav look shifted every time a top-up chip was
    pressed. The gutter handles it, so cancel the extra compensation. */
+/* v32 - the app runs edge-to-edge on iOS (viewportFit "cover" +
+   statusBarStyle "black-translucent"), so the top ~47px of the viewport sits
+   UNDER the status bar / notch. A dialog centered on the raw viewport with a
+   plain `100dvh - 2rem` height cap therefore reached up behind the clock and
+   battery icons as soon as a tall panel (card form, QRIS) was expanded.
+   Center it inside the SAFE area instead and cap its height to that area.
+   Unlayered on purpose so it wins over the Tailwind top-/max-h- utilities.
+   With zero insets (desktop, Android) this equals the old behaviour. */
+.dialog-safe {
+  top: calc(50% + (env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) / 2);
+}
+.dialog-safe-h {
+  max-height: calc(
+    100dvh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+  );
+}
+
 html body[data-scroll-locked] {
   margin-right: 0 !important;
   --removed-body-scroll-bar-size: 0px !important;

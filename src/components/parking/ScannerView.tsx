@@ -6,8 +6,9 @@
  *  1. getUserMedia({ facingMode: "environment" }) - rear camera
  *  2. BarcodeDetector API (native, Chrome/Edge/Safari 17+) - primary decoder
  *  3. @zxing/browser BrowserQRCodeReader - fallback for Firefox / older browsers
- *  4. Existing handleScan() business logic is unchanged - QR payloads
- *     PB-A-01, AS-A-03, BKS-B-12 are already correctly parsed by the store.
+ *  4. Existing handleScan() business logic is unchanged - slot QRs are
+ *     campus-neutral ("A-01", same QR at every campus) and resolved against
+ *     the active campus; legacy PB-/AS-/BKS- prefixed QRs are still accepted.
  *
  * All existing manual fallback + "my sessions" quick-tap UI is preserved.
  */
