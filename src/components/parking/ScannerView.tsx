@@ -21,9 +21,7 @@ import {
   demandNow,
   DEMAND_TIERS,
   rupiah,
-  slotStatusForWindow,
   tr,
-  type Slot,
 } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
 
@@ -52,14 +50,11 @@ export function ScannerView({
   const lang = useParkir((s) => s.lang);
   const slots = useParkir((s) => s.slots);
   const reservations = useParkir((s) => s.reservations);
-  const win = useParkir((s) => s.viewWindow);
   const scanSlot = useParkir((s) => s.scanSlot);
   const toast = useParkir((s) => s.toast);
   const campus = campusById(useParkir((s) => s.campusId));
-  const user = useParkir((s) => s.user);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
 
-  const [code, setCode] = React.useState("");
   const [flash, setFlash] = React.useState<string | null>(null);
   const [camState, setCamState] = React.useState<CamState>("idle");
   const [torchOn, setTorchOn] = React.useState(false);
@@ -77,13 +72,6 @@ export function ScannerView({
   const walkInFee = DEMAND_TIERS[demand.tier].walkInFee;
   const tierLabel = tr(lang, demand.tier === "LOW" ? "dynLow" : demand.tier === "HIGH" ? "dynHigh" : "dynNormal");
 
-  const free = slots.filter((s) => slotStatusForWindow(s, reservations, win) === "AVAILABLE");
-  const mine = reservations.filter(
-    (r) =>
-      ["CONFIRMED", "CHECKED_IN"].includes(r.status) &&
-      r.driverName === user.name &&
-      slots.some((s) => s.id === r.slotId)
-  );
 
   // ── start / stop camera ─────────────────────────────────────────────────
 
@@ -424,89 +412,14 @@ export function ScannerView({
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15" />
 
-        {/* manual code input */}
-        <div className="flex gap-2">
-          <input
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && code.trim()) {
-                handleScan(code.trim());
-                setCode("");
-              }
-            }}
-            placeholder={t("codePlaceholder")}
-            aria-label={t("orEnterCode")}
-            className="tnum h-11 flex-1 rounded-xl border border-white/15 bg-white/[0.05] px-4 text-sm font-bold tracking-wider placeholder:font-normal placeholder:tracking-normal placeholder:text-white/30 focus:border-primary/50 focus:outline-none"
-          />
-          <button
-            onClick={() => {
-              if (code.trim()) {
-                handleScan(code.trim());
-                setCode("");
-              }
-            }}
-            className="glow-primary h-11 shrink-0 rounded-xl bg-primary px-5 text-xs font-black text-primary-foreground transition active:scale-95"
-          >
-            {t("scanGo")}
-          </button>
-        </div>
-        <p className="mt-1.5 text-center text-[9.5px] text-white/35">{t("orEnterCode")}</p>
-
         {/* live dynamic walk-in rate */}
-        <div className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-2">
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-2">
           <Zap className="h-3.5 w-3.5 shrink-0 text-primary" />
           <p className="text-[10.5px] font-semibold text-white/60">
             {t("dynWalkinNow")}:{" "}
             <span className="tnum font-bold text-primary">{rupiah(walkInFee)}</span>
             <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-white/40">{tierLabel}</span>
           </p>
-        </div>
-
-        {/* my sessions - quick tap out */}
-        {mine.length > 0 && (
-          <div className="mt-4">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">
-              {lang === "id" ? "Sesi saya" : "My sessions"}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {mine.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => handleScan(r.slotNumber)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition active:scale-95",
-                    r.status === "CHECKED_IN"
-                      ? "border-green-400/30 bg-green-400/10 hover:bg-green-400/15"
-                      : "border-primary/25 bg-primary/[0.08] hover:bg-primary/15"
-                  )}
-                >
-                  <span className="tnum font-display text-sm font-bold">{r.slotNumber}</span>
-                  <span className="text-[9px] font-semibold text-white/50">
-                    {r.status === "CHECKED_IN" ? t("scanExit") : t("checkIn")}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* free slots */}
-        <div className="mt-4">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">
-            {t("scanPick")}
-          </p>
-          <div className="grid grid-cols-6 gap-1.5">
-            {free.map((s: Slot) => (
-              <button
-                key={s.id}
-                onClick={() => handleScan(s.slotNumber)}
-                className="tnum rounded-lg border border-green-400/20 bg-green-400/[0.06] py-2 text-[11px] font-bold text-green-300 transition hover:bg-green-400/15 active:scale-95"
-              >
-                {s.slotNumber}
-              </button>
-            ))}
-          </div>
         </div>
       </motion.div>
     </motion.div>
