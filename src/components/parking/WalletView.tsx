@@ -22,10 +22,12 @@ import {
   Smartphone,
   TimerReset,
   Wallet as WalletIcon,
+  X,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -90,6 +92,15 @@ function BankLogo({ id, className }: { id: string; className?: string }) {
 }
 
 const QUICK_AMOUNTS = [50000, 100000, 200000, 500000];
+
+/** v35 - every expanded payment panel (VA, Kartu, QRIS) gets the SAME fixed
+ *  height, shared with the VA bank list (label + scrolling list). Taller content
+ *  (card form, QRIS code) scrolls inside the panel instead of stretching the
+ *  dialog, so all three look identical when opened. */
+// v40 - fills the screen down to just above the bottom nav, min 260px
+// (see .pay-panel-h in globals.css).
+const PANEL_H = "pay-panel-h";
+const PANEL_SCROLL = "no-scrollbar overflow-y-auto overscroll-contain";
 const MIN_TOPUP = 10_000;
 const MAX_TOPUP = 10_000_000;
 
@@ -413,14 +424,29 @@ function TopUpDialog({
           // globals.css), not the raw 100dvh, so the expanded card/QRIS panels
           // scroll inside the dialog instead of running up under the status bar.
           "dialog-safe-h overflow-y-auto overscroll-contain",
+          // v39 - anchor the top edge so expanding a method only grows the
+          // dialog downward (see .dialog-top in globals.css).
+          "dialog-top",
           // v31 - hide the dialog's own scrollbar (scroll still works). A
           // classic desktop scrollbar ate ~15px on the right only, so the
           // method cards sat visibly off-center, and it popped in/out while
           // the accordion animated, making the whole content jitter sideways.
           "no-scrollbar"
         )}
+        // v34 - the default close X is `absolute` inside this scrolling
+        // container, so it scrolled away (and on iOS sat under the status bar)
+        // once the tall QRIS / card panel was open - the dialog could not be
+        // closed. We render our own X inside a sticky header instead.
+        showCloseButton={false}
       >
-        <DialogHeader className="space-y-1">
+        <DialogHeader className="sticky -top-5 z-20 -mx-5 -mt-5 space-y-1 rounded-t-3xl bg-card/95 px-12 pb-3 pt-5 backdrop-blur-xl">
+          <DialogClose
+            aria-label={lang === "id" ? "Tutup" : "Close"}
+            data-pay-close
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card/80 text-muted-foreground transition hover:text-foreground active:scale-90"
+          >
+            <X className="h-4 w-4" />
+          </DialogClose>
           <DialogTitle className="text-center font-display text-lg font-bold tracking-tight">
             {stage === "done" ? t("payDone") : stage === "method" ? t("payDialogTitle") : `${rupiah(amount)}`}
           </DialogTitle>
@@ -527,11 +553,11 @@ function TopUpDialog({
                         <div className="border-t border-border/60 p-3.5 pt-3">
                           {/* ── VA: vertical scrollable bank list, each with its own admin fee + total ── */}
                           {m.k === "va" && (
-                            <div data-va-banks>
-                              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                            <div data-va-banks className={cn(PANEL_H, "flex flex-col")}>
+                              <p className="mb-2 shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                                 {t("payVaPickBank")}
                               </p>
-                              <div className="no-scrollbar max-h-[260px] space-y-1.5 overflow-y-auto overscroll-contain">
+                              <div className="no-scrollbar min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain">
                                 {VA_BANKS.map((b) => (
                                   <button
                                     key={b.id}
@@ -553,7 +579,9 @@ function TopUpDialog({
                           )}
 
                           {/* ── Card: inline form ── */}
-                          {m.k === "card" && <CardForm
+                          {m.k === "card" && (
+                          <div data-card-scroll className={cn(PANEL_H, PANEL_SCROLL)}>
+                          <CardForm
                             amount={amount}
                             lang={lang}
                             cardNo={cardNo}
@@ -568,11 +596,21 @@ function TopUpDialog({
                             setCardErrors={setCardErrors}
                             onSubmit={submitCard}
                             t={t}
-                          />}
+                          />
+                          </div>
+                          )}
 
                           {/* ── QRIS: scannable code ── */}
                           {m.k === "qris" && (
-                            <QrisPanel amount={amount} lang={lang} t={t} onPaid={() => settle("QRIS")} />
+                            <div data-qris-scroll className={cn(PANEL_H, PANEL_SCROLL)}>
+                              <QrisPanel
+                                amount={amount}
+                                lang={lang}
+                                t={t}
+                                onPaid={() => settle("QRIS")}
+                                onHide={() => setExpandedMethod(null)}
+                              />
+                            </div>
                           )}
                         </div>
                       </motion.div>
@@ -882,11 +920,14 @@ function QrisPanel({
   lang,
   t,
   onPaid,
+  onHide,
 }: {
   amount: number;
   lang: "id" | "en";
   t: (k: Parameters<typeof tr>[1]) => string;
   onPaid: () => void;
+  /** v34 - collapse the QRIS panel (hide the QR) without closing the dialog. */
+  onHide: () => void;
 }) {
   return (
     <div data-qris className="space-y-3">
@@ -954,6 +995,15 @@ function QrisPanel({
       >
         <Check className="h-4.5 w-4.5" />
         {t("payVaCheck")}
+      </button>
+
+      <button
+        onClick={onHide}
+        data-qris-hide
+        className="mx-auto flex items-center gap-1 text-[11px] font-semibold text-muted-foreground transition hover:text-foreground"
+      >
+        <X className="h-3.5 w-3.5" />
+        {lang === "id" ? "Sembunyikan QR" : "Hide QR"}
       </button>
     </div>
   );

@@ -176,6 +176,33 @@
   );
 }
 
+/* v39 - top-anchored dialog: the top edge stays put and the dialog only
+   grows DOWNWARD when a panel expands (a centered dialog grows both up and
+   down, so its header jumped upward). Declared after .dialog-safe /
+   .dialog-safe-h so it overrides both. Overriding --tw-translate-y (unlayered
+   beats Tailwind's layered translate-y-[-50%]) removes the vertical centering
+   while keeping the horizontal -50%. */
+.dialog-top {
+  --dialog-top: calc(env(safe-area-inset-top, 0px) + max(1rem, 8dvh));
+  top: var(--dialog-top);
+  --tw-translate-y: 0;
+  max-height: calc(100dvh - var(--dialog-top) - 1rem - env(safe-area-inset-bottom, 0px));
+}
+
+/* v40 - expanded payment panel (VA / Kartu / QRIS) height inside the
+   top-anchored top-up dialog: fill the remaining screen height so the dialog
+   reaches down to just above the bottom edge (almost covering the bottom
+   nav). 420px (tuned by the user; the rest of the dialog - header + 3 method
+   rows + padding - is ~495px) is the same no matter which method is open. Never shorter
+   than 260px; on short screens the dialog itself scrolls. --dialog-top is
+   inherited from .dialog-top. */
+.pay-panel-h {
+  height: max(
+    260px,
+    calc(100dvh - var(--dialog-top, 1rem) - 1.5rem - env(safe-area-inset-bottom, 0px) - 420px)
+  );
+}
+
 html body[data-scroll-locked] {
   margin-right: 0 !important;
   --removed-body-scroll-bar-size: 0px !important;
