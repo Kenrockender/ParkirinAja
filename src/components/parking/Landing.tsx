@@ -76,7 +76,7 @@ export function Landing() {
               </>
             )}
           </h2>
-          <p className="mt-3 max-w-[32ch] text-[15px] leading-relaxed text-muted-foreground">
+          <p className="mx-auto mt-3 max-w-[34ch] text-balance text-center text-[15px] leading-relaxed text-muted-foreground">
             {t("heroSub")}
           </p>
         </motion.div>

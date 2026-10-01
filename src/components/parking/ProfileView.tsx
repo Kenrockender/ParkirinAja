@@ -22,6 +22,17 @@ import {
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -421,14 +432,45 @@ export function ProfileView({ onOpenNotif }: { onOpenNotif: () => void }) {
         </div>
       </section>
 
-      {/* sign out */}
-      <button
-        onClick={signOut}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-400/25 bg-red-400/[0.06] py-3.5 text-sm font-bold text-red-400 transition hover:bg-red-400/10"
-      >
-        <LogOut className="h-4 w-4" />
-        {t("signOut")}
-      </button>
+      {/* sign out - asks for confirmation first */}
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <button
+            data-signout
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-400/25 bg-red-400/[0.06] py-3.5 text-sm font-bold text-red-400 transition hover:bg-red-400/10"
+          >
+            <LogOut className="h-4 w-4" />
+            {t("signOut")}
+          </button>
+        </AlertDialogTrigger>
+        <AlertDialogContent className="dialog-safe max-w-[calc(100%-2rem)] rounded-3xl border-border bg-card/95 p-6 backdrop-blur-xl sm:max-w-[360px]">
+          <AlertDialogHeader className="items-center text-center sm:text-center">
+            <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-red-400/10">
+              <LogOut className="h-5 w-5 text-red-400" />
+            </span>
+            <AlertDialogTitle className="font-display text-lg font-bold tracking-tight">
+              {lang === "id" ? "Yakin ingin keluar?" : "Are you sure to exit?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs leading-snug">
+              {lang === "id"
+                ? "Kamu perlu masuk lagi untuk memakai aplikasi."
+                : "You'll need to sign in again to use the app."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="grid grid-cols-2 gap-2 sm:grid-cols-2">
+            <AlertDialogCancel className="h-11 rounded-2xl">
+              {lang === "id" ? "Batal" : "Cancel"}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={signOut}
+              data-signout-confirm
+              className="h-11 rounded-2xl bg-red-500 text-white hover:bg-red-500/90"
+            >
+              {t("signOut")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <p className="pb-2 text-center text-[10px] text-muted-foreground/60">
         {t("appName")} · {t("footerNote")}
