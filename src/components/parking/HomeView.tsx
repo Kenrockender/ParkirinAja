@@ -141,7 +141,9 @@ export function HomeView({
             <Hand className="h-4 w-4 text-primary" aria-hidden />
           </h2>
         </div>
-        <NotifBell onOpen={onOpenNotif} />
+        <div data-tour="notif">
+          <NotifBell onOpen={onOpenNotif} />
+        </div>
       </motion.div>
 
       {/* v26 - ending-soon banner (own active session ≤ 30 min left) */}
@@ -173,6 +175,7 @@ export function HomeView({
         {/* campus row (tap to switch campus) */}
         <button
           type="button"
+          data-tour="campus"
           onClick={() => setPickerOpen(true)}
           aria-label={t("campusPick")}
           className="relative flex w-full items-center gap-2.5 text-left transition active:scale-[0.99]"
@@ -268,7 +271,7 @@ export function HomeView({
           <CalendarClock className="h-4 w-4 text-primary" />
           {t("viewForTime")}
         </p>
-        <div className="grid grid-cols-3 gap-2">
+        <div data-tour="time" className="grid grid-cols-3 gap-2">
           <WindowPicker
             label={t("date")}
             display={fmtDateLabel(win.date, lang)}
@@ -322,7 +325,7 @@ export function HomeView({
         </div>
 
         {/* Slot type filter pills */}
-        <div className="mt-3 flex gap-2">
+        <div data-tour="slot-filter" className="mt-3 flex gap-2">
           {(
             [
               { type: "STANDARD" as SlotType, label: t("filterSlotAll"), icon: null },
@@ -353,6 +356,7 @@ export function HomeView({
         {/* Cari Slot button - moved here */}
         <PredictionStrip win={win} lang={lang} />
         <button
+          data-tour="search"
           onClick={() => setSearched(true)}
           className="glow-primary mt-3 flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl bg-primary text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.01] active:scale-[0.98]"
         >

@@ -8,6 +8,8 @@ import { motion } from "framer-motion";
 import {
   BadgeCheck,
   Bell,
+  BookOpen,
+  ChevronRight,
   Camera,
   Car,
   Languages,
@@ -52,7 +54,13 @@ const NIM_RE = /^\d{8,10}$/;
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
-export function ProfileView({ onOpenNotif }: { onOpenNotif: () => void }) {
+export function ProfileView({
+  onOpenNotif,
+  onOpenGuide,
+}: {
+  onOpenNotif: () => void;
+  onOpenGuide?: () => void;
+}) {
   const lang = useParkir((s) => s.lang);
   const setLang = useParkir((s) => s.setLang);
   const user = useParkir((s) => s.user);
@@ -428,6 +436,19 @@ export function ProfileView({ onOpenNotif }: { onOpenNotif: () => void }) {
                 />
               </div>
             </div>
+          )}
+          {/* replay the first-run guide */}
+          {onOpenGuide && (
+            <button
+              onClick={onOpenGuide}
+              className="flex w-full items-center gap-3 border-t border-border/60 px-4 py-3.5 text-left transition hover:bg-white/[0.03]"
+            >
+              <BookOpen className="h-4.5 w-4.5 shrink-0 text-muted-foreground" />
+              <span className="flex-1 text-[13px] font-semibold">
+                {lang === "id" ? "Pengetahuan Fitur" : "Feature Knowledge"}
+              </span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
           )}
         </div>
       </section>

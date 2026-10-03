@@ -37,6 +37,11 @@ import { ScannerView } from "@/components/parking/ScannerView";
 import { MapView } from "@/components/parking/MapView";
 import { OperatorView } from "@/components/parking/OperatorView";
 import { NotifSheet, useSessionAlerts } from "@/components/parking/NotifCenter";
+import {
+  FeatureKnowledge,
+  hasSeenFeatureKnowledge,
+  markFeatureKnowledgeSeen,
+} from "@/components/parking/FeatureKnowledge";
 import { useParkir } from "@/lib/store";
 import { CAMPUSES, campusById, campusLabel, tr } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
@@ -87,6 +92,8 @@ function Shell() {
   const [mapOpen, setMapOpen] = React.useState(false);
   const [scanOpen, setScanOpen] = React.useState(false);
   const [notifOpen, setNotifOpen] = React.useState(false);
+  // Auto-open on first login. Shell renders only after mount, so localStorage is safe here.
+  const [guideOpen, setGuideOpen] = React.useState(() => !hasSeenFeatureKnowledge());
   const toast = useParkir((s) => s.toast);
 
   // Live "session ending soon" / overtime alerts for the customer's own sessions.
@@ -130,7 +137,17 @@ function Shell() {
                 />
               )}
               {tab === "wallet" && <WalletView onOpenNotif={() => setNotifOpen(true)} />}
-              {tab === "profile" && <ProfileView onOpenNotif={() => setNotifOpen(true)} />}
+              {tab === "profile" && (
+                <ProfileView
+                  onOpenNotif={() => setNotifOpen(true)}
+                  onOpenGuide={() => {
+                    // the spotlight points at Beranda controls, so start there
+                    setView({ name: "tabs" });
+                    setTab("home");
+                    setGuideOpen(true);
+                  }}
+                />
+              )}
             </motion.div>
           )}
 
@@ -170,6 +187,7 @@ function Shell() {
             {/* center scan button - elevated above the pill */}
             <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-[55%]">
               <button
+                data-tour="scan"
                 onClick={() => setScanOpen(true)}
                 aria-label={t("scanQr")}
                 className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-primary shadow-[0_16px_32px_-10px_rgba(59,130,246,0.55),0_6px_16px_rgba(0,0,0,0.45)] transition-transform duration-200 hover:scale-105 active:scale-90"
@@ -182,6 +200,7 @@ function Shell() {
               {navTabs.slice(0, 2).map(({ k, label, icon: Icon }) => (
                 <NavBtn
                   key={k}
+                  tourId={`nav-${k}`}
                   active={tab === k}
                   label={label}
                   onClick={() => {
@@ -203,6 +222,7 @@ function Shell() {
               {navTabs.slice(2, 4).map(({ k, label, icon: Icon }) => (
                 <NavBtn
                   key={k}
+                  tourId={`nav-${k}`}
                   active={tab === k}
                   label={label}
                   onClick={() => {
@@ -241,6 +261,14 @@ function Shell() {
       />
 
       <NotifSheet open={notifOpen} onClose={() => setNotifOpen(false)} />
+
+      <FeatureKnowledge
+        open={guideOpen}
+        onClose={() => {
+          markFeatureKnowledgeSeen();
+          setGuideOpen(false);
+        }}
+      />
 
       <Toasts />
     </div>
@@ -334,14 +362,17 @@ function NavBtn({
   label,
   onClick,
   children,
+  tourId,
 }: {
   active: boolean;
   label: string;
   onClick: () => void;
   children: React.ReactNode;
+  tourId?: string;
 }) {
   return (
     <button
+      data-tour={tourId}
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
