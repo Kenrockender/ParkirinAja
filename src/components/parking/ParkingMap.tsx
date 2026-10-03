@@ -41,8 +41,8 @@ import {
 import { useParkir } from "@/lib/store";
 
 // ── layout constants (full / compact) ──────────────────────────────────────
-const SLOT_W   = { full: 52, compact: 44 } as const;
-const SLOT_H   = { full: 64, compact: 48 } as const;
+const SLOT_W   = { full: 68, compact: 54 } as const;
+const SLOT_H   = { full: 84, compact: 64 } as const;
 const GAP      = 6; // px - gap between every flex child
 const PILLAR_W = 6; // px - same as WallStrip width for alignment
 
@@ -71,18 +71,19 @@ const STYLE: Record<
     num: "text-green-700 dark:text-green-300",
     dot: "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.65)] dark:bg-green-400 dark:shadow-[0_0_6px_rgba(34,197,94,0.9)]",
   },
+  // Booked slots use SOLID fills so they stand apart from the pale green free slots.
   RESERVED: {
-    box: "border-amber-200 bg-amber-50 dark:border-amber-400/25 dark:bg-amber-400/[0.05]",
-    num: "text-amber-600 dark:text-amber-300/70",
-    dot: "bg-amber-400 dark:bg-amber-400/60",
+    box: "border-amber-500 bg-amber-400 dark:border-amber-400 dark:bg-amber-500",
+    num: "text-amber-950",
+    dot: "bg-amber-700",
   },
   OCCUPIED: {
-    box: "border-red-200 bg-red-50 dark:border-red-400/20 dark:bg-red-400/[0.04]",
-    num: "text-red-500 dark:text-red-300/60",
-    dot: "bg-red-400/70 dark:bg-red-400/50",
+    box: "border-red-600 bg-red-500 dark:border-red-500 dark:bg-red-600",
+    num: "text-white",
+    dot: "bg-white",
   },
   MAINTENANCE: {
-    box: "border-slate-200 bg-slate-100 dark:border-slate-500/20 dark:bg-slate-500/[0.05]",
+    box: "border-dashed border-slate-300 bg-slate-100 dark:border-slate-500/40 dark:bg-slate-500/[0.08]",
     num: "text-slate-400 dark:text-slate-500",
     dot: "bg-slate-400 dark:bg-slate-600",
   },
@@ -92,8 +93,8 @@ const STYLE: Record<
 const OPENLOT_FILL: Record<SlotStatus, string> = {
   AVAILABLE:
     "bg-green-50 hover:bg-green-100 dark:bg-green-400/[0.07] dark:hover:bg-green-400/[0.14] cursor-pointer",
-  RESERVED: "bg-amber-50 dark:bg-amber-400/[0.05]",
-  OCCUPIED: "bg-red-50 dark:bg-red-400/[0.04]",
+  RESERVED: "bg-amber-400 dark:bg-amber-500",
+  OCCUPIED: "bg-red-500 dark:bg-red-600",
   MAINTENANCE: "bg-slate-100 dark:bg-slate-500/[0.08]",
 };
 
@@ -146,9 +147,12 @@ function SlotBay({
       aria-label={`Slot ${slot.slotNumber} - ${status}`}
       title={live ? `${slot.slotNumber} · ${live.vehicle} (tamu live)` : `${slot.slotNumber} · ${status}`}
       data-live-guest={live ? slot.slotNumber : undefined}
+      style={{
+        width: compact ? SLOT_W.compact : SLOT_W.full,
+        height: compact ? SLOT_H.compact : SLOT_H.full,
+      }}
       className={cn(
         "group relative flex shrink-0 flex-col items-center justify-center gap-1 transition-all duration-200",
-        compact ? "h-12 w-11" : "h-16 w-[52px]",
         openlot
           ? cn("rounded-none", OPENLOT_FILL[status])
           : cn("rounded-xl border", st.box),
@@ -165,22 +169,22 @@ function SlotBay({
         </span>
       )}
       {status === "AVAILABLE" && !live && (
-        <span className={cn("absolute right-1.5 top-1.5 h-1 w-1 rounded-full", st.dot)} />
+        <span className={cn("absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full", st.dot)} />
       )}
-      {status === "OCCUPIED" && <CarFront className={cn("h-3 w-3 text-red-400 opacity-80 dark:opacity-60", compact ? "hidden" : "block")} />}
-      {status === "RESERVED" && <Clock3 className={cn("h-3 w-3 text-amber-500 opacity-70 dark:text-amber-300 dark:opacity-40", compact && "hidden")} />}
-      {status === "MAINTENANCE" && <Wrench className={cn("h-3 w-3 text-slate-400 opacity-80 dark:opacity-40", compact && "hidden")} />}
+      {status === "OCCUPIED" && <CarFront className={cn("text-white", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />}
+      {status === "RESERVED" && <Clock3 className={cn("text-amber-950", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />}
+      {status === "MAINTENANCE" && <Wrench className={cn("text-slate-400", compact ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} />}
       {/* slot type badge - only shown when not occupied/reserved/maintenance */}
       {status === "AVAILABLE" && slot.slotType === "EV" && (
-        <Zap className="h-2.5 w-2.5 text-green-500 dark:text-green-400" aria-label="EV Charger" />
+        <Zap className="h-3.5 w-3.5 text-green-600 dark:text-green-400" aria-label="EV Charger" />
       )}
       {status === "AVAILABLE" && slot.slotType === "DISABILITY" && (
-        <Accessibility className="h-2.5 w-2.5 text-blue-500 dark:text-blue-400" aria-label="Disability" />
+        <Accessibility className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" aria-label="Disability" />
       )}
       <span
         className={cn(
-          "tnum font-display font-semibold tracking-tight",
-          compact ? "text-[9.5px]" : "text-[11px]",
+          "tnum font-display font-bold tracking-tight",
+          compact ? "text-[11px]" : "text-[13px]",
           live ? "text-amber-600 dark:text-amber-300" : st.num
         )}
       >
@@ -721,16 +725,16 @@ export function ParkingMap({
 export function MapLegend() {
   const lang = useParkir((s) => s.lang);
   const items: { k: SlotStatus; label: string; cls: string }[] = [
-    { k: "AVAILABLE", label: tr(lang, "available"), cls: "bg-green-400" },
-    { k: "RESERVED", label: tr(lang, "reserved"), cls: "bg-amber-400" },
-    { k: "OCCUPIED", label: tr(lang, "occupied"), cls: "bg-red-400/70" },
-    { k: "MAINTENANCE", label: tr(lang, "maintenance"), cls: "bg-slate-500" },
+    { k: "AVAILABLE", label: tr(lang, "available"), cls: "border border-green-400 bg-green-50 dark:bg-green-400/20" },
+    { k: "RESERVED", label: tr(lang, "reserved"), cls: "border border-amber-500 bg-amber-400" },
+    { k: "OCCUPIED", label: tr(lang, "occupied"), cls: "border border-red-600 bg-red-500" },
+    { k: "MAINTENANCE", label: tr(lang, "maintenance"), cls: "border border-dashed border-slate-400 bg-slate-100 dark:bg-slate-600" },
   ];
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] font-medium text-muted-foreground">
       {items.map((i) => (
         <span key={i.k} className="inline-flex items-center gap-1.5">
-          <span className={cn("h-2 w-2 rounded-[4px]", i.cls)} />
+          <span className={cn("h-3.5 w-3.5 rounded-[5px]", i.cls)} />
           {i.label}
         </span>
       ))}

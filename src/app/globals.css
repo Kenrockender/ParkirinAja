@@ -49,81 +49,82 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
-   LIGHT THEME — Smart Parking Self Valet palette
-   Primary Blue #3B82F6 · Light Blue #93C5FD · Navy #1E293B
-   Slate #64748B · Success #22C55E · Warning #F59E0B · Danger #EF4444
+   LIGHT THEME — simplified palette (v2)
+   One brand colour (Blue #2563EB) + neutral slate surfaces.
+   Status colours only for meaning: Green = free, Amber = booked,
+   Red = occupied / error.
    ═══════════════════════════════════════════════════════════ */
 :root {
   --radius: 1rem;
-  --background: #f9fafc;
+  --background: #f8fafc;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #3b82f6;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --secondary: #dbeafe;
+  --secondary: #eff6ff;
   --secondary-foreground: #1e293b;
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
-  --accent: #dbeafe;
-  --accent-foreground: #1e293b;
-  --destructive: #ef4444;
-  --border: #cbd5e1;
-  --input: #cbd5e1;
-  --ring: #3b82f6;
-  --chart-1: #3b82f6;
-  --chart-2: #22c55e;
+  --accent: #eff6ff;
+  --accent-foreground: #1e3a8a;
+  --destructive: #dc2626;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2563eb;
+  --chart-1: #2563eb;
+  --chart-2: #16a34a;
   --chart-3: #f59e0b;
-  --chart-4: #ef4444;
-  --chart-5: #93c5fd;
+  --chart-4: #dc2626;
+  --chart-5: #94a3b8;
   --sidebar: #ffffff;
   --sidebar-foreground: #0f172a;
-  --sidebar-primary: #3b82f6;
+  --sidebar-primary: #2563eb;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #dbeafe;
-  --sidebar-accent-foreground: #1e293b;
-  --sidebar-border: #cbd5e1;
-  --sidebar-ring: #3b82f6;
+  --sidebar-accent: #eff6ff;
+  --sidebar-accent-foreground: #1e3a8a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #2563eb;
   --binus-blue: #1e293b;
-  --binus-blue-bright: #3b82f6;
+  --binus-blue-bright: #2563eb;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   DARK THEME — same palette, navy/slate surfaces
+   DARK THEME — same palette on neutral dark surfaces
    ═══════════════════════════════════════════════════════════ */
 .dark {
-  --background: #020617;
-  --foreground: #f8fafc;
-  --card: #0f172a;
-  --card-foreground: #f8fafc;
-  --popover: #0f172a;
-  --popover-foreground: #f8fafc;
+  --background: #0b1120;
+  --foreground: #f1f5f9;
+  --card: #131c2e;
+  --card-foreground: #f1f5f9;
+  --popover: #131c2e;
+  --popover-foreground: #f1f5f9;
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
   --secondary: #1e293b;
   --secondary-foreground: #f1f5f9;
   --muted: #1e293b;
   --muted-foreground: #94a3b8;
-  --accent: #172554;
-  --accent-foreground: #93c5fd;
+  --accent: #1e293b;
+  --accent-foreground: #bfdbfe;
   --destructive: #f87171;
-  --border: rgba(148, 163, 184, 0.16);
-  --input: rgba(148, 163, 184, 0.22);
+  --border: #243049;
+  --input: #2b3954;
   --ring: #3b82f6;
   --chart-1: #3b82f6;
   --chart-2: #22c55e;
   --chart-3: #f59e0b;
   --chart-4: #ef4444;
-  --chart-5: #93c5fd;
-  --sidebar: #0f172a;
-  --sidebar-foreground: #f8fafc;
+  --chart-5: #94a3b8;
+  --sidebar: #131c2e;
+  --sidebar-foreground: #f1f5f9;
   --sidebar-primary: #3b82f6;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #172554;
-  --sidebar-accent-foreground: #93c5fd;
-  --sidebar-border: rgba(148, 163, 184, 0.16);
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #bfdbfe;
+  --sidebar-border: #243049;
   --sidebar-ring: #3b82f6;
   --binus-blue: #1e293b;
   --binus-blue-bright: #60a5fa;
@@ -224,86 +225,39 @@ html body[data-scroll-locked] {
    Chromium drops entirely. Emitted through @utility (same path as Tailwind's
    own backdrop-blur), both the standard and prefixed declarations survive. */
 @utility glass {
-  --glass-fx: blur(20px) saturate(1.4);
-  background: color-mix(in srgb, var(--card) 80%, transparent);
-  backdrop-filter: var(--glass-fx);
-  -webkit-backdrop-filter: var(--glass-fx);
-  border: 1px solid color-mix(in srgb, var(--card) 50%, transparent);
-  box-shadow:
-    0 16px 36px -16px rgba(15, 23, 42, 0.18),
-    0 4px 10px -4px rgba(15, 23, 42, 0.08);
+  /* v2 - "clean" surface: solid card, hairline border, soft shadow.
+     (Was frosted blur + heavy shadow; too busy on a phone.) */
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 14px -8px rgba(15, 23, 42, 0.1);
 }
 .dark .glass {
-  background: rgba(15, 23, 42, 0.55);
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  box-shadow:
-    0 18px 40px -16px rgba(0, 0, 0, 0.6),
-    0 4px 12px -4px rgba(0, 0, 0, 0.35);
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
-/* Ambient page glow — layered radial gradients */
+/* Page background - plain colour now (no glow blobs / grid pattern) */
 .ambient {
   position: relative;
   isolation: isolate;
 }
-.ambient::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  pointer-events: none;
-  background:
-    radial-gradient(900px 480px at 85% -10%, rgba(59, 130, 246, 0.16), transparent 60%),
-    radial-gradient(700px 420px at -10% 20%, rgba(30, 41, 59, 0.22), transparent 60%),
-    radial-gradient(800px 500px at 110% 110%, rgba(147, 197, 253, 0.09), transparent 55%);
-}
-.ambient::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.5;
-  background-image:
-    linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 75%);
-}
-:root:not(.dark) .ambient::before {
-  background:
-    radial-gradient(900px 480px at 85% -10%, rgba(59, 130, 246, 0.10), transparent 60%),
-    radial-gradient(700px 420px at -10% 20%, rgba(30, 41, 59, 0.06), transparent 60%),
-    radial-gradient(800px 500px at 110% 110%, rgba(147, 197, 253, 0.14), transparent 55%);
-}
-:root:not(.dark) .ambient::after {
-  opacity: 0.35;
-}
 
-/* Primary action glow */
+/* Primary action - subtle lift instead of a neon glow */
 .glow-primary {
-  box-shadow:
-    0 0 0 1px rgba(59, 130, 246, 0.25),
-    0 10px 34px -8px rgba(59, 130, 246, 0.45),
-    0 2px 8px -2px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 6px 16px -8px rgba(37, 99, 235, 0.55);
 }
 .glow-soft {
-  box-shadow: 0 14px 44px -18px rgba(10, 15, 30, 0.85);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 18px -10px rgba(15, 23, 42, 0.15);
 }
 .dark .glow-soft {
-  box-shadow:
-    0 18px 50px -20px rgba(0, 0, 0, 0.75),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
-/* Parking map ambient tints (theme-aware) */
+/* Parking map ambient tints - off in the simplified palette */
 .map-tint {
-  --map-glow-a: rgba(59, 130, 246, 0.06);
-  --map-glow-b: rgba(147, 197, 253, 0.08);
-}
-.dark .map-tint {
-  --map-glow-a: rgba(59, 130, 246, 0.1);
-  --map-glow-b: rgba(147, 197, 253, 0.06);
+  --map-glow-a: transparent;
+  --map-glow-b: transparent;
 }
 
 /* Card hover lift */
@@ -314,23 +268,10 @@ html body[data-scroll-locked] {
   transform: translateY(-2px);
 }
 
-/* Gradient text — brand blue */
-.text-gradient-gold {
-  background: linear-gradient(115deg, #93c5fd 0%, #3b82f6 55%, #1e40af 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-:root:not(.dark) .text-gradient-gold {
-  background: linear-gradient(115deg, #2563eb 0%, #1d4ed8 50%, #1e3a8a 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-}
+/* Former gradient text - now a solid brand colour for a cleaner look */
+.text-gradient-gold,
 .text-gradient-steel {
-  background: linear-gradient(115deg, #dbe4ff 0%, #9db4f5 55%, #5f7fe8 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--primary);
 }
 
 /* Hide scrollbars but keep scroll */

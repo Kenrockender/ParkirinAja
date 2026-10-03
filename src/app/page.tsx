@@ -1,6 +1,6 @@
 "use client";
 /**
- * Parkir Binus - Dark Premium UI Concept v8
+ * ParkirinAja - Dark Premium UI Concept v8
  * Live preview app: full customer journey on simulated data.
  */
 import React from "react";
@@ -28,7 +28,7 @@ import {
 import { LogoMark } from "@/components/parking/Brand";
 import { Landing } from "@/components/parking/Landing";
 import { HomeView } from "@/components/parking/HomeView";
-import { BookingView } from "@/components/parking/BookingView";
+import { BookingConfirmed, BookingView } from "@/components/parking/BookingView";
 import { TicketView } from "@/components/parking/TicketView";
 import { HistoryView } from "@/components/parking/HistoryView";
 import { WalletView } from "@/components/parking/WalletView";
@@ -70,7 +70,7 @@ function Splash() {
       >
         <LogoMark size={64} />
       </motion.div>
-      <p className="font-display text-lg font-bold tracking-tight">Parkir Binus</p>
+      <p className="font-display text-lg font-bold tracking-tight">ParkirinAja</p>
     </div>
   );
 }
@@ -92,6 +92,7 @@ function Shell() {
   const [mapOpen, setMapOpen] = React.useState(false);
   const [scanOpen, setScanOpen] = React.useState(false);
   const [notifOpen, setNotifOpen] = React.useState(false);
+  const [confirmedId, setConfirmedId] = React.useState<string | null>(null);
   // Auto-open on first login. Shell renders only after mount, so localStorage is safe here.
   const [guideOpen, setGuideOpen] = React.useState(() => !hasSeenFeatureKnowledge());
   const toast = useParkir((s) => s.toast);
@@ -157,7 +158,10 @@ function Shell() {
               slotId={view.slotId}
               slotNumber={view.slotNumber}
               defaultType={view.type}
-              onDone={(resId) => setView({ name: "ticket", reservationId: resId })}
+              onDone={(resId) => {
+                setView({ name: "ticket", reservationId: resId });
+                setConfirmedId(resId);
+              }}
               onBack={() => setView({ name: "tabs" })}
             />
           )}
@@ -261,6 +265,8 @@ function Shell() {
       />
 
       <NotifSheet open={notifOpen} onClose={() => setNotifOpen(false)} />
+
+      <BookingConfirmed reservationId={confirmedId} onClose={() => setConfirmedId(null)} />
 
       <FeatureKnowledge
         open={guideOpen}

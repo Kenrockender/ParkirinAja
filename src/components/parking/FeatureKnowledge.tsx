@@ -246,6 +246,27 @@ export function FeatureKnowledge({ open, onClose }: { open: boolean; onClose: ()
     return () => window.removeEventListener("keydown", onKey);
   }, [open, close, go]);
 
+  // While the guide is open the user can't scroll the page (wheel, touch, scroll keys).
+  // Only blocks user input - the guide's own window.scrollTo() to each target still works.
+  React.useEffect(() => {
+    if (!open) return;
+    const block = (e: Event) => e.preventDefault();
+    const SCROLL_KEYS = new Set([" ", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown"]);
+    const blockKeys = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (SCROLL_KEYS.has(e.key) && tag !== "BUTTON" && tag !== "INPUT") e.preventDefault();
+    };
+    const opts: AddEventListenerOptions = { passive: false };
+    window.addEventListener("wheel", block, opts);
+    window.addEventListener("touchmove", block, opts);
+    window.addEventListener("keydown", blockKeys);
+    return () => {
+      window.removeEventListener("wheel", block, opts);
+      window.removeEventListener("touchmove", block, opts);
+      window.removeEventListener("keydown", blockKeys);
+    };
+  }, [open]);
+
   const step = STEPS[i];
   const last = i === STEPS.length - 1;
 
@@ -279,6 +300,35 @@ export function FeatureKnowledge({ open, onClose }: { open: boolean; onClose: ()
         >
           {/* click-blocker; the dimming comes from the spotlight's shadow */}
           <div className="absolute inset-0" aria-hidden />
+
+          {/* soft blur over everything EXCEPT the highlighted button: four panels
+              framing the spotlight hole, gliding with it */}
+          {rect ? (
+            (() => {
+              const hT = Math.max(0, rect.top - PAD);
+              const hL = Math.max(0, rect.left - PAD);
+              const hW = rect.width + PAD * 2;
+              const hH = rect.height + PAD * 2;
+              const panels = [
+                { top: 0, left: 0, width: vw, height: hT },
+                { top: hT + hH, left: 0, width: vw, height: Math.max(0, vh - hT - hH) },
+                { top: hT, left: 0, width: hL, height: hH },
+                { top: hT, left: hL + hW, width: Math.max(0, vw - hL - hW), height: hH },
+              ];
+              return panels.map((p, k) => (
+                <motion.div
+                  key={k}
+                  aria-hidden
+                  className="pointer-events-none absolute backdrop-blur-[3px]"
+                  initial={false}
+                  animate={p}
+                  transition={glide}
+                />
+              ));
+            })()
+          ) : (
+            <div aria-hidden className="pointer-events-none absolute inset-0 backdrop-blur-[3px]" />
+          )}
 
           {rect ? (
             <motion.div

@@ -178,7 +178,7 @@ function buildFeed(reservations: Reservation[], transactions: Txn[]): FeedEvent[
 function hourBucketsRevenue(txns: Txn[]): number[] {
   const buckets = new Array(DAY_END_H - DAY_START_H + 1).fill(0);
   for (const tx of txns) {
-    if (tx.type === "TOP_UP" || tx.type === "REFUND") continue;
+    if (tx.type === "TOP_UP" || tx.type === "REFUND" || tx.type === "WITHDRAW") continue;
     const h = new Date(tx.createdAt).getHours();
     if (h >= DAY_START_H && h <= DAY_END_H) buckets[h - DAY_START_H] += tx.amount;
   }
@@ -554,7 +554,7 @@ export function OperatorView() {
   const revenue = React.useMemo(
     () =>
       todayTxns.reduce((sum, tx) => {
-        if (tx.type === "TOP_UP" || tx.type === "REFUND") return sum;
+        if (tx.type === "TOP_UP" || tx.type === "REFUND" || tx.type === "WITHDRAW") return sum;
         return sum + tx.amount;
       }, 0),
     [todayTxns]
@@ -697,7 +697,7 @@ export function OperatorView() {
       const p = (n: number) => String(n).padStart(2, "0");
       return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
     })();
-    a.download = `laporan-parkirbinus-${useParkir.getState().campusId}-${stamp}.csv`;
+    a.download = `laporan-parkirinaja-${useParkir.getState().campusId}-${stamp}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -2105,6 +2105,7 @@ const TXN_META: Record<
   SERVICE_FEE: { icon: QrCode, labelKey: "tServiceFee", cls: "border-primary/25 bg-primary/[0.07] text-primary" },
   OVERTIME: { icon: TimerReset, labelKey: "tOvertime", cls: "border-amber-400/25 bg-amber-400/[0.07] text-amber-400" },
   REFUND: { icon: LogOut, labelKey: "tRefund", cls: "border-red-400/25 bg-red-400/[0.07] text-red-400" },
+  WITHDRAW: { icon: LogOut, labelKey: "tWithdraw", cls: "border-slate-400/25 bg-slate-400/[0.07] text-slate-400" },
 };
 
 /** Today's transaction log. */
@@ -2359,7 +2360,7 @@ function QrSlotDetailDialog({ slot, onClose }: { slot: Slot; onClose: () => void
     if (!canvas) return;
     const a = document.createElement("a");
     a.href = canvas.toDataURL("image/png");
-    a.download = `QR-ParkirBinus-${slot.slotNumber}.png`;
+    a.download = `QR-ParkirinAja-${slot.slotNumber}.png`;
     a.click();
     toast(t("qrSaved"), "success");
   }

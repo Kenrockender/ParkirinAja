@@ -29,14 +29,36 @@ export function WindowPicker({
   label,
   display,
   icon,
+  disabled = false,
+  onDisabledClick,
   children,
 }: {
   label: string;
   display: string;
   icon: React.ReactNode;
+  /** Locked picker: shows its value but cannot be opened. */
+  disabled?: boolean;
+  /** Called when a locked picker is tapped (e.g. to explain why). */
+  onDisabledClick?: () => void;
   children: (close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(false);
+  if (disabled) {
+    return (
+      <button
+        type="button"
+        aria-disabled
+        onClick={onDisabledClick}
+        className="flex w-full cursor-not-allowed flex-col gap-1 rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 text-left opacity-70"
+      >
+        <span className="flex items-center gap-1 text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <span>{icon}</span>
+          {label}
+        </span>
+        <span className="tnum text-[13px] font-bold">{display}</span>
+      </button>
+    );
+  }
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>

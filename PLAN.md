@@ -1,4 +1,4 @@
-# 📋 PARKIR BINUS - DEVELOPMENT TASKS
+# 📋 PARKIRINAJA - DEVELOPMENT TASKS
 ## Solo Developer - 1 Week Sprint
 
 **Timeline:** 7 Hari Kerja  
@@ -2281,7 +2281,7 @@ const rewardsCatalog = [
     minTier: 'Gold'
   },
   {
-    name: 'Parkir Binus T-Shirt',
+    name: 'ParkirinAja T-Shirt',
     description: 'Exclusive branded merchandise',
     pointsCost: 5000,
     type: 'MERCH',

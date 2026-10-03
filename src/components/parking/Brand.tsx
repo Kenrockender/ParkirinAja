@@ -14,7 +14,7 @@ export function LogoMark({ size = 40, className }: { size?: number; className?: 
     >
       <img
         src="/icons/icon-192x192.png"
-        alt="Parkir Binus Logo"
+        alt="ParkirinAja Logo"
         width={size}
         height={size}
         className="h-full w-full rounded-3xl object-cover"

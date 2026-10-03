@@ -9,6 +9,7 @@
  */
 import * as React from "react";
 import {
+  ArrowLeft,
   Bell,
   CarFront,
   CircleAlert,
@@ -117,7 +118,7 @@ export function useSessionAlerts() {
             params: { slot: r.slotNumber },
           });
           if (pushEnabled) {
-            const title = "Parkir Binus";
+            const title = "ParkirinAja";
             const body = lang === "id"
               ? `Sesi parkir ${r.slotNumber} sudah melewati jadwal. Segera keluar.`
               : `Parking session ${r.slotNumber} is overdue. Please exit now.`;
@@ -139,7 +140,7 @@ export function useSessionAlerts() {
             useParkir.getState().toast(msg, "error");
           }
           if (pushEnabled) {
-            const title = "Parkir Binus";
+            const title = "ParkirinAja";
             const body = lang === "id"
               ? `Sesi parkir ${r.slotNumber} berakhir dalam ${minsLeft} menit. Perpanjang atau segera keluar.`
               : `Parking session ${r.slotNumber} ends in ${minsLeft} minutes. Extend or exit soon.`;
@@ -196,12 +197,38 @@ export function NotifSheet({ open, onClose }: { open: boolean; onClose: () => vo
   const clearNotifs = useParkir((s) => s.clearNotifs);
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
 
+  // Phone/browser back button closes the sheet instead of leaving the app:
+  // push a history entry while open and close on popstate.
+  const onCloseRef = React.useRef(onClose);
+  onCloseRef.current = onClose;
+  React.useEffect(() => {
+    if (!open) return;
+    window.history.pushState({ parkirNotif: true }, "");
+    const onPop = () => onCloseRef.current();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("popstate", onPop);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("keydown", onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  /** In-app close: drop the history entry we pushed, otherwise just close. */
+  function close() {
+    if (window.history.state?.parkirNotif) window.history.back();
+    else onCloseRef.current();
+  }
+
   // NOTE: the sheet stays MOUNTED and slides via CSS transform - unmounting an
   // animating tree (AnimatePresence exit) trips React 19's removeChild in dev.
   return (
     <>
       <div
-        onClick={onClose}
+        onClick={close}
         aria-hidden={!open}
         className={cn(
           "fixed inset-0 z-40 bg-black/55 backdrop-blur-sm transition-opacity duration-200",
@@ -218,7 +245,15 @@ export function NotifSheet({ open, onClose }: { open: boolean; onClose: () => vo
         )}
       >
         {/* header */}
-        <div className="flex items-center justify-between border-b border-border/50 px-4 py-3.5">
+        <div className="flex items-center justify-between gap-2 border-b border-border/50 px-3 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              onClick={close}
+              aria-label={t("back")}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card/60 transition hover:border-primary/40 active:scale-95"
+            >
+              <ArrowLeft className="h-4.5 w-4.5" />
+            </button>
           <h2 className="flex items-center gap-2 font-display text-sm font-bold tracking-tight">
             <Bell className="h-4 w-4 text-primary" />
             {t("notifTitle")}
@@ -228,6 +263,7 @@ export function NotifSheet({ open, onClose }: { open: boolean; onClose: () => vo
               </span>
             )}
           </h2>
+          </div>
           <div className="flex items-center gap-1.5">
             {notifications.length > 0 && (
               <>

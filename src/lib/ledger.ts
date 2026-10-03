@@ -70,6 +70,9 @@ export function postTransaction(txn: Pick<Txn, "id" | "type" | "amount" | "creat
       return { ...base, lines: [{ account: UTANG, dr: txn.amount, cr: 0 }, { account: DENDA, dr: 0, cr: txn.amount }] };
     case "REFUND":
       return { ...base, lines: [{ account: BEBAN_REFUND, dr: txn.amount, cr: 0 }, { account: UTANG, dr: 0, cr: txn.amount }] };
+    case "WITHDRAW":
+      // customer cashes out wallet balance: liability down, cash out
+      return { ...base, lines: [{ account: UTANG, dr: txn.amount, cr: 0 }, { account: KAS, dr: 0, cr: txn.amount }] };
     default:
       return null;
   }
@@ -77,7 +80,7 @@ export function postTransaction(txn: Pick<Txn, "id" | "type" | "amount" | "creat
 
 function memoFor(type: TxnType, note: string): string {
   const label =
-    type === "TOP_UP" ? "Top up dompet" : type === "SERVICE_FEE" ? "Biaya layanan parkir" : type === "OVERTIME" ? "Denda keterlambatan" : "Refund pembatalan";
+    type === "TOP_UP" ? "Top up dompet" : type === "SERVICE_FEE" ? "Biaya layanan parkir" : type === "OVERTIME" ? "Denda keterlambatan" : type === "WITHDRAW" ? "Tarik saldo" : "Refund pembatalan";
   return note ? `${label} · ${note}` : label;
 }
 

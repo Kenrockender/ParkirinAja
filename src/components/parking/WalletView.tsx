@@ -10,6 +10,7 @@ import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDownLeft,
+  ArrowUpRight,
   Banknote,
   Check,
   ChevronDown,
@@ -59,6 +60,7 @@ const TXN_ICON: Record<TxnType, React.ComponentType<{ className?: string }>> = {
   SERVICE_FEE: QrIcon,
   OVERTIME: TimerReset,
   REFUND: ArrowDownLeft,
+  WITHDRAW: ArrowUpRight,
 };
 
 // ── Real bank logo assets ─────────────────────────────────────────────────────
@@ -76,9 +78,22 @@ const BANK_LOGO_SRC: Record<string, string> = {
   bsi: "/bank-logos/bsi.webp",
 };
 
-function BankLogo({ id, className }: { id: string; className?: string }) {
+/** Some logo files carry lots of empty padding (BCA), so they render tiny next
+ *  to the others - zoom those in so every bank looks the same size. */
+const BANK_LOGO_ZOOM: Record<string, number> = {
+  bca: 1.6,
+};
+
+/** Logos whose wordmark is black/dark grey vanish on the dark theme without a
+ *  white plate. invert + hue-rotate(180) flips light/dark but keeps the brand
+ *  hue (blue stays blue, black text turns white). Dark mode only. */
+const DARK_TEXT_FIX = "dark:[filter:invert(1)_hue-rotate(180deg)]";
+const BANK_DARK_TEXT = new Set(["permata"]);
+
+function BankLogo({ id, className, zoom: zoomOverride }: { id: string; className?: string; zoom?: number }) {
   const src = BANK_LOGO_SRC[id];
   if (!src) return <span className={className}>{id.toUpperCase()}</span>;
+  const zoom = zoomOverride ?? BANK_LOGO_ZOOM[id];
   return (
     <span
       className={cn(
@@ -86,7 +101,13 @@ function BankLogo({ id, className }: { id: string; className?: string }) {
         className
       )}
     >
-      <img src={src} alt={id.toUpperCase()} className="h-full w-full object-contain" draggable={false} />
+      <img
+        src={src}
+        alt={id.toUpperCase()}
+        className={cn("h-full w-full object-contain", BANK_DARK_TEXT.has(id) && className?.includes("bg-transparent") && DARK_TEXT_FIX)}
+        style={zoom ? { transform: `scale(${zoom})` } : undefined}
+        draggable={false}
+      />
     </span>
   );
 }
@@ -103,6 +124,7 @@ const PANEL_H = "pay-panel-h";
 const PANEL_SCROLL = "no-scrollbar overflow-y-auto overscroll-contain";
 const MIN_TOPUP = 10_000;
 const MAX_TOPUP = 10_000_000;
+const MIN_WITHDRAW = 10_000;
 
 type PayMethod = "va" | "card" | "qris";
 /** v27 - "va"/"card"/"qris" no longer jump to a full-screen stage; they expand
@@ -123,6 +145,7 @@ export function WalletView({ onOpenNotif }: { onOpenNotif: () => void }) {
   const [amount, setAmount] = React.useState(0);
   const [custom, setCustom] = React.useState("");
   const [customErr, setCustomErr] = React.useState<string | null>(null);
+  const [withdrawOpen, setWithdrawOpen] = React.useState(false);
 
   /** Bumped on every new top-up so <TopUpDialog key> remounts with fresh state. */
   const [dialogSeq, setDialogSeq] = React.useState(0);
@@ -163,6 +186,7 @@ export function WalletView({ onOpenNotif }: { onOpenNotif: () => void }) {
     SERVICE_FEE: t("tServiceFee"),
     OVERTIME: t("tOvertime"),
     REFUND: t("tRefund"),
+    WITHDRAW: t("tWithdraw"),
   };
 
   return (
@@ -177,19 +201,8 @@ export function WalletView({ onOpenNotif }: { onOpenNotif: () => void }) {
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
-        className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#16223f] via-[#1a2c58] to-[#12284a] p-5 dark:border-white/10"
+        className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#1e3a8a] p-5 dark:bg-[#1e3a8a]"
       >
-        <div aria-hidden className="pointer-events-none absolute inset-0">
-          <div className="absolute -right-14 -top-14 h-44 w-44 rounded-full bg-primary/20 blur-3xl" />
-          <div className="absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-binus-bright/25 blur-3xl" />
-          <div
-            className="absolute inset-0 opacity-[0.35]"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(115deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 14px)",
-            }}
-          />
-        </div>
         <div className="relative">
           <div className="flex items-center justify-between">
             <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">
@@ -212,7 +225,7 @@ export function WalletView({ onOpenNotif }: { onOpenNotif: () => void }) {
                 key={a}
                 onClick={() => openTopUp(a)}
                 data-topup-chip={a}
-                className="flex items-center justify-center gap-1 rounded-xl border border-primary/40 bg-primary/15 py-2.5 text-[11px] font-bold text-primary transition-all hover:bg-primary/25 active:scale-[0.97]"
+                className="flex items-center justify-center gap-1 rounded-xl border border-white/25 bg-white/10 py-2.5 text-[11px] font-bold text-white transition-all hover:bg-white/20 active:scale-[0.97]"
               >
                 <Plus className="h-3 w-3" />
                 {(a / 1000).toLocaleString("id-ID")}rb
@@ -255,6 +268,16 @@ export function WalletView({ onOpenNotif }: { onOpenNotif: () => void }) {
               {customErr}
             </p>
           )}
+
+          {/* withdraw - cash the balance out to a bank account */}
+          <button
+            onClick={() => setWithdrawOpen(true)}
+            disabled={balance < MIN_WITHDRAW}
+            className="mt-2.5 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/[0.06] text-xs font-bold text-white transition hover:bg-white/[0.12] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ArrowUpRight className="h-3.5 w-3.5" />
+            {t("tWithdraw")}
+          </button>
         </div>
       </motion.section>
 
@@ -286,7 +309,240 @@ export function WalletView({ onOpenNotif }: { onOpenNotif: () => void }) {
           toast(`${t("payDone")} · +${rupiah(amount)}`, "success");
         }}
       />
+
+      <WithdrawDialog open={withdrawOpen} onOpenChange={setWithdrawOpen} />
     </div>
+  );
+}
+
+// ───────────────────────── WithdrawDialog ─────────────────────────
+
+/** E-wallet cash-out targets. Bank transfers are free; e-wallets carry an admin fee.
+ *  Logos are the user's artwork from /logo/e-wallet, copied to /public/ewallet-logos.
+ *  `zoom` crops away the empty padding some files carry (GoPay, ShopeePay). */
+const EWALLETS: { id: string; name: string; fee: number; logo: string; zoom?: number; darkText?: boolean }[] = [
+  { id: "gopay", name: "GoPay", fee: 1_000, logo: "/ewallet-logos/gopay.png", zoom: 3.4, darkText: true },
+  { id: "ovo", name: "OVO", fee: 1_500, logo: "/ewallet-logos/ovo.webp" },
+  { id: "dana", name: "DANA", fee: 1_000, logo: "/ewallet-logos/dana.webp" },
+  // background checkerboard removed + cropped from the user's file, so no zoom needed
+  { id: "shopeepay", name: "ShopeePay", fee: 1_000, logo: "/ewallet-logos/shopeepay.webp" },
+  { id: "linkaja", name: "LinkAja", fee: 1_500, logo: "/ewallet-logos/linkaja.webp" },
+];
+
+type WithdrawTarget = { kind: "bank" | "ewallet"; id: string; name: string; fee: number };
+
+function targetFor(key: string): WithdrawTarget {
+  const ew = EWALLETS.find((e) => e.id === key);
+  if (ew) return { kind: "ewallet", id: ew.id, name: ew.name, fee: ew.fee };
+  const b = VA_BANKS.find((x) => x.id === key) ?? VA_BANKS[0];
+  return { kind: "bank", id: b.id, name: b.name, fee: 0 };
+}
+
+const fmtDots = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+/** Cash out wallet balance to a bank account (free) or an e-wallet (admin fee). Simulated. */
+function WithdrawDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const lang = useParkir((s) => s.lang);
+  const balance = useParkir((s) => s.walletBalance);
+  const withdraw = useParkir((s) => s.withdraw);
+  const toast = useParkir((s) => s.toast);
+  const id = lang === "id";
+
+  const [amountTxt, setAmountTxt] = React.useState("");
+  const [targetKey, setTargetKey] = React.useState<string>(VA_BANKS[0].id);
+  const [account, setAccount] = React.useState("");
+  const [err, setErr] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (open) {
+      setAmountTxt("");
+      setAccount("");
+      setErr(null);
+    }
+  }, [open]);
+
+  const target = targetFor(targetKey);
+  const isEwallet = target.kind === "ewallet";
+  const amount = Number(amountTxt.replace(/\D/g, "")) || 0;
+  const total = amount + target.fee;
+
+  function submit() {
+    if (amount < MIN_WITHDRAW) return setErr(id ? `Minimal tarik ${rupiah(MIN_WITHDRAW)}` : `Minimum ${rupiah(MIN_WITHDRAW)}`);
+    if (total > balance)
+      return setErr(
+        target.fee
+          ? id ? `Saldo tidak cukup (jumlah + biaya admin ${rupiah(target.fee)})` : `Insufficient balance (amount + ${rupiah(target.fee)} fee)`
+          : id ? "Saldo tidak cukup" : "Insufficient balance"
+      );
+    if (isEwallet ? !/^08\d{8,11}$/.test(account) : !/^\d{8,16}$/.test(account))
+      return setErr(
+        isEwallet
+          ? id ? "Nomor HP harus diawali 08 (10–13 angka)" : "Phone number must start with 08 (10–13 digits)"
+          : id ? "Nomor rekening harus 8–16 angka" : "Account number must be 8–16 digits"
+      );
+    const note = `${target.name} ••${account.slice(-4)}${target.fee ? ` · admin ${rupiah(target.fee)}` : ""}`;
+    const ok = withdraw(total, note);
+    if (!ok) return setErr(id ? "Saldo tidak cukup" : "Insufficient balance");
+    toast(
+      id ? `Penarikan ${rupiah(amount)} ke ${target.name} sedang diproses` : `Withdrawal of ${rupiah(amount)} to ${target.name} is processing`,
+      "success"
+    );
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="no-scrollbar max-h-[90dvh] max-w-[380px] overflow-y-auto rounded-3xl">
+        <DialogHeader>
+          <DialogTitle>{id ? "Tarik saldo" : "Withdraw balance"}</DialogTitle>
+          <DialogDescription>
+            {id ? `Saldo kamu ${rupiah(balance)}. Dana masuk maks. 1x24 jam.` : `Your balance is ${rupiah(balance)}. Funds arrive within 24 hours.`}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          {/* destination */}
+          <div className="space-y-1.5">
+            <p className="flex items-center justify-between text-xs font-semibold">
+              Bank
+              <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-600 dark:text-green-400">
+                {id ? "Gratis biaya admin" : "No admin fee"}
+              </span>
+            </p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {VA_BANKS.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => {
+                    setTargetKey(b.id);
+                    setAccount("");
+                    setErr(null);
+                  }}
+                  aria-pressed={targetKey === b.id}
+                  aria-label={b.name}
+                  className={cn(
+                    "flex h-10 items-center justify-center rounded-xl border px-1.5 transition",
+                    targetKey === b.id ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border"
+                  )}
+                >
+                  <BankLogo id={b.id} className="h-5 w-full bg-transparent p-0" zoom={b.id === "bca" ? 2.1 : undefined} />
+                </button>
+              ))}
+            </div>
+
+            <p className="flex items-center justify-between pt-1 text-xs font-semibold">
+              E-wallet
+              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                {id ? "Kena biaya admin" : "Admin fee applies"}
+              </span>
+            </p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {EWALLETS.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => {
+                    setTargetKey(e.id);
+                    setAccount("");
+                    setErr(null);
+                  }}
+                  aria-pressed={targetKey === e.id}
+                  aria-label={`${e.name}, biaya admin ${rupiah(e.fee)}`}
+                  className={cn(
+                    "flex flex-col items-center gap-1 rounded-xl border px-1.5 py-1.5 transition",
+                    targetKey === e.id ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border"
+                  )}
+                >
+                  <span className="flex h-7 w-full items-center justify-center overflow-hidden px-1">
+                    <img
+                      src={e.logo}
+                      alt={e.name}
+                      draggable={false}
+                      className={cn("h-full w-full object-contain", e.darkText && DARK_TEXT_FIX)}
+                      style={e.zoom ? { transform: `scale(${e.zoom})` } : undefined}
+                    />
+                  </span>
+                  <span className="tnum text-[9.5px] text-muted-foreground">+{rupiah(e.fee)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-semibold">{id ? "Jumlah" : "Amount"}</span>
+            <div className="flex gap-2">
+              <input
+                inputMode="numeric"
+                value={amountTxt}
+                onChange={(e) => {
+                  const d = e.target.value.replace(/\D/g, "");
+                  setAmountTxt(d ? fmtDots(Number(d)) : "");
+                  setErr(null);
+                }}
+                placeholder={id ? "mis. 50.000" : "e.g. 50,000"}
+                className="tnum h-11 flex-1 rounded-xl border border-border bg-background px-3 text-sm font-bold focus:border-primary focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setAmountTxt(fmtDots(Math.max(0, balance - target.fee)))}
+                className="h-11 shrink-0 rounded-xl border border-border px-3 text-xs font-bold text-primary"
+              >
+                {id ? "Semua" : "All"}
+              </button>
+            </div>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-semibold">
+              {isEwallet
+                ? id ? `Nomor HP terdaftar di ${target.name}` : `Phone number registered to ${target.name}`
+                : id ? "Nomor rekening" : "Account number"}
+            </span>
+            <input
+              inputMode="numeric"
+              value={account}
+              onChange={(e) => {
+                setAccount(e.target.value.replace(/\D/g, "").slice(0, isEwallet ? 13 : 16));
+                setErr(null);
+              }}
+              placeholder={isEwallet ? "081234567890" : "1234567890"}
+              className="tnum h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-bold focus:border-primary focus:outline-none"
+            />
+          </label>
+
+          {/* fee breakdown */}
+          <dl className="space-y-1 rounded-xl bg-muted/60 px-3 py-2.5 text-[12.5px]">
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">{id ? "Diterima" : "You receive"}</dt>
+              <dd className="tnum font-semibold">{rupiah(amount)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">{id ? "Biaya admin" : "Admin fee"}</dt>
+              <dd className={cn("tnum font-semibold", !target.fee && "text-green-600 dark:text-green-400")}>
+                {target.fee ? rupiah(target.fee) : id ? "Gratis" : "Free"}
+              </dd>
+            </div>
+            <div className="flex justify-between border-t border-dashed border-border pt-1">
+              <dt className="text-muted-foreground">{id ? "Dipotong dari saldo" : "Taken from balance"}</dt>
+              <dd className="tnum font-bold">{rupiah(total)}</dd>
+            </div>
+          </dl>
+
+          {err && <p className="text-[12px] font-semibold text-destructive">{err}</p>}
+
+          <button
+            onClick={submit}
+            className="h-12 w-full rounded-2xl bg-primary text-sm font-bold text-primary-foreground transition active:scale-[0.98]"
+          >
+            {id ? `Tarik ke ${target.name}` : `Withdraw to ${target.name}`}
+          </button>
+          <p className="text-center text-[10.5px] text-muted-foreground">
+            {id ? "Simulasi - tidak ada uang sungguhan yang dikirim." : "Simulation - no real money is sent."}
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

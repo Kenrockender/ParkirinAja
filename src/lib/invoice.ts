@@ -155,7 +155,7 @@ export async function generateReceipt(
   doc.rect(0, 0, W, 22, "F");
 
   doc.setTextColor(147, 197, 253); // primary blue (light tint for dark header)
-  text("PARKIR BINUS", W / 2, 10, { align: "center", bold: true, size: 14 });
+  text("PARKIRINAJA", W / 2, 10, { align: "center", bold: true, size: 14 });
   doc.setTextColor(200, 200, 200);
   text(campus.name, W / 2, 16, { align: "center", size: 8 });
 
@@ -234,8 +234,8 @@ export async function generateReceipt(
   doc.setFont("helvetica", "italic");
   doc.setTextColor(100, 116, 139); // #64748B
   const footer = id
-    ? "Terima kasih telah menggunakan Parkir Binus. Simpan kwitansi ini sebagai bukti pembayaran."
-    : "Thank you for using Parkir Binus. Keep this receipt as proof of payment.";
+    ? "Terima kasih telah menggunakan ParkirinAja. Simpan kwitansi ini sebagai bukti pembayaran."
+    : "Thank you for using ParkirinAja. Keep this receipt as proof of payment.";
   const lines = doc.splitTextToSize(footer, W - 24) as string[];
   doc.text(lines, W / 2, y, { align: "center" });
   y += lines.length * 4 + 4;

@@ -1,5 +1,5 @@
 /**
- * Parkir Binus — Service Worker for PWA (offline support + push notifications).
+ * ParkirinAja — Service Worker for PWA (offline support + push notifications).
  *
  * Features:
  * - Offline caching with cache-first strategy for static assets
@@ -123,7 +123,7 @@ self.addEventListener("message", (event) => {
   const { title, body, tag, icon } = data;
 
   event.waitUntil(
-    self.registration.showNotification(title ?? "Parkir Binus", {
+    self.registration.showNotification(title ?? "ParkirinAja", {
       body: body ?? "",
       tag: tag ?? "parkir-binus",
       icon: icon ?? "/favicon.ico",

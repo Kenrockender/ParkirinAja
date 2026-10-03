@@ -1,6 +1,6 @@
-# PWA Setup - Parkir Binus
+# PWA Setup - ParkirinAja
 
-Progressive Web App sudah dikonfigurasi untuk aplikasi Parkir Binus. Pengguna dapat meng-install aplikasi seperti aplikasi native di perangkat mereka.
+Progressive Web App sudah dikonfigurasi untuk aplikasi ParkirinAja. Pengguna dapat meng-install aplikasi seperti aplikasi native di perangkat mereka.
 
 ## Fitur PWA
 
@@ -27,7 +27,7 @@ Service worker mendukung push notifications via postMessage:
 ```javascript
 navigator.serviceWorker.controller.postMessage({
   type: 'NOTIFY',
-  title: 'Parkir Binus',
+  title: 'ParkirinAja',
   body: 'Session Anda akan berakhir dalam 5 menit',
   tag: 'session-ending'
 });

@@ -1,4 +1,4 @@
-# Parkir Binus — Feature Expansion Plan (v27+)
+# ParkirinAja — Feature Expansion Plan (v27+)
 
 > **Venture Creation Project — Data Science Major**
 > Prototype-first, production-ready structure. DS layer must be visibly prominent.
@@ -249,7 +249,7 @@ that generates and downloads a clean PDF invoice.
 2. **`src/lib/invoice.ts`** (create or update the existing stub)
    - Export `generateReceipt(reservation, campus, lang)` function using `jspdf`
    - PDF layout:
-     - Header: "PARKIR BINUS" (bold, large) + campus name + "KWITANSI PARKIR" title
+     - Header: "PARKIRINAJA" (bold, large) + campus name + "KWITANSI PARKIR" title
      - Horizontal rule
      - Invoice number: reservation code
      - Date: formatted reservation date
@@ -260,7 +260,7 @@ that generates and downloads a clean PDF invoice.
      - Overtime fine row — only render if `overtimeFee > 0`
      - Horizontal rule
      - Total row (bold)
-     - Footer: "Terima kasih telah menggunakan Parkir Binus." + generation timestamp
+     - Footer: "Terima kasih telah menggunakan ParkirinAja." + generation timestamp
    - Use monospace font for numbers, clean left/right alignment via `doc.text()` x coordinates
    - Filename: `kwitansi-${res.code}-${res.date}.pdf`
 
@@ -304,7 +304,7 @@ permission toggle in ProfileView preferences.
      ```js
      navigator.serviceWorker.controller?.postMessage({
        type: "NOTIFY",
-       title: "Parkir Binus",
+       title: "ParkirinAja",
        body: `Sesi ${slot} berakhir dalam ${minutes} menit`,
        tag: `end-${reservationId}`
      })
@@ -333,7 +333,7 @@ permission toggle in ProfileView preferences.
 
 **Demo:**
 > User has active session ending in 14 min, browser minimized →
-> OS notification: "Parkir Binus — Sesi A-07 berakhir dalam 14 menit.
+> OS notification: "ParkirinAja — Sesi A-07 berakhir dalam 14 menit.
 > Perpanjang atau segera keluar."
 
 ---

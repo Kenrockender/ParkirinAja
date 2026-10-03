@@ -45,6 +45,7 @@ const ACTION_META: Record<AuditAction, { icon: React.ComponentType<{ className?:
   SESSION_EXTENDED: { icon: TimerReset, labelKey: "aSessionExtended" },
   MANUAL_CHECKIN: { icon: UserRound, labelKey: "aManualCheckin" },
   TOP_UP: { icon: Banknote, labelKey: "aTopUp" },
+  WITHDRAW: { icon: Banknote, labelKey: "aWithdraw" },
   SLOT_MAINTENANCE: { icon: Wrench, labelKey: "aSlotMaintenance" },
   SLOT_REACTIVATED: { icon: Wrench, labelKey: "aSlotReactivated" },
   CAMPUS_SWITCHED: { icon: ArrowLeftRight, labelKey: "aCampusSwitched" },

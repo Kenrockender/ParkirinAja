@@ -1,5 +1,5 @@
 /**
- * Parkir Binus - domain types, tariffs, business logic, bilingual strings & mock seed.
+ * ParkirinAja - domain types, tariffs, business logic, bilingual strings & mock seed.
  * Ported from the original PRD v1.0 logic (parking.ts) and adapted for the live preview.
  */
 
@@ -14,7 +14,7 @@ export type ResStatus =
   | "NO_SHOW"
   | "EXPIRED";
 export type ResType = "ADVANCE" | "WALK_IN";
-export type TxnType = "TOP_UP" | "SERVICE_FEE" | "OVERTIME" | "REFUND";
+export type TxnType = "TOP_UP" | "SERVICE_FEE" | "OVERTIME" | "REFUND" | "WITHDRAW";
 
 export type SlotType = "STANDARD" | "EV" | "DISABILITY";
 
@@ -126,6 +126,7 @@ export type AuditAction =
   | "SESSION_EXTENDED"
   | "MANUAL_CHECKIN"
   | "TOP_UP"
+  | "WITHDRAW"
   | "SLOT_MAINTENANCE"
   | "SLOT_REACTIVATED"
   | "CAMPUS_SWITCHED"
@@ -569,7 +570,7 @@ export function cardBrand(number: string): "Visa" | "Mastercard" | "JCB" | null 
 export function qrisPayload(amount: number, at: Date = new Date()): string {
   return [
     "00020101021126",
-    "PARKIR BINUS KEMANGGISAN",
+    "PARKIRINAJA KEMANGGISAN",
     `NMID:ID1020090001234`,
     `AMOUNT:${Math.floor(amount)}`,
     `TS:${at.toISOString()}`,
@@ -583,7 +584,7 @@ export type Lang = "id" | "en";
 
 const dict = {
   id: {
-    appName: "Parkir Binus",
+    appName: "ParkirinAja",
     tagline: "Slot parkir kampus - pasti ada tempat",
     heroTitle: "Parkir tanpa drama.",
     heroSub: "Reservasi slot, scan QR masuk & keluar. Selesai.",
@@ -591,7 +592,7 @@ const dict = {
     msSignIn: "Masuk dengan Microsoft",
     msOrDemo: "atau pilih akun demo",
     msModalTitle: "Masuk",
-    msModalFor: "untuk melanjutkan ke Parkir Binus",
+    msModalFor: "untuk melanjutkan ke ParkirinAja",
     msModalSub: "Gunakan akun Microsoft kampus (@binus.ac.id)",
     msContinue: "Lanjutkan",
     msWorking: "Memverifikasi akun…",
@@ -616,7 +617,7 @@ const dict = {
     goodMorning: "Selamat pagi",
     goodAfternoon: "Selamat siang",
     goodEvening: "Selamat malam",
-    liveNow: "LIVE",
+    liveNow: "Saat ini",
     availabilityNow: "Ketersediaan sekarang",
     slotsFree: "slot kosong",
     of: "dari",
@@ -631,8 +632,8 @@ const dict = {
     startTime: "Mulai",
     endTime: "Selesai",
     today: "Hari ini",
-    advance: "Advance",
-    walkIn: "Walk-in",
+    advance: "Pesan Dulu",
+    walkIn: "Datang Langsung",
     fullMap: "Peta lengkap",
     openMap: "Buka peta lengkap",
     heatmap: "Heatmap permintaan",
@@ -669,30 +670,30 @@ const dict = {
     floorLabelOpen: "LANTAI 1 - AREA PARKIR",
     slotWord: "slot",
     available: "Kosong",
-    reserved: "Terbooking",
+    reserved: "Sudah dipesan",
     occupied: "Terisi",
-    maintenance: "Perawatan",
+    maintenance: "Diperbaiki",
     entranceLabel: "MASUK",
     exitLabel: "KELUAR",
     rampLabel: "RAMP B2",
     liftLabel: "LIFT",
     wcLabel: "WC",
     legend: "Legenda",
-    mapNote: "Mobil masuk lewat kanan-atas → pilih slot · Scan QR di slot untuk check-in & keluar",
+    mapNote: "Masuk dari kanan atas → pilih slot hijau → scan QR di slot saat datang & pulang",
     mapNoteOpen: "Mobil masuk lewat gerbang kiri → pilih slot · Keluar lewat gerbang kanan",
     scrollHint: "Geser untuk melihat semua slot",
     // booking
-    bookSlot: "Booking Slot",
-    bookType: "Tipe booking",
+    bookSlot: "Pesan Slot",
+    bookType: "Cara pesan",
     chooseVehicle: "Pilih kendaraan",
-    summary: "Ringkasan",
-    serviceFee: "Biaya layanan",
+    summary: "Rincian pesanan",
+    serviceFee: "Biaya parkir",
     walletBalance: "Saldo dompet",
-    balanceAfter: "Saldo setelahnya",
-    payAndBook: "Bayar & Booking",
+    balanceAfter: "Sisa saldo",
+    payAndBook: "Bayar & Pesan",
     insufficient: "Saldo tidak cukup - top up dulu di Dompet",
-    bookSuccess: "Booking berhasil",
-    window: "Jendela waktu",
+    bookSuccess: "Pesanan berhasil",
+    window: "Waktu parkir",
     vehicle: "Kendaraan",
     plate: "Plat",
     // ticket
@@ -713,7 +714,7 @@ const dict = {
     refundYouGet: "Refund kamu",
     sessionActive: "Sesi parkir aktif",
     sessionDone: "Sesi selesai",
-    overtimeNote: "Denda telat Rp5.000/jam jika keluar lewat jadwal",
+    overtimeNote: "Lewat jam selesai kena denda Rp5.000/jam",
     downloadReceipt: "Unduh Kwitansi",
     receiptReady: "Kwitansi PDF siap diunduh",
     // history
@@ -743,6 +744,7 @@ const dict = {
     topUpSuccess: "Top up berhasil",
     // txns
     tTopUp: "Top up dompet",
+    tWithdraw: "Tarik saldo",
     tServiceFee: "Biaya layanan parkir",
     tOvertime: "Denda telat",
     tRefund: "Refund pembatalan",
@@ -898,7 +900,7 @@ const dict = {
     notifMinAgo: "{m} mnt lalu",
     notifHourAgo: "{h} jam lalu",
     notifDayAgo: "{d} hari lalu",
-    notifKWelcomeTitle: "Selamat datang di Parkir Binus",
+    notifKWelcomeTitle: "Selamat datang di ParkirinAja",
     notifKWelcomeBody: "Update sesi parkir, struk, dan promo akan muncul di sini.",
     notifKBookingTitle: "Booking dikonfirmasi",
     notifKBookingBody: "Slot {slot} ({code}) - jangan lupa check-in di lokasi.",
@@ -936,9 +938,9 @@ const dict = {
       "Scan slot tersedia setelah layout parkir kampus ini siap. Kembali ke Beranda untuk memilih kampus lain.",
     // dynamic pricing
     dynTitle: "Harga Dinamis",
-    dynLow: "Low demand",
+    dynLow: "Sepi",
     dynNormal: "Normal",
-    dynHigh: "High demand",
+    dynHigh: "Ramai",
     dynReserve: "Reserve",
     dynWalkin: "Walk-in",
     dynOvertime: "Overtime",
@@ -948,7 +950,7 @@ const dict = {
     dynNextNormal: "Naik ke High di atas 75%",
     dynNextHigh: "Turun ke Normal di 75%",
     dynBannerLow: "Harga lebih hemat - parkir sedang sepi",
-    dynBannerNormal: "Harga standar - okupansi normal",
+    dynBannerNormal: "Harga normal - parkir tidak terlalu ramai",
     dynBannerHigh: "Harga lebih tinggi - parkir hampir penuh",
     dynPriceNote: "Harga menyesuaikan permintaan secara real-time",
     dynWalkinNow: "Tarif walk-in saat ini",
@@ -1056,6 +1058,7 @@ const dict = {
     aManualCheckin: "Check-in manual",
     aAnprCheckin: "Check-in via ANPR",
     aTopUp: "Top up dompet",
+    aWithdraw: "Tarik saldo",
     aSlotMaintenance: "Slot masuk perawatan",
     aSlotReactivated: "Slot kembali aktif",
     aCampusSwitched: "Kampus diganti",
@@ -1236,7 +1239,7 @@ const dict = {
     payCardExpErr: "Tanggal kedaluwarsa tidak valid",
     payCardCvvErr: "CVV harus 3 digit",
     payQrisTitle: "Scan dengan aplikasi apa pun",
-    payQrisMerchant: "PARKIR BINUS KEMANGGISAN",
+    payQrisMerchant: "PARKIRINAJA KEMANGGISAN",
     payProcessing: "Memproses pembayaran…",
     payDone: "Top up berhasil",
     // ending soon (v26)
@@ -1255,7 +1258,7 @@ const dict = {
     error: "Terjadi kesalahan",
   },
   en: {
-    appName: "Parkir Binus",
+    appName: "ParkirinAja",
     tagline: "Campus parking - a spot, guaranteed",
     heroTitle: "Parking, minus the drama.",
     heroSub: "Reserve a slot, scan the QR to enter & exit. Done.",
@@ -1263,7 +1266,7 @@ const dict = {
     msSignIn: "Sign in with Microsoft",
     msOrDemo: "or pick a demo account",
     msModalTitle: "Sign in",
-    msModalFor: "to continue to Parkir Binus",
+    msModalFor: "to continue to ParkirinAja",
     msModalSub: "Use your campus Microsoft account (@binus.ac.id)",
     msContinue: "Continue",
     msWorking: "Verifying account…",
@@ -1286,7 +1289,7 @@ const dict = {
     goodMorning: "Good morning",
     goodAfternoon: "Good afternoon",
     goodEvening: "Good evening",
-    liveNow: "LIVE",
+    liveNow: "Now",
     availabilityNow: "Availability now",
     slotsFree: "slots free",
     of: "of",
@@ -1301,7 +1304,7 @@ const dict = {
     startTime: "Start",
     endTime: "End",
     today: "Today",
-    advance: "Advance",
+    advance: "Book Ahead",
     walkIn: "Walk-in",
     fullMap: "Full map",
     openMap: "Open full map",
@@ -1347,20 +1350,20 @@ const dict = {
     liftLabel: "LIFT",
     wcLabel: "WC",
     legend: "Legend",
-    mapNote: "Cars enter top-right → pick a slot · Scan the slot QR to check in & out",
+    mapNote: "Enter top-right → pick a green slot → scan the slot QR when you arrive & leave",
     mapNoteOpen: "Cars enter through the left gate → pick a bay · Exit through the right gate",
     scrollHint: "Swipe to see all slots",
     bookSlot: "Book Slot",
     bookType: "Booking type",
     chooseVehicle: "Choose vehicle",
-    summary: "Summary",
-    serviceFee: "Service fee",
+    summary: "Order details",
+    serviceFee: "Parking fee",
     walletBalance: "Wallet balance",
     balanceAfter: "Balance after",
     payAndBook: "Pay & Book",
     insufficient: "Insufficient balance - top up in Wallet first",
     bookSuccess: "Booking confirmed",
-    window: "Time window",
+    window: "Parking time",
     vehicle: "Vehicle",
     plate: "Plate",
     parkingPass: "PARKING PASS",
@@ -1380,7 +1383,7 @@ const dict = {
     refundYouGet: "Your refund",
     sessionActive: "Active session",
     sessionDone: "Session complete",
-    overtimeNote: "Rp5,000/h late fine if you leave past your window",
+    overtimeNote: "Rp5,000/hour fine if you stay past your end time",
     downloadReceipt: "Download Receipt",
     receiptReady: "PDF receipt ready",
     historyTitle: "History",
@@ -1406,6 +1409,7 @@ const dict = {
     emptyTxn: "No transactions yet",
     topUpSuccess: "Top up successful",
     tTopUp: "Wallet top-up",
+    tWithdraw: "Balance withdrawal",
     tServiceFee: "Parking service fee",
     tOvertime: "Late fine",
     tRefund: "Cancellation refund",
@@ -1559,7 +1563,7 @@ const dict = {
     notifMinAgo: "{m}m ago",
     notifHourAgo: "{h}h ago",
     notifDayAgo: "{d}d ago",
-    notifKWelcomeTitle: "Welcome to Parkir Binus",
+    notifKWelcomeTitle: "Welcome to ParkirinAja",
     notifKWelcomeBody: "Parking session updates, receipts and promos will appear here.",
     notifKBookingTitle: "Booking confirmed",
     notifKBookingBody: "Slot {slot} ({code}) - don't forget to check in on site.",
@@ -1597,9 +1601,9 @@ const dict = {
       "Slot scanning unlocks once this campus parking layout is ready. Head back to Home to pick another campus.",
     // dynamic pricing
     dynTitle: "Dynamic Pricing",
-    dynLow: "Low demand",
+    dynLow: "Quiet",
     dynNormal: "Normal",
-    dynHigh: "High demand",
+    dynHigh: "Busy",
     dynReserve: "Reserve",
     dynWalkin: "Walk-in",
     dynOvertime: "Overtime",
@@ -1609,7 +1613,7 @@ const dict = {
     dynNextNormal: "Up to High above 75%",
     dynNextHigh: "Down to Normal at 75%",
     dynBannerLow: "Cheaper rate - parking is quiet",
-    dynBannerNormal: "Standard rate - normal occupancy",
+    dynBannerNormal: "Normal price - parking is moderately busy",
     dynBannerHigh: "Higher rate - parking nearly full",
     dynPriceNote: "Prices adjust to demand in real time",
     dynWalkinNow: "Current walk-in rate",
@@ -1717,6 +1721,7 @@ const dict = {
     aManualCheckin: "Manual check-in",
     aAnprCheckin: "Check-in via ANPR",
     aTopUp: "Wallet top-up",
+    aWithdraw: "Balance withdrawal",
     aSlotMaintenance: "Slot put into maintenance",
     aSlotReactivated: "Slot back in service",
     aCampusSwitched: "Campus switched",
@@ -1897,7 +1902,7 @@ const dict = {
     payCardExpErr: "Invalid expiry date",
     payCardCvvErr: "CVV must be 3 digits",
     payQrisTitle: "Scan with any app",
-    payQrisMerchant: "PARKIR BINUS KEMANGGISAN",
+    payQrisMerchant: "PARKIRINAJA KEMANGGISAN",
     payProcessing: "Processing payment…",
     payDone: "Top-up successful",
     // ending soon (v26)

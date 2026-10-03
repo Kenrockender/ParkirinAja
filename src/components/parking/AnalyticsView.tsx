@@ -108,7 +108,7 @@ export function AnalyticsView() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `analitik-parkirbinus-30hari-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `analitik-parkirinaja-30hari-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();

@@ -1,6 +1,6 @@
 "use client";
 /**
- * Parkir Binus preview store - client-side simulation of the full product loop:
+ * ParkirinAja preview store - client-side simulation of the full product loop:
  * auth → browse availability → book → check-in (scan) → check-out (scan or ticket) → fines/refund.
  *
  * v22: NO parking fee - check-out charges only the late fine (denda keterlambatan).
@@ -185,6 +185,8 @@ interface ParkirState {
 
   /** v26: top up - `note` records the payment channel (VA BCA / Kartu •••• 4242 / QRIS). */
   topUp: (amount: number, note?: string) => void;
+  /** Cash out wallet balance to a bank account. Returns false if balance is too low. */
+  withdraw: (amount: number, note?: string) => boolean;
 
   /** v23: toggle the simulated gate WebSocket stream. */
   liveToggle: () => void;
@@ -1528,6 +1530,17 @@ export const useParkir = create<ParkirState>((set, get) => {
         transactions: [{ id: uid(), type: "TOP_UP", amount, createdAt: now, note: note ?? "" }, ...s.transactions],
       }));
       audit("TOP_UP", { detail: `${rupiah(amount)}${note ? ` · ${note}` : ""}` });
+    },
+
+    withdraw: (amount, note) => {
+      if (amount <= 0 || amount > get().walletBalance) return false;
+      const now = Date.now();
+      set((s) => ({
+        walletBalance: s.walletBalance - amount,
+        transactions: [{ id: uid(), type: "WITHDRAW", amount, createdAt: now, note: note ?? "" }, ...s.transactions],
+      }));
+      audit("WITHDRAW", { detail: `${rupiah(amount)}${note ? ` · ${note}` : ""}` });
+      return true;
     },
 
     // ── live gate stream (v23) - guests NEVER touch reservations/txns/ledger ──

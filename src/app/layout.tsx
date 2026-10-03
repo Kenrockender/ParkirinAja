@@ -23,10 +23,10 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Parkir Binus - Smart Campus Parking",
+  title: "ParkirinAja - Smart Campus Parking",
   description:
     "Reserve your parking slot at BINUS Anggrek. Live availability, QR check-in/out, wallet & refunds - dark premium redesign.",
-  keywords: ["BINUS", "parking", "Parkir Binus", "campus", "reservation"],
+  keywords: ["BINUS", "parking", "ParkirinAja", "campus", "reservation"],
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Parkir Binus",
+    title: "ParkirinAja",
   },
   formatDetection: {
     telephone: false,

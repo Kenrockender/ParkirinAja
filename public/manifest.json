@@ -1,6 +1,6 @@
 {
-  "name": "Parkir Binus",
-  "short_name": "ParkirBinus",
+  "name": "ParkirinAja",
+  "short_name": "ParkirinAja",
   "description": "Reserve your parking slot at BINUS. Live availability, QR check-in/out, wallet & refunds.",
   "start_url": "/",
   "display": "standalone",

@@ -98,7 +98,7 @@ export function PWAInstallPrompt() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="font-display text-sm font-bold">Install Parkir Binus</h3>
+                    <h3 className="font-display text-sm font-bold">Install ParkirinAja</h3>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {isIOS 
                         ? "Install untuk akses cepat dari home screen"

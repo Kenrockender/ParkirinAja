@@ -1,4 +1,4 @@
-# QR Slot Parkir — Parkir Binus (BINUS @ Alam Sutera, 40 QR)
+# QR Slot Parkir — ParkirinAja (BINUS @ Alam Sutera, 40 QR)
 
 Satu QR unik untuk setiap slot parkir di BINUS @ Alam Sutera · Area Parkir:
 Baris A (A-01 … A-20) dan Baris B (B-01 … B-20) — total **40 QR**.
@@ -7,9 +7,9 @@ Baris A (A-01 … A-20) dan Baris B (B-01 … B-20) — total **40 QR**.
 
 | File | Keterangan |
 |------|------------|
-| `ParkirBinus-QR-Slot-AlamSutera-A4-Print.pdf` | Siap cetak — A4, 5 halaman, 8 kartu per halaman (grid 2×4), garis potong putus-putus |
+| `ParkirinAja-QR-Slot-AlamSutera-A4-Print.pdf` | Siap cetak — A4, 5 halaman, 8 kartu per halaman (grid 2×4), garis potong putus-putus |
 | `PNG/QR-A-01.png` … `QR-B-20.png` | 40 kartu PNG individual (±95×66 mm @ 300 DPI) — cetak satuan / laminate |
-| `ParkirBinus-QR-Slot-AlamSutera-PNG.zip` | Semua 40 PNG dalam satu arsip |
+| `ParkirinAja-QR-Slot-AlamSutera-PNG.zip` | Semua 40 PNG dalam satu arsip |
 
 ## Format kode
 

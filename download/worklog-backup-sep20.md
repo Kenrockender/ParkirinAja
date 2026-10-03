@@ -1,4 +1,4 @@
-# Worklog — Parkir Binus UI Remake
+# Worklog — ParkirinAja UI Remake
 
 ---
 Task ID: 6
@@ -24,7 +24,7 @@ Verification (agent-browser 430x900 + DOM eval + pyzbar + VLM):
 - Zero console/page errors; eslint clean; tsc clean (src/); PDF valid 1.41 MB
 
 Stage Summary:
-- v9 delivered: 32 unique slot QRs as (1) printable files — download/qr-slot/{ParkirBinus-QR-Slot-A4-Print.pdf (A4×4), PNG/ (32 cards), ZIP} and (2) in-app operator QR manager (view grid, per-slot detail + hi-res PNG download, Print All via print-optimized sheet); ticket pass QR upgraded from mock to real scannable QR
+- v9 delivered: 32 unique slot QRs as (1) printable files — download/qr-slot/{ParkirinAja-QR-Slot-A4-Print.pdf (A4×4), PNG/ (32 cards), ZIP} and (2) in-app operator QR manager (view grid, per-slot detail + hi-res PNG download, Print All via print-optimized sheet); ticket pass QR upgraded from mock to real scannable QR
 - Key artifacts modified: OperatorView.tsx, TicketView.tsx, parking-data.ts, globals.css, package.json (+qrcode.react); new scripts/gen_qr_slots.py, download/qr-slot/* (35 files)
 - Screenshots: /home/z/my-project/scripts/shots/v9-*.png (4 captures)
 
@@ -210,14 +210,14 @@ Task: v15 per user request — "qrnya tolong bikinin juga untuk bekasi dan alam 
 Work Log:
 - Found prior pattern: scripts/gen_qr_slots.py + download/qr-slot/ (Anggrek, PB-*, 32 QR: PNG + A4 PDF + ZIP + README)
 - New parameterized generator scripts/gen_qr_campus.py: CAMPUSES config (prefix/rows/location/folder), dynamic QR box_size (payload length differs — BKS- = 9 chars → module count probed then scaled to ~567 px), campus-specific PDF footer + README template
-- Generated download/qr-slot-alam-sutera/: 40 PNG (QR-A-01…QR-B-20), ParkirBinus-QR-Slot-AlamSutera-A4-Print.pdf (5 hlm), PNG ZIP, README
-- Generated download/qr-slot-bekasi/: 50 PNG (QR-A-01…QR-B-25), ParkirBinus-QR-Slot-Bekasi-A4-Print.pdf (7 hlm), PNG ZIP, README
+- Generated download/qr-slot-alam-sutera/: 40 PNG (QR-A-01…QR-B-20), ParkirinAja-QR-Slot-AlamSutera-A4-Print.pdf (5 hlm), PNG ZIP, README
+- Generated download/qr-slot-bekasi/: 50 PNG (QR-A-01…QR-B-25), ParkirinAja-QR-Slot-Bekasi-A4-Print.pdf (7 hlm), PNG ZIP, README
 - download/README.md rewritten as a deliverables index (3 campus QR folders)
 - Verifier scripts/verify_qr_campus.py: PNG counts, naming, OpenCV QRCodeDetector decode spot-checks (AS-A-01/AS-A-07/AS-B-20/BKS-A-01/BKS-A-07/BKS-B-25 all decode exactly), pdfinfo page counts (5 & 7), ZIP entry counts + integrity — 18/18 PASS
 - VLM checks: Bekasi card B-25 9/10 (texts readable, no overflow, crisp QR), AS PDF page 1 9/10 (2×4 grid, cut guides, A-01..A-08, footer), Bekasi PDF last page 7/7 9/10 (exactly 2 cards B-24/B-25 + footer)
 
 Stage Summary:
-- v15 delivered: printable QR signage sets for Alam Sutera (40) & Bekasi (50) matching the Anggrek design (navy QR, PARKIR BINUS brand, yellow scan badge, dashed cut guides); payloads verified machine-decodable (AS-*/BKS-*), A4 PDFs print-ready. Feature roadmap recommendations + clarifying questions presented to user for the next round.
+- v15 delivered: printable QR signage sets for Alam Sutera (40) & Bekasi (50) matching the Anggrek design (navy QR, PARKIRINAJA brand, yellow scan badge, dashed cut guides); payloads verified machine-decodable (AS-*/BKS-*), A4 PDFs print-ready. Feature roadmap recommendations + clarifying questions presented to user for the next round.
 
 ---
 Task ID: 14
@@ -230,14 +230,14 @@ Work Log:
 - NotifCenter.tsx (new): notifText/timeAgo i18n renderers, KIND_ICON/KIND_TONE maps, useSessionAlerts (30s interval: ≤30min left → session_end_soon, past end → overtime; dedupe keys end:/ot:), NotifBell (badge unread count), NotifSheet (right slide-in inbox: mark all read, clear all, empty state, per-item icon/title/body/time-ago/unread dot)
 - page.tsx Shell: bell in header (gap-2.5→2 to fit), NotifSheet, useSessionAlerts mounted
 - TicketView.tsx: CHECKED_IN own session → "Perpanjang +1 Jam" button + hint ("tambahan Rp5.000/jam dihitung dalam tarif parkir saat keluar — bebas lembur"); onClick extends 1h, toasts with new endTime, onUpdate refreshes
-- OperatorView.tsx: exportCsv() — campus-scoped ops report CSV (meta block: campus+location+timestamp; header Waktu/Kode/Kategori/Slot/Pengemudi/Jumlah; rows resolve res code→slot+driver; RINGKASAN block: per-type totals, TOTAL PENDAPATAN, active sessions + occupancy); UTF-8 BOM (EF BB BF verified via blob.arrayBuffer), Blob download, filename laporan-parkirbinus-<campus>-<YYYYMMDD-HHMM>.csv; TxnLogCard +onExport prop → "Ekspor CSV" button in header
+- OperatorView.tsx: exportCsv() — campus-scoped ops report CSV (meta block: campus+location+timestamp; header Waktu/Kode/Kategori/Slot/Pengemudi/Jumlah; rows resolve res code→slot+driver; RINGKASAN block: per-type totals, TOTAL PENDAPATAN, active sessions + occupancy); UTF-8 BOM (EF BB BF verified via blob.arrayBuffer), Blob download, filename laporan-parkirinaja-<campus>-<YYYYMMDD-HHMM>.csv; TxnLogCard +onExport prop → "Ekspor CSV" button in header
 
 Bug found & fixed during verify: NotifSheet v1 used AnimatePresence exit → React 19 dev "NotFoundError: removeChild" on every sheet close (isolated via agent-browser errors; note the errors list is stale across navigations — verify with a FRESH browser). Fix: sheet stays MOUNTED and slides via CSS transform/opacity + pointer-events (no unmount), backdrop+aside aria-hidden toggled. Fresh-browser re-test: 0 page errors across open/close/reopen cycles. (An earlier "DialogContent requires DialogTitle" console error turned out to be the Next.js dev-overlay's own dialog — not reproducible from a clean reload.)
 
 Verification:
 - tsc 0 errors src/, eslint clean, test-as.mts 33/33
 - Customer e2e (fresh browser, 430×900): badge=1 (unread promo) on sign-in; sheet lists 5 seeded notifs with correct ID templates + time-ago (50 mnt/4 mnt/1 hari/3 jam lalu); EN toggle → all items re-render in English ("Booking confirmed", "Happy parking!") proving structured templates; Mark all read clears badge; Clear all empties to empty-state; booking A-01 (LOW Rp15.000) → "Booking confirmed" notif (EN); check-in → "Parking started"; Extend +1 Hour → window 10:28→11:28 + toast + "Session extended … until 11:28" notif; checkout A-03 → receipt notif "total Rp20.000"; walk-in PB-A-02 scan → session starts, wallet exact 170.000 (230−15−20−25); badge counts accumulate correctly (1→4)
-- Operator e2e: Riwayat tab shows "Ekspor CSV" button in Log Transaksi header; blob captured via patched createObjectURL → 46 lines, ID headers, rows resolve code→slot+driver (PB-QTK9619→B-08 Hana Salsabila), TOTAL PENDAPATAN 685.000 (Anggrek-scoped), filename laporan-parkirbinus-anggrek-20260917-0831.csv, BOM bytes EF BB BF present
+- Operator e2e: Riwayat tab shows "Ekspor CSV" button in Log Transaksi header; blob captured via patched createObjectURL → 46 lines, ID headers, rows resolve code→slot+driver (PB-QTK9619→B-08 Hana Salsabila), TOTAL PENDAPATAN 685.000 (Anggrek-scoped), filename laporan-parkirinaja-anggrek-20260917-0831.csv, BOM bytes EF BB BF present
 - Regression: campus picker → Bekasi 28/50 slot kosong + bell present; Alam Sutera switch OK; A-01 history item shows extended window 08:28–11:28; zero console errors/warnings, zero page errors (fresh browser)
 - VLM: notif sheet 8/10, ticket extend 9/10, operator CSV 9/10
 - Screenshots: scripts/shots/v16-notif-sheet.png, v16-ticket-extend.png, v16-op-csv.png; checks: scripts/vlm-v16-check.ts
@@ -368,7 +368,7 @@ Task: Iteration v26 — user payment & profile features: (1) wallet top-up via b
 Work Log:
 - parking-data.ts: NEW payment section — VA_BANKS (8 Indonesian banks with real issuer prefixes: BCA 8808, Mandiri 89508, BNI 9889, BRI 8881, CIMB 8027, Danamon 8717, Permata 8528, BSI 7109 + brand colors), vaNumberFor (16-digit, prefix + amount tail + rand), groupVa (4-4-4-4), formatCardNumber, luhnValid (real Luhn checksum), expiryValid (MM/YY not past), qrisPayload (merchant + NMID + amount + timestamp); AuditAction +PROFILE_UPDATE; +50×2 i18n keys (payment dialog, VA, card, QRIS, ending-soon banner/toast, avatar, aProfileUpdate, chgV26)
 - store.ts: User +avatar?: string|null; topUp(amount, note?) — payment method recorded on the TOP_UP txn + audit detail; setAvatar(dataUrl|null) with PROFILE_UPDATE audit
-- WalletView.tsx rewritten top-up flow: chips & custom amount now open TopUpDialog — state machine method→va→va-pay→card→qris→processing→done; VA: 2-col bank grid → 16-digit VA on primary panel + copy button (clipboard + fallback) + amount/expiry rows + how-to; Card: live blue card preview (chip, brand detect Visa/Mastercard/JCB, live number/name/expiry) + inputs with inline validation (Luhn, name≥3, MM/YY auto-slash not-past, CVV 3-digit) — invalid submit shows errors, valid settles; QRIS: white QR card (QRCodeSVG, merchant PARKIR BINUS KEMANGGISAN, red QRIS badge, amount) + any-app hint; settle = 1.1s simulated gateway → topUp(amount, note "VA BCA" / "Kartu •••• 4242" / "QRIS") → success screen (+amount, note) ; data hooks data-pay-dialog/-methods/-method/va-bank/va-number/va-copy/va-check/card-*/qris-*/pay-done
+- WalletView.tsx rewritten top-up flow: chips & custom amount now open TopUpDialog — state machine method→va→va-pay→card→qris→processing→done; VA: 2-col bank grid → 16-digit VA on primary panel + copy button (clipboard + fallback) + amount/expiry rows + how-to; Card: live blue card preview (chip, brand detect Visa/Mastercard/JCB, live number/name/expiry) + inputs with inline validation (Luhn, name≥3, MM/YY auto-slash not-past, CVV 3-digit) — invalid submit shows errors, valid settles; QRIS: white QR card (QRCodeSVG, merchant PARKIRINAJA KEMANGGISAN, red QRIS badge, amount) + any-app hint; settle = 1.1s simulated gateway → topUp(amount, note "VA BCA" / "Kartu •••• 4242" / "QRIS") → success screen (+amount, note) ; data hooks data-pay-dialog/-methods/-method/va-bank/va-number/va-copy/va-check/card-*/qris-*/pay-done
 - TicketView.tsx: NEW amber ending-soon banner above the ivory pass when CHECKED_IN && 0<minsLeft≤30 (pulsing TriangleAlert, title+countdown, {slot}/{minutes} body, quick "Perpanjang +1 Jam" button — data-endsoon-banner/-extend)
 - HomeView.tsx: NEW EndingSoonBanner above campus bar (same 30-min condition, own 30s tick, data-home-endsoon/-extend); extend from home adds +1h and removes the banner
 - NotifCenter.tsx: useSessionAlerts — when a session first crosses the 30-min line (notif key end:<id> not yet present) it ALSO fires an in-app toast (warnToastEndSoon {minutes}), in addition to the existing session_end_soon notification
