@@ -214,6 +214,10 @@ export function ScannerView({
         : res.reason === "insufficient" ? t("insufficient")
         : res.reason === "max_active"   ? t("maxActiveToast")
         : res.reason === "wrong_campus" ? t("scanWrongCampus")
+        : res.reason === "ev_unverified"
+          ? lang === "id"
+            ? "Slot EV khusus mobil listrik terverifikasi. Ajukan verifikasi di Profil → Kendaraanku."
+            : "EV slots are for verified electric cars only. Submit verification in Profile → My vehicles."
         : t("scanDenied");
       toast(msg, "error");
       scheduleDecodeLoop();

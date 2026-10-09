@@ -25,6 +25,7 @@ import {
   TimerReset,
   ScanLine,
   ShieldCheck,
+  Zap,
 } from "lucide-react";
 import { useParkir, SESSION_ID } from "@/lib/store";
 import { tr, type AuditAction, type AuditEntry } from "@/lib/parking-data";
@@ -52,9 +53,14 @@ const ACTION_META: Record<AuditAction, { icon: React.ComponentType<{ className?:
   PROMO_BROADCAST: { icon: Megaphone, labelKey: "aPromoBroadcast" },
   PROFILE_UPDATE: { icon: UserRoundPen, labelKey: "aProfileUpdate" },
   ANPR_CHECKIN: { icon: ScanLine, labelKey: "aAnprCheckin" },
+  EV_VERIFY_SUBMIT: { icon: Zap, labelKey: "aEvSubmit" },
+  EV_VERIFY_APPROVE: { icon: Zap, labelKey: "aEvApprove" },
+  EV_VERIFY_REJECT: { icon: Zap, labelKey: "aEvReject" },
 };
 
 const OPERATOR_ACTIONS = new Set<AuditAction>([
+  "EV_VERIFY_APPROVE",
+  "EV_VERIFY_REJECT",
   "FORCE_CHECKOUT",
   "MANUAL_CHECKIN",
   "ANPR_CHECKIN",

@@ -29,6 +29,7 @@ import {
   DEMAND_TIERS,
   TARIFF,
   fromMinutes,
+  isEvApproved,
   rupiah,
   toMinutes,
   tr,
@@ -67,6 +68,10 @@ export function BookingView({
 
   /** Look up full slot object for slotType badge */
   const slotObj = slots.find((s) => s.id === slotId);
+  const evRequests = useParkir((s) => s.evRequests);
+  const isEvSlot = slotObj?.slotType === "EV";
+  /** EV slot → only operator-verified EVs may be picked. */
+  const vehAllowed = (vId: string) => !isEvSlot || isEvApproved(vId, evRequests);
   const tierMeta = {
     LOW: {
       label: t("dynLow"),
@@ -97,24 +102,38 @@ export function BookingView({
     },
   }[demand.tier];
 
-  /** Non-BINUSIAN (guest): advance booking locked - walk-in only. */
-  const initialType: ResType = defaultType === "ADVANCE" && !isBinusian ? "WALK_IN" : defaultType;
+  /**
+   * The picked date decides the booking type (no manual choice):
+   *   today       -> WALK_IN only ("Pesan Dulu" locked)
+   *   another day -> ADVANCE only ("Datang Langsung" locked)
+   * Guests (non-BINUSIAN) can't book ahead, so they are pinned to today.
+   * `defaultType` is ignored now - the date carried over from "Lihat ketersediaan" wins.
+   */
+  void defaultType;
+  const guestTodayOnly = !isBinusian;
   const todayStr = dateStr(new Date());
-  const [type, setType] = React.useState<ResType>(initialType);
-  const [vehIdx, setVehIdx] = React.useState(0);
-  // Walk-in is always for today - start on today's date when walk-in is preselected.
+  const [vehIdx, setVehIdx] = React.useState(() => {
+    if (slots.find((s) => s.id === slotId)?.slotType !== "EV") return 0;
+    const i = vehicles.findIndex((v) => isEvApproved(v.id, useParkir.getState().evRequests));
+    return i < 0 ? 0 : i;
+  });
+  // Start on the date chosen in "Lihat ketersediaan"; guests always start (and stay) on today.
   const [win, setWin] = React.useState(() =>
-    initialType === "WALK_IN" ? { ...globalWin, date: todayStr } : { ...globalWin }
+    guestTodayOnly ? { ...globalWin, date: todayStr } : { ...globalWin }
   );
   const [busy, setBusy] = React.useState(false);
 
-  /** Walk-in only works for today; a future date (e.g. "Besok") locks it, and vice versa. */
   const isTodayPicked = win.date === todayStr;
+  const type: ResType = isTodayPicked ? "WALK_IN" : "ADVANCE";
   const walkInLockedByDate = !isTodayPicked;
-  const dateLockedByWalkIn = type === "WALK_IN";
+  const advanceLockedByDate = isTodayPicked;
+  const dateLocked = guestTodayOnly;
 
   const fee = type === "ADVANCE" ? pricing.advanceFee : pricing.walkInFee;
   const enough = walletBalance >= fee;
+  const selVeh = vehicles[vehIdx];
+  const evBlocked = isEvSlot && (!selVeh || !vehAllowed(selVeh.id));
+  const canPay = enough && !evBlocked;
 
   const durationH = React.useMemo(() => {
     const mins = toMinutes(win.endTime) - toMinutes(win.startTime);
@@ -122,6 +141,15 @@ export function BookingView({
   }, [win]);
 
   function confirm() {
+    if (evBlocked) {
+      toast(
+        lang === "id"
+          ? "Slot EV khusus mobil listrik yang sudah diverifikasi operator."
+          : "EV slots are only for operator-verified electric cars.",
+        "error"
+      );
+      return;
+    }
     if (!enough || busy) {
       if (!enough) toast(t("insufficient"), "error");
       return;
@@ -242,34 +270,35 @@ export function BookingView({
         <div className="grid grid-cols-2 gap-2.5">
           {(
             [
-              { k: "ADVANCE", icon: Gauge, label: t("advance"), fee: pricing.advanceFee, ref: TARIFF.advanceFee, note: lang === "id" ? "Pesan untuk hari ini atau hari lain" : "Book for today or another day" },
+              { k: "ADVANCE", icon: Gauge, label: t("advance"), fee: pricing.advanceFee, ref: TARIFF.advanceFee, note: lang === "id" ? "Untuk besok atau hari lain" : "For tomorrow or another day" },
               { k: "WALK_IN", icon: QrCode, label: t("walkIn"), fee: pricing.walkInFee, ref: TARIFF.walkInFee, note: lang === "id" ? "Hari ini saja, scan QR di slot" : "Today only, scan the slot QR" },
             ] as const
           ).map((o) => {
             const guestLocked = !isBinusian && o.k === "ADVANCE";
-            const dateLocked = o.k === "WALK_IN" && walkInLockedByDate;
-            const locked = guestLocked || dateLocked;
+            const byDate = o.k === "WALK_IN" ? walkInLockedByDate : advanceLockedByDate;
+            const locked = guestLocked || byDate;
             const lockMsg = guestLocked
               ? t("binusianOnly")
-              : lang === "id"
-                ? "Hanya untuk hari ini"
-                : "Today only";
+              : o.k === "WALK_IN"
+                ? lang === "id" ? "Hanya untuk hari ini" : "Today only"
+                : lang === "id" ? "Tidak untuk hari ini" : "Not for today";
             return (
               <button
                 key={o.k}
                 onClick={() => {
-                  if (locked) {
-                    toast(
-                      guestLocked
-                        ? t("binusianOnly")
+                  if (!locked) return; // the active type follows the date - nothing to switch
+                  toast(
+                    guestLocked
+                      ? t("binusianOnly")
+                      : o.k === "WALK_IN"
+                        ? lang === "id"
+                          ? `${t("walkIn")} hanya untuk hari ini. Ganti tanggal ke "Hari ini" kalau mau datang langsung.`
+                          : `${t("walkIn")} is for today only. Change the date to "Today" to walk in.`
                         : lang === "id"
-                          ? `${t("walkIn")} hanya untuk hari ini. Ganti tanggal ke "Hari ini" dulu.`
-                          : `${t("walkIn")} is for today only. Change the date to "Today" first.`,
-                      "info"
-                    );
-                    return;
-                  }
-                  setType(o.k);
+                          ? `Untuk hari ini pakai ${t("walkIn")}. ${t("advance")} hanya untuk besok atau hari lain.`
+                          : `For today use ${t("walkIn")}. ${t("advance")} is for tomorrow or later.`,
+                    "info"
+                  );
                 }}
                 aria-disabled={locked || undefined}
                 className={cn(
@@ -314,14 +343,48 @@ export function BookingView({
       {/* vehicle */}
       <section className="space-y-2">
         <p className="text-xs font-semibold text-muted-foreground">{t("chooseVehicle")}</p>
+        {isEvSlot && (
+          <p
+            className={cn(
+              "flex items-start gap-2 rounded-xl border px-3 py-2.5 text-[11px] leading-snug",
+              vehicles.some((v) => vehAllowed(v.id))
+                ? "border-green-500/25 bg-green-500/[0.06] text-green-700 dark:text-green-300"
+                : "border-amber-500/30 bg-amber-500/[0.08] text-amber-700 dark:text-amber-300"
+            )}
+          >
+            <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            {vehicles.some((v) => vehAllowed(v.id))
+              ? lang === "id"
+                ? "Slot EV hanya bisa dipakai mobil listrik yang sudah diverifikasi."
+                : "EV slots can only be used by verified electric cars."
+              : lang === "id"
+                ? "Belum ada mobil listrik terverifikasi. Ajukan dulu di Profil → Kendaraanku → \"Ajukan verifikasi EV\", lalu tunggu persetujuan operator."
+                : "No verified electric car yet. Submit one in Profile → My vehicles → \"Submit EV verification\", then wait for operator approval."}
+          </p>
+        )}
         <div className="space-y-2">
-          {vehicles.map((v, i) => (
+          {vehicles.map((v, i) => {
+            const allowed = vehAllowed(v.id);
+            return (
             <button
               key={v.id}
-              onClick={() => setVehIdx(i)}
+              onClick={() => {
+                if (!allowed) {
+                  toast(
+                    lang === "id"
+                      ? `${v.licensePlate} belum terverifikasi sebagai mobil listrik.`
+                      : `${v.licensePlate} isn't verified as an electric car.`,
+                    "info"
+                  );
+                  return;
+                }
+                setVehIdx(i);
+              }}
+              aria-disabled={!allowed || undefined}
               className={cn(
                 "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all",
-                vehIdx === i
+                !allowed && "cursor-not-allowed opacity-45",
+                vehIdx === i && allowed
                   ? "border-primary/50 bg-primary/[0.07]"
                   : "border-border bg-card/50 hover:border-primary/25"
               )}
@@ -341,6 +404,19 @@ export function BookingView({
                 <span className="block text-[11px] text-muted-foreground">
                   {v.brand} {v.model} · {v.color}
                 </span>
+                {isEvSlot && (
+                  <span
+                    className={cn(
+                      "mt-0.5 inline-flex items-center gap-1 text-[10px] font-bold",
+                      allowed ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
+                    )}
+                  >
+                    <Zap className="h-2.5 w-2.5" />
+                    {allowed
+                      ? lang === "id" ? "EV terverifikasi" : "Verified EV"
+                      : lang === "id" ? "Belum terverifikasi EV" : "Not a verified EV"}
+                  </span>
+                )}
               </span>
               {/* Indonesian plate */}
               <span className="shrink-0 overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm">
@@ -352,7 +428,8 @@ export function BookingView({
                 </span>
               </span>
             </button>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -366,15 +443,8 @@ export function BookingView({
             label={t("date")}
             display={fmtDateLabel(win.date, lang)}
             icon={<CalendarDays className="h-3.5 w-3.5" />}
-            disabled={dateLockedByWalkIn}
-            onDisabledClick={() =>
-              toast(
-                lang === "id"
-                  ? `${t("walkIn")} hanya untuk hari ini. Pilih "${t("advance")}" untuk pesan di hari lain.`
-                  : `${t("walkIn")} is for today only. Choose "${t("advance")}" to book another day.`,
-                "info"
-              )
-            }
+            disabled={dateLocked}
+            onDisabledClick={() => toast(t("binusianOnly"), "info")}
           >
             {(close) => <DateGrid value={win.date} onPick={(d) => { setWin({ ...win, date: d }); close(); }} />}
           </WindowPicker>
@@ -403,14 +473,16 @@ export function BookingView({
         <p className="tnum text-right text-[10px] text-muted-foreground">
           {durationH.toFixed(1)} {lang === "id" ? "jam" : "hours"} · {t("overtimeNote")}
         </p>
-        {dateLockedByWalkIn && (
-          <p className="flex items-start gap-1.5 rounded-xl bg-muted/60 px-3 py-2 text-[11px] leading-snug text-muted-foreground">
-            <Lock className="mt-0.5 h-3 w-3 shrink-0" />
-            {lang === "id"
-              ? `${t("walkIn")} hanya untuk hari ini, jadi tanggal tidak bisa diganti.`
-              : `${t("walkIn")} is for today only, so the date can't be changed.`}
-          </p>
-        )}
+        <p className="flex items-start gap-1.5 rounded-xl bg-muted/60 px-3 py-2 text-[11px] leading-snug text-muted-foreground">
+          <Lock className="mt-0.5 h-3 w-3 shrink-0" />
+          {dateLocked
+            ? lang === "id"
+              ? `Akun tamu hanya bisa ${t("walkIn")} untuk hari ini, jadi tanggal tidak bisa diganti.`
+              : `Guest accounts can only ${t("walkIn")} today, so the date can't be changed.`
+            : lang === "id"
+              ? `Cara pesan mengikuti tanggal: hari ini = ${t("walkIn")}, besok atau hari lain = ${t("advance")}.`
+              : `Booking type follows the date: today = ${t("walkIn")}, tomorrow or later = ${t("advance")}.`}
+        </p>
       </section>
 
       {/* summary + pay */}
@@ -474,10 +546,10 @@ export function BookingView({
         </p>
         <button
           onClick={confirm}
-          disabled={busy || !enough}
+          disabled={busy || !canPay}
           className={cn(
             "mt-1 flex h-13 w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold transition-all",
-            enough
+            canPay
               ? "glow-primary bg-primary text-primary-foreground hover:scale-[1.01] active:scale-[0.98]"
               : "cursor-not-allowed bg-white/[0.05] text-muted-foreground"
           )}

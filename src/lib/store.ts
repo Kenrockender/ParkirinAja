@@ -44,6 +44,11 @@ import {
   type Txn,
   type TxnType,
   type Vehicle,
+  type EvRequest,
+  evRequestFor,
+  isEvApproved,
+  mockPortImage,
+  mockStnkImage,
 } from "./parking-data";
 
 const HOUR = 3600_000;
@@ -136,6 +141,15 @@ interface ParkirState {
   updateVehicle: (id: string, v: { nickname: string; licensePlate: string; brand: string | null; model: string | null; color: string | null; bodyType?: string | null }) => void;
   removeVehicle: (id: string) => void;
 
+  /** EV verification requests - customer submits, operator approves/rejects. */
+  evRequests: EvRequest[];
+  submitEvRequest: (args: {
+    vehicleId: string;
+    connector: string;
+    stnk: EvRequest["stnk"];
+    photo: EvRequest["photo"];
+  }) => boolean;
+  reviewEvRequest: (id: string, decision: "APPROVED" | "REJECTED", reason?: string) => void;
   /** Operator: toggle a slot between ACTIVE and MAINTENANCE */
   setSlotStatus: (slotId: string, status: Slot["status"]) => void;
 
@@ -167,7 +181,7 @@ interface ParkirState {
     | { ok: true; kind: "walkin" | "checkin" | "checkout"; reservation?: Reservation }
     | {
         ok: false;
-        reason: "unknown" | "busy" | "maintenance" | "no_reservation" | "insufficient" | "max_active" | "wrong_campus";
+        reason: "unknown" | "busy" | "maintenance" | "no_reservation" | "insufficient" | "max_active" | "wrong_campus" | "ev_unverified";
       };
 
   /** Operator: end any active session on the spot - fine recorded as on-site payment */
@@ -911,6 +925,36 @@ function seedAuditLog(
 let liveTimer: ReturnType<typeof setInterval> | null = null;
 let liveTickN = 0;
 
+/** Demo EV queue so the operator tab is not empty - one obvious reject (petrol STNK). */
+function seedEvRequests(now: number): EvRequest[] {
+  const mk = (
+    i: number, owner: string, email: string, plate: string, brand: string, model: string,
+    fuel: string, hasPort: boolean, connector: string, ago: number,
+    status: EvRequest["status"] = "PENDING"
+  ): EvRequest => ({
+    id: `evr-seed-${i}`,
+    vehicleId: `veh-seed-ev-${i}`,
+    ownerName: owner,
+    ownerEmail: email,
+    plate,
+    vehicleName: `${brand} ${model}`,
+    connector,
+    stnk: { name: `stnk-${plate.replace(/\s/g, "")}.png`, dataUrl: mockStnkImage(plate, brand, model, fuel) },
+    photo: { name: `port-${plate.replace(/\s/g, "")}.png`, dataUrl: mockPortImage(plate, hasPort) },
+    submittedAt: now - ago,
+    status,
+    ...(status !== "PENDING"
+      ? { reviewedAt: now - ago + 2 * HOUR, reviewer: "Andi Wijaya" }
+      : {}),
+  });
+  return [
+    mk(1, "Nadia Kusuma", "nadia.kusuma@binus.ac.id", "B 1722 EVX", "Hyundai", "Ioniq 5", "LISTRIK", true, "CCS2 (DC)", 40 * MIN),
+    mk(2, "Fajar Nugroho", "fajar.nugroho@binus.ac.id", "B 4410 TJA", "Wuling", "Air ev", "LISTRIK", true, "Type 2 (AC)", 3 * HOUR),
+    mk(3, "Rina Oktaviani", "rina.okt@gmail.com", "B 9981 KOP", "Toyota", "Avanza", "BENSIN", false, "Type 2 (AC)", 5 * HOUR),
+    mk(4, "Kevin Wijaya", "kevin.wijaya@binus.ac.id", "B 1123 PAS", "BYD", "Atto 3", "LISTRIK", true, "CCS2 (DC)", 2 * DAY, "APPROVED"),
+  ];
+}
+
 export const useParkir = create<ParkirState>((set, get) => {
   /** Append-only audit - capped, never rewrites history. */
   const audit = (
@@ -978,6 +1022,7 @@ export const useParkir = create<ParkirState>((set, get) => {
       bekasi: buildBekasiSlots(),
     },
     slots: buildSlots(),
+    evRequests: seedEvRequests(Date.now()),
     reservations: [],
     transactions: [],
     walletBalance: 0,
@@ -1127,13 +1172,25 @@ export const useParkir = create<ParkirState>((set, get) => {
           params: {}, createdAt: now - 26 * HOUR, read: true,
         },
       ];
+      // EV verification results reviewed while this customer was signed out.
+      const myVehIds = new Set(get().vehicles.map((v) => v.id));
+      const evNotifs: Notif[] = get()
+        .evRequests.filter((r) => myVehIds.has(r.vehicleId) && r.status !== "PENDING")
+        .map((r) => ({
+          id: uid(),
+          key: `ev:${r.id}:${r.status}`,
+          kind: r.status === "APPROVED" ? ("ev_approved" as const) : ("ev_rejected" as const),
+          params: { plate: r.plate, reason: r.reason ?? "-" },
+          createdAt: r.reviewedAt ?? now,
+          read: false,
+        }));
       set({
         signedIn: true,
         user: { ...profiles[kind], role: "USER" },
         reservations: mine,
         transactions: seedTxns(now),
         walletBalance: 230000,
-        notifications: seedNotifs,
+        notifications: [...evNotifs, ...seedNotifs],
         auditLog: [],
       });
       audit("SIGN_IN", { detail: kind === "microsoft" ? "SSO Microsoft" : "akun demo" });
@@ -1185,12 +1242,66 @@ export const useParkir = create<ParkirState>((set, get) => {
         vehicles: [...s.vehicles, { id: uid(), ...v }],
       })),
 
-    updateVehicle: (id, v) =>
+    updateVehicle: (id, v) => {
+      const prev = get().vehicles.find((x) => x.id === id);
+      // Changing plate/brand/model voids an EV verification - proof no longer matches.
+      const identityChanged =
+        !!prev &&
+        (prev.licensePlate !== v.licensePlate || prev.brand !== v.brand || prev.model !== v.model);
       set((s) => ({
         vehicles: s.vehicles.map((veh) => (veh.id === id ? { ...veh, ...v } : veh)),
+        evRequests: identityChanged ? s.evRequests.filter((r) => r.vehicleId !== id) : s.evRequests,
+      }));
+    },
+
+    removeVehicle: (id) =>
+      set((s) => ({
+        vehicles: s.vehicles.filter((v) => v.id !== id),
+        evRequests: s.evRequests.filter((r) => !(r.vehicleId === id && r.status === "PENDING")),
       })),
 
-    removeVehicle: (id) => set((s) => ({ vehicles: s.vehicles.filter((v) => v.id !== id) })),
+    submitEvRequest: ({ vehicleId, connector, stnk, photo }) => {
+      const s = get();
+      const veh = s.vehicles.find((v) => v.id === vehicleId);
+      if (!veh) return false;
+      const last = evRequestFor(vehicleId, s.evRequests);
+      if (last && last.status !== "REJECTED") return false; // already pending/approved
+      const req: EvRequest = {
+        id: uid(),
+        vehicleId,
+        ownerName: s.user.name,
+        ownerEmail: s.user.email,
+        plate: veh.licensePlate,
+        vehicleName: `${veh.brand ?? ""} ${veh.model ?? ""}`.trim() || veh.nickname,
+        connector,
+        stnk,
+        photo,
+        submittedAt: Date.now(),
+        status: "PENDING",
+      };
+      set({ evRequests: [req, ...s.evRequests] });
+      audit("EV_VERIFY_SUBMIT", { target: veh.licensePlate, detail: `${req.vehicleName} · ${connector}` });
+      return true;
+    },
+
+    reviewEvRequest: (id, decision, reason) => {
+      const s = get();
+      const req = s.evRequests.find((r) => r.id === id);
+      if (!req || req.status !== "PENDING") return;
+      const now = Date.now();
+      set({
+        evRequests: s.evRequests.map((r) =>
+          r.id === id
+            ? { ...r, status: decision, reviewedAt: now, reviewer: s.user.name, reason: decision === "REJECTED" ? reason : undefined }
+            : r
+        ),
+      });
+      audit(decision === "APPROVED" ? "EV_VERIFY_APPROVE" : "EV_VERIFY_REJECT", {
+        severity: decision === "REJECTED" ? "warning" : "info",
+        target: req.plate,
+        detail: decision === "REJECTED" ? `${req.ownerName} · ${reason ?? "-"}` : `${req.ownerName} · ${req.vehicleName}`,
+      });
+    },
 
     setSlotStatus: (slotId, status) => {
       const s = get();
@@ -1213,6 +1324,12 @@ export const useParkir = create<ParkirState>((set, get) => {
 
     book: ({ slotId, slotNumber, type, date, startTime, endTime, vehiclePlate, vehicleName }) => {
       const { walletBalance } = get();
+      // EV Charger slots are reserved for operator-verified electric vehicles.
+      const evSlot = get().slots.find((x) => x.id === slotId)?.slotType === "EV";
+      if (evSlot) {
+        const veh = get().vehicles.find((v) => v.licensePlate === vehiclePlate);
+        if (!veh || !isEvApproved(veh.id, get().evRequests)) return null;
+      }
       // Dynamic pricing - the service fee follows the live demand tier.
       const demand = demandNow(get().slots, get().reservations);
       const fee = type === "ADVANCE" ? DEMAND_TIERS[demand.tier].advanceFee : DEMAND_TIERS[demand.tier].walkInFee;
@@ -1404,6 +1521,13 @@ export const useParkir = create<ParkirState>((set, get) => {
       // Free slot → walk-in session, charged at the live dynamic walk-in rate
       if (activeNow >= MAX_ACTIVE_PARKING)
         return { ok: false as const, reason: "max_active" as const };
+      // EV Charger slot → the walk-in must use an operator-verified EV.
+      const walkVeh =
+        slot.slotType === "EV"
+          ? get().vehicles.find((v) => isEvApproved(v.id, get().evRequests))
+          : get().vehicles[0];
+      if (slot.slotType === "EV" && !walkVeh)
+        return { ok: false as const, reason: "ev_unverified" as const };
       const demand = demandNow(slots, reservations);
       const walkInFee = DEMAND_TIERS[demand.tier].walkInFee;
       if (walletBalance < walkInFee)
@@ -1424,8 +1548,8 @@ export const useParkir = create<ParkirState>((set, get) => {
         serviceFee: walkInFee,
         overtimeFee: 0,
         refundAmount: 0,
-        vehiclePlate: get().vehicles[0]?.licensePlate ?? "B 2143 RWZ",
-        vehicleName: get().vehicles[0]?.model ?? "Honda HR-V",
+        vehiclePlate: walkVeh?.licensePlate ?? "B 2143 RWZ",
+        vehicleName: walkVeh?.model ?? "Honda HR-V",
         driverName: get().user.name,
         createdAt: now,
         checkedInAt: now,

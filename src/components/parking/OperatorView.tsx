@@ -53,6 +53,7 @@ import { ResStatusPill } from "./Brand";
 import { AnalyticsView } from "./AnalyticsView";
 import { FinanceView } from "./FinanceView";
 import { AuditView } from "./AuditView";
+import { EvVerifyView } from "./EvVerification";
 import { SystemView } from "./SystemView";
 import { ArchCard, ChangelogCard, ErdCard, StackCard } from "./SystemCards";
 import { AnprConsole } from "./AnprConsole";
@@ -83,7 +84,7 @@ const WEEK_MS = 7 * 24 * 3600_000;
 const DAY_START_H = 6;
 const DAY_END_H = 23;
 
-type OpTab = "monitor" | "harga" | "qr" | "riwayat" | "analitik" | "keuangan" | "audit" | "sistem";
+type OpTab = "monitor" | "ev" | "harga" | "qr" | "riwayat" | "analitik" | "keuangan" | "audit" | "sistem";
 
 /** Window covering "right now" - operator always sees live state */
 function nowWindow() {
@@ -506,6 +507,7 @@ export function OperatorView() {
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
 
   const [tab, setTab] = React.useState<OpTab>("monitor");
+  const evPending = useParkir((s) => s.evRequests.filter((r) => r.status === "PENDING").length);
   const [detail, setDetail] = React.useState<Slot | null>(null);
   const [qrSlot, setQrSlot] = React.useState<Slot | null>(null);
   const [query, setQuery] = React.useState("");
@@ -734,6 +736,7 @@ export function OperatorView() {
 
   const tabs: { k: OpTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { k: "monitor", label: t("opTabMonitor"), icon: Monitor },
+    { k: "ev", label: t("opTabEv"), icon: BadgeCheck },
     { k: "harga", label: t("opTabHarga"), icon: Zap },
     { k: "qr", label: t("opTabQr"), icon: QrCode },
     { k: "riwayat", label: t("opTabHistory"), icon: HistoryIcon },
@@ -823,7 +826,7 @@ export function OperatorView() {
       </motion.section>
 
       {/* ── segmented tabs (v23/v24: 8 tabs - vertical icon+label mobile, horizontal ≥sm) ── */}
-      <div className="glass grid grid-cols-4 gap-1 rounded-2xl p-1 sm:grid-cols-8">
+      <div className="glass grid grid-cols-5 gap-1 rounded-2xl p-1 sm:grid-cols-9">
         {tabs.map(({ k, label, icon: Icon }) => (
           <button
             key={k}
@@ -844,6 +847,11 @@ export function OperatorView() {
             <Icon className="relative h-3.5 w-3.5 shrink-0" />
             <span className="relative hidden sm:inline">{label}</span>
             <span className="relative sm:hidden">{label.slice(0, 4)}</span>
+            {k === "ev" && evPending > 0 && (
+              <span className="tnum absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white">
+                {evPending}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -1076,6 +1084,18 @@ export function OperatorView() {
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
           >
             <FinanceView />
+          </motion.div>
+        )}
+
+        {tab === "ev" && (
+          <motion.div
+            key="tab-ev"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <EvVerifyView />
           </motion.div>
         )}
 

@@ -37,6 +37,7 @@ import { ScannerView } from "@/components/parking/ScannerView";
 import { MapView } from "@/components/parking/MapView";
 import { OperatorView } from "@/components/parking/OperatorView";
 import { NotifSheet, useSessionAlerts } from "@/components/parking/NotifCenter";
+import { FineAlertBar } from "@/components/parking/FineAlert";
 import {
   FeatureKnowledge,
   hasSeenFeatureKnowledge,
@@ -115,6 +116,13 @@ function Shell() {
     <div className="ambient flex min-h-dvh flex-col overflow-x-hidden">
       {/* ── main ── */}
       <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-[calc(8rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
+        {/* Late-fine warning: ≤30 min left (amber) or overdue with running fine (red). Ticket view has its own. */}
+        {view.name !== "ticket" && (
+          <FineAlertBar
+            onOpenTicket={(id) => setView({ name: "ticket", reservationId: id })}
+            onCheckout={() => setScanOpen(true)}
+          />
+        )}
         <AnimatePresence mode="wait">
           {view.name === "tabs" && (
             <motion.div

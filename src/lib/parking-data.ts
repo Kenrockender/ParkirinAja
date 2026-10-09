@@ -63,6 +63,99 @@ export interface Vehicle {
   bodyType?: string | null;
 }
 
+// ───────────────────────── EV verification ─────────────────────────
+// A vehicle may only use an EV Charger slot after the customer submits proof
+// (STNK + photo of the charging port) and an operator approves it.
+
+export type EvStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface EvDoc {
+  name: string;
+  /** data-URL of the uploaded image. */
+  dataUrl: string;
+}
+
+export interface EvRequest {
+  id: string;
+  vehicleId: string;
+  ownerName: string;
+  ownerEmail: string;
+  plate: string;
+  vehicleName: string;
+  connector: string;
+  /** Photo of the STNK - the "Bahan Bakar" row must read LISTRIK. */
+  stnk: EvDoc;
+  /** Photo of the car's charging port with the plate visible. */
+  photo: EvDoc;
+  submittedAt: number;
+  status: EvStatus;
+  reviewedAt?: number;
+  reviewer?: string;
+  reason?: string;
+}
+
+export const EV_CONNECTORS: string[] = ["Type 2 (AC)", "CCS2 (DC)", "CHAdeMO", "GB/T"];
+
+/** EV models sold in Indonesia - only an operator HINT, never an auto-approval. */
+export const KNOWN_EV_MODELS: string[] = [
+  "hyundai ioniq 5", "hyundai ioniq 6", "hyundai kona electric", "wuling air ev", "wuling binguo ev",
+  "wuling cloud ev", "byd atto 3", "byd dolphin", "byd seal", "byd m6", "chery omoda e5",
+  "mg 4 ev", "mg zs ev", "nissan leaf", "toyota bz4x", "lexus rz", "kia ev6", "kia ev9",
+  "bmw ix", "bmw i4", "tesla model 3", "tesla model y", "neta v", "neta x", "vinfast vf e34",
+  "vinfast vf 5", "polytron g3", "citroen e-c3", "mercedes eqs", "mercedes eqe",
+];
+
+export function isKnownEvModel(brand: string | null, model: string | null): boolean {
+  const name = `${brand ?? ""} ${model ?? ""}`.toLowerCase().replace(/\s+/g, " ").trim();
+  if (!name) return false;
+  return KNOWN_EV_MODELS.some((m) => name.includes(m) || m.includes(name));
+}
+
+/** Latest verification request for a vehicle (or undefined when never submitted). */
+export function evRequestFor(vehicleId: string, requests: EvRequest[]): EvRequest | undefined {
+  return requests
+    .filter((r) => r.vehicleId === vehicleId)
+    .sort((a, b) => b.submittedAt - a.submittedAt)[0];
+}
+
+export function isEvApproved(vehicleId: string, requests: EvRequest[]): boolean {
+  return evRequestFor(vehicleId, requests)?.status === "APPROVED";
+}
+
+function svgUrl(svg: string): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/** Mock STNK image used for seeded demo requests. */
+export function mockStnkImage(plate: string, brand: string, model: string, fuel: string): string {
+  return svgUrl(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300" viewBox="0 0 480 300">
+<rect width="480" height="300" rx="14" fill="#f4efe1"/><rect x="12" y="12" width="456" height="276" rx="10" fill="none" stroke="#b9a777" stroke-width="2"/>
+<text x="240" y="44" font-family="Arial" font-size="16" font-weight="700" text-anchor="middle" fill="#3b3420">SURAT TANDA NOMOR KENDARAAN BERMOTOR</text>
+<g font-family="Arial" font-size="14" fill="#3b3420">
+<text x="32" y="92">NOMOR REGISTRASI</text><text x="210" y="92" font-weight="700">: ${plate}</text>
+<text x="32" y="124">MEREK</text><text x="210" y="124" font-weight="700">: ${brand.toUpperCase()}</text>
+<text x="32" y="156">TIPE</text><text x="210" y="156" font-weight="700">: ${model.toUpperCase()}</text>
+<text x="32" y="188">JENIS</text><text x="210" y="188" font-weight="700">: MB. PENUMPANG</text>
+<text x="32" y="220">BAHAN BAKAR</text><text x="210" y="220" font-weight="700">: ${fuel}</text>
+</g><text x="448" y="272" font-family="Arial" font-size="11" text-anchor="end" fill="#8a7d58">contoh dokumen - demo</text></svg>`
+  );
+}
+
+/** Mock "charging port" photo used for seeded demo requests. */
+export function mockPortImage(plate: string, hasPort: boolean): string {
+  return svgUrl(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300" viewBox="0 0 480 300">
+<rect width="480" height="300" fill="#26303f"/><rect x="40" y="70" width="400" height="170" rx="36" fill="#9aa7b8"/>
+<rect x="170" y="200" width="140" height="34" rx="4" fill="#fff" stroke="#111" stroke-width="2"/>
+<text x="240" y="224" font-family="Arial" font-size="18" font-weight="700" text-anchor="middle" fill="#111">${plate}</text>
+${hasPort
+  ? `<rect x="330" y="96" width="76" height="76" rx="12" fill="#1f2937"/><circle cx="356" cy="122" r="7" fill="#9ca3af"/><circle cx="380" cy="122" r="7" fill="#9ca3af"/><circle cx="368" cy="146" r="9" fill="#9ca3af"/><text x="368" y="190" font-family="Arial" font-size="11" text-anchor="middle" fill="#111">port pengisian</text>`
+  : `<rect x="340" y="104" width="50" height="50" rx="25" fill="#5b6575"/><text x="365" y="172" font-family="Arial" font-size="11" text-anchor="middle" fill="#111">tutup tangki BBM</text>`}
+<text x="240" y="40" font-family="Arial" font-size="13" text-anchor="middle" fill="#cbd5e1">foto kendaraan - demo</text></svg>`
+  );
+}
+
 export interface Txn {
   id: string;
   type: TxnType;
@@ -82,7 +175,9 @@ export type NotifKind =
   | "extended"
   | "receipt"
   | "refund"
-  | "promo";
+  | "promo"
+  | "ev_approved"
+  | "ev_rejected";
 
 /**
  * Structured notification - title/body are rendered per-language at display
@@ -132,7 +227,10 @@ export type AuditAction =
   | "CAMPUS_SWITCHED"
   | "PROMO_BROADCAST"
   | "PROFILE_UPDATE"
-  | "ANPR_CHECKIN";
+  | "ANPR_CHECKIN"
+  | "EV_VERIFY_SUBMIT"
+  | "EV_VERIFY_APPROVE"
+  | "EV_VERIFY_REJECT";
 
 /** Append-only audit entry - actor, role, fake IP, severity, target & detail. */
 export interface AuditEntry {
@@ -906,10 +1004,10 @@ const dict = {
     notifKBookingBody: "Slot {slot} ({code}) - jangan lupa check-in di lokasi.",
     notifKSessionStartTitle: "Sesi parkir dimulai",
     notifKSessionStartBody: "Slot {slot} aktif hingga {end}. Selamat parkir!",
-    notifKSessionEndSoonTitle: "Sesi segera berakhir",
-    notifKSessionEndSoonBody: "Slot {slot} berakhir dalam {minutes} menit - perpanjang atau keluar tepat waktu.",
-    notifKOvertimeTitle: "Lembur berjalan",
-    notifKOvertimeBody: "Sesi {slot} melewati jadwal - Rp5.000/jam ditagih saat keluar.",
+    notifKSessionEndSoonTitle: "Waktu parkir hampir habis",
+    notifKSessionEndSoonBody: "Slot {slot} selesai {minutes} menit lagi (jam {end}). Lewat dari itu kena denda {fine}/jam - perpanjang atau keluar tepat waktu.",
+    notifKOvertimeTitle: "Kena denda telat",
+    notifKOvertimeBody: "Slot {slot} sudah lewat {late} menit. Denda sekarang {fine}, naik jadi {next} kalau belum keluar dalam {mins} menit.",
     notifKExtendedTitle: "Sesi diperpanjang",
     notifKExtendedBody: "Slot {slot} kini berlaku hingga {end}.",
     notifKReceiptTitle: "Sesi selesai",
@@ -918,6 +1016,10 @@ const dict = {
     notifKRefundBody: "{amount} dikembalikan untuk {code}.",
     notifKPromoTitle: "Promo kampus",
     notifKPromoBody: "Kopi Rp15.000 di Fusion Cafe - tunjukkan pass parkirmu.",
+    notifKEvApprovedTitle: "Kendaraan EV disetujui",
+    notifKEvApprovedBody: "{plate} sudah terverifikasi. Sekarang kamu bisa pesan slot EV Charger.",
+    notifKEvRejectedTitle: "Pengajuan EV ditolak",
+    notifKEvRejectedBody: "{plate}: {reason}. Perbaiki dokumen lalu ajukan ulang dari Profil.",
     // operator csv export
     csvExport: "Ekspor CSV",
     csvExportTitle: "Laporan Operasional",
@@ -960,6 +1062,7 @@ const dict = {
     opTabFinance: "Keuangan",
     opTabAudit: "Audit",
     opTabSystem: "Sistem",
+    opTabEv: "EV",
     viaTicket: "via tiket",
     viaScan: "via scan",
     opGuests: "tamu",
@@ -1057,6 +1160,9 @@ const dict = {
     aSessionExtended: "Sesi diperpanjang",
     aManualCheckin: "Check-in manual",
     aAnprCheckin: "Check-in via ANPR",
+    aEvSubmit: "Verifikasi EV diajukan",
+    aEvApprove: "Verifikasi EV disetujui",
+    aEvReject: "Verifikasi EV ditolak",
     aTopUp: "Top up dompet",
     aWithdraw: "Tarik saldo",
     aSlotMaintenance: "Slot masuk perawatan",
@@ -1244,7 +1350,7 @@ const dict = {
     payDone: "Top up berhasil",
     // ending soon (v26)
     endSoonTitle: "Waktu parkir hampir habis",
-    endSoonBody: "Slot {slot} berakhir dalam {minutes} menit - perpanjang sekarang agar bebas denda.",
+    endSoonBody: "Slot {slot} selesai {minutes} menit lagi. Lewat dari itu kena denda Rp5.000/jam - perpanjang sekarang.",
     endSoonToast: "Sesi {slot} berakhir dalam {minutes} menit",
     // avatar (v26)
     avatarChange: "Ganti foto profil",
@@ -1569,10 +1675,10 @@ const dict = {
     notifKBookingBody: "Slot {slot} ({code}) - don't forget to check in on site.",
     notifKSessionStartTitle: "Parking started",
     notifKSessionStartBody: "Slot {slot} is yours until {end}. Happy parking!",
-    notifKSessionEndSoonTitle: "Session ending soon",
-    notifKSessionEndSoonBody: "Slot {slot} ends in {minutes} minutes - extend or leave on time.",
-    notifKOvertimeTitle: "Overtime running",
-    notifKOvertimeBody: "Slot {slot} is past its window - Rp5,000/hour charged at checkout.",
+    notifKSessionEndSoonTitle: "Parking time almost up",
+    notifKSessionEndSoonBody: "Slot {slot} ends in {minutes} minutes ({end}). After that it's a {fine}/hour fine - extend or leave on time.",
+    notifKOvertimeTitle: "Late fine running",
+    notifKOvertimeBody: "Slot {slot} is {late} min overdue. Fine is now {fine}, rising to {next} if you haven't left in {mins} min.",
     notifKExtendedTitle: "Session extended",
     notifKExtendedBody: "Slot {slot} now runs until {end}.",
     notifKReceiptTitle: "Session complete",
@@ -1581,6 +1687,10 @@ const dict = {
     notifKRefundBody: "{amount} refunded for {code}.",
     notifKPromoTitle: "Campus promo",
     notifKPromoBody: "Rp15,000 coffee at Fusion Cafe - show your parking pass.",
+    notifKEvApprovedTitle: "EV vehicle approved",
+    notifKEvApprovedBody: "{plate} is verified. You can now book EV Charger slots.",
+    notifKEvRejectedTitle: "EV request rejected",
+    notifKEvRejectedBody: "{plate}: {reason}. Fix the documents and resubmit from Profile.",
     // operator csv export
     csvExport: "Export CSV",
     csvExportTitle: "Operations Report",
@@ -1623,6 +1733,7 @@ const dict = {
     opTabFinance: "Finance",
     opTabAudit: "Audit",
     opTabSystem: "System",
+    opTabEv: "EV",
     viaTicket: "via ticket",
     viaScan: "via scan",
     opGuests: "guests",
@@ -1720,6 +1831,9 @@ const dict = {
     aSessionExtended: "Session extended",
     aManualCheckin: "Manual check-in",
     aAnprCheckin: "Check-in via ANPR",
+    aEvSubmit: "EV verification submitted",
+    aEvApprove: "EV verification approved",
+    aEvReject: "EV verification rejected",
     aTopUp: "Wallet top-up",
     aWithdraw: "Balance withdrawal",
     aSlotMaintenance: "Slot put into maintenance",
@@ -1907,7 +2021,7 @@ const dict = {
     payDone: "Top-up successful",
     // ending soon (v26)
     endSoonTitle: "Parking time is running out",
-    endSoonBody: "Slot {slot} ends in {minutes} minutes - extend now to stay fine-free.",
+    endSoonBody: "Slot {slot} ends in {minutes} minutes. After that it's a Rp5,000/hour fine - extend now.",
     endSoonToast: "Session {slot} ends in {minutes} minutes",
     // avatar (v26)
     avatarChange: "Change profile photo",

@@ -46,6 +46,7 @@ import { NotifBell } from "./NotifCenter";
 import { useParkir } from "@/lib/store";
 import { rupiah, tr, type Vehicle } from "@/lib/parking-data";
 import { VehicleModal } from "./VehicleModal";
+import { EvStatusRow, EvVerifyModal } from "./EvVerification";
 import { cn } from "@/lib/utils";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -82,6 +83,7 @@ export function ProfileView({
     vehicle?: Vehicle;
   }>({ open: false });
   const [confirmRemove, setConfirmRemove] = React.useState<string | null>(null);
+  const [evVehicle, setEvVehicle] = React.useState<Vehicle | null>(null);
   const [editOpen, setEditOpen] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => setMounted(true), []);
@@ -288,7 +290,8 @@ export function ProfileView({
         </div>
         <div className="space-y-2">
           {vehicles.map((v) => (
-            <div key={v.id} className="glass flex items-center gap-3 rounded-2xl p-3.5">
+            <div key={v.id} className="glass space-y-2.5 rounded-2xl p-3.5">
+            <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04]">
                 <Car className="h-4.5 w-4.5 text-muted-foreground" />
               </span>
@@ -326,6 +329,10 @@ export function ProfileView({
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
+            </div>
+            <div className="pl-[52px]">
+              <EvStatusRow vehicle={v} onSubmit={() => setEvVehicle(v)} />
+            </div>
             </div>
           ))}
           {confirmRemove && (
@@ -501,6 +508,12 @@ export function ProfileView({
         open={vehicleModal.open}
         onOpenChange={(v) => setVehicleModal((m) => ({ ...m, open: v }))}
         vehicle={vehicleModal.vehicle ?? null}
+      />
+
+      <EvVerifyModal
+        open={!!evVehicle}
+        onOpenChange={(o) => !o && setEvVehicle(null)}
+        vehicle={evVehicle}
       />
 
       <EditProfileModal open={editOpen} onOpenChange={setEditOpen} />

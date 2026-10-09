@@ -4,8 +4,8 @@
  *
  * Notifications are structured (kind + params) and rendered per-language at
  * display time, so the EN/ID toggle stays correct for every stored item.
- * A 30-second detector also raises "session ending soon" / "overtime" alerts
- * for the signed-in user's own CHECKED_IN sessions (deduped by key).
+ * A 15-second detector also raises staged "session ending soon" / "overtime"
+ * (late fine) alerts for the signed-in user's own CHECKED_IN sessions (deduped by key).
  */
 import * as React from "react";
 import {
@@ -18,8 +18,10 @@ import {
   Info,
   ReceiptText,
   Timer,
+  Zap,
 } from "lucide-react";
-import { tr, type Lang, type Notif, type NotifKind } from "@/lib/parking-data";
+import { rupiah, TARIFF, tr, type Lang, type Notif, type NotifKind } from "@/lib/parking-data";
+import { fineState } from "@/components/parking/FineAlert";
 import { useParkir } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +51,8 @@ function cap(k: NotifKind): string {
     receipt: "Receipt",
     refund: "Refund",
     promo: "Promo",
+    ev_approved: "EvApproved",
+    ev_rejected: "EvRejected",
   };
   return map[k];
 }
@@ -73,6 +77,8 @@ const KIND_ICON: Record<NotifKind, React.ComponentType<{ className?: string }>> 
   receipt: ReceiptText,
   refund: ReceiptText,
   promo: Gift,
+  ev_approved: Zap,
+  ev_rejected: Zap,
 };
 
 const KIND_TONE: Record<NotifKind, string> = {
@@ -85,6 +91,8 @@ const KIND_TONE: Record<NotifKind, string> = {
   receipt: "bg-green-400/15 text-green-400",
   refund: "bg-red-400/15 text-red-400",
   promo: "bg-amber-400/15 text-amber-400",
+  ev_approved: "bg-green-400/15 text-green-400",
+  ev_rejected: "bg-red-400/15 text-red-400",
 };
 
 // ───────────────────────────── live alerts ─────────────────────────────
@@ -104,67 +112,55 @@ export function useSessionAlerts() {
   }
 
   React.useEffect(() => {
+    /**
+     * Staged alerts, each raised once (deduped by key):
+     *   30 / 15 / 5 min before the end  → "session_end_soon" (amber)
+     *   at the end, then every extra started hour → "overtime" (red, fine amount)
+     * Keys include the current endTime, so extending the session re-arms the warnings.
+     * Each new stage → inbox notification + toast + vibration + OS push (if enabled).
+     */
     const check = () => {
       const now = Date.now();
-      const { lang, pushEnabled } = useParkir.getState();
-      for (const r of useParkir.getState().reservations) {
+      const st0 = useParkir.getState();
+      const { lang, pushEnabled } = st0;
+      const fineHour = rupiah(TARIFF.overtimeFeePerHour);
+      for (const r of st0.reservations) {
         if (r.status !== "CHECKED_IN" || r.driverName !== user.name) continue;
-        const plannedEnd = new Date(`${r.date}T${r.endTime}:00`).getTime();
-        const minsLeft = Math.round((plannedEnd - now) / 60_000);
-        if (minsLeft <= 0) {
-          useParkir.getState().pushNotif({
-            key: `ot:${r.id}`,
-            kind: "overtime",
-            params: { slot: r.slotNumber },
-          });
-          if (pushEnabled) {
-            const title = "ParkirinAja";
-            const body = lang === "id"
-              ? `Sesi parkir ${r.slotNumber} sudah melewati jadwal. Segera keluar.`
-              : `Parking session ${r.slotNumber} is overdue. Please exit now.`;
-            sendPush(title, body, `ot-${r.id}`);
-          }
-        } else if (minsLeft <= 15) {
-          // OS push for ≤15 min (more urgent threshold for background alerts)
-          const firstCross = !useParkir.getState().notifications.some((n) => n.key === `end:${r.id}`);
-          useParkir.getState().pushNotif({
-            key: `end:${r.id}`,
-            kind: "session_end_soon",
-            params: { slot: r.slotNumber, minutes: minsLeft },
-          });
-          if (firstCross) {
-            const msg = tpl(useParkir.getState().lang, "endSoonToast", {
-              slot: r.slotNumber,
-              minutes: minsLeft,
-            });
-            useParkir.getState().toast(msg, "error");
-          }
-          if (pushEnabled) {
-            const title = "ParkirinAja";
-            const body = lang === "id"
-              ? `Sesi parkir ${r.slotNumber} berakhir dalam ${minsLeft} menit. Perpanjang atau segera keluar.`
-              : `Parking session ${r.slotNumber} ends in ${minsLeft} minutes. Extend or exit soon.`;
-            sendPush(title, body, `end-${r.id}`);
-          }
-        } else if (minsLeft <= 30) {
-          const firstCross = !useParkir.getState().notifications.some((n) => n.key === `end:${r.id}`);
-          useParkir.getState().pushNotif({
-            key: `end:${r.id}`,
-            kind: "session_end_soon",
-            params: { slot: r.slotNumber, minutes: minsLeft },
-          });
-          if (firstCross) {
-            const msg = tpl(useParkir.getState().lang, "endSoonToast", {
-              slot: r.slotNumber,
-              minutes: minsLeft,
-            });
-            useParkir.getState().toast(msg, "error");
-          }
+        const st = fineState(r, now);
+        if (st.phase === "ok") continue;
+
+        let key: string;
+        let kind: NotifKind;
+        let params: Record<string, string | number>;
+        if (st.phase === "soon") {
+          key = `end:${r.id}:${r.endTime}:${st.stage}`;
+          kind = "session_end_soon";
+          params = { slot: r.slotNumber, minutes: st.minsLeft, end: r.endTime, fine: fineHour };
+        } else {
+          key = `ot:${r.id}:${r.endTime}:${st.hour}`;
+          kind = "overtime";
+          params = {
+            slot: r.slotNumber,
+            late: st.lateMin,
+            fine: rupiah(st.fine),
+            next: rupiah(st.nextFine),
+            mins: st.minsToNext,
+          };
         }
+
+        if (useParkir.getState().notifications.some((n) => n.key === key)) continue;
+        useParkir.getState().pushNotif({ key, kind, params });
+
+        const { title, body } = notifText(lang, { id: "", key, kind, params, createdAt: now, read: false });
+        useParkir.getState().toast(`${title}: ${body}`, "error");
+        if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+          navigator.vibrate(st.phase === "over" ? [200, 100, 200] : 150);
+        }
+        if (pushEnabled) sendPush(title, body, key);
       }
     };
     check();
-    const id = setInterval(check, 30_000);
+    const id = setInterval(check, 15_000);
     return () => clearInterval(id);
   }, [reservations, user.name, pushNotif]);
 }
