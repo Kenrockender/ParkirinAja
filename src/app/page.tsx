@@ -29,6 +29,7 @@ import { LogoMark } from "@/components/parking/Brand";
 import { Landing } from "@/components/parking/Landing";
 import { HomeView } from "@/components/parking/HomeView";
 import { BookingConfirmed, BookingView } from "@/components/parking/BookingView";
+import { ParkingExitAnimation } from "@/components/parking/ParkingExitAnimation";
 import { TicketView } from "@/components/parking/TicketView";
 import { HistoryView } from "@/components/parking/HistoryView";
 import { WalletView } from "@/components/parking/WalletView";
@@ -94,9 +95,12 @@ function Shell() {
   const [scanOpen, setScanOpen] = React.useState(false);
   const [notifOpen, setNotifOpen] = React.useState(false);
   const [confirmedId, setConfirmedId] = React.useState<string | null>(null);
+  const [checkoutId, setCheckoutId] = React.useState<string | null>(null);
+  const checkoutAnimationsSeen = React.useRef(new Set<string>());
   // Auto-open on first login. Shell renders only after mount, so localStorage is safe here.
   const [guideOpen, setGuideOpen] = React.useState(() => !hasSeenFeatureKnowledge());
   const toast = useParkir((s) => s.toast);
+  const checkoutReservation = useParkir((s) => s.reservations.find((r) => r.id === checkoutId));
 
   // Live "session ending soon" / overtime alerts for the customer's own sessions.
   useSessionAlerts();
@@ -110,6 +114,12 @@ function Shell() {
 
   function openBooking(slotId: string, slotNumber: string, type: "ADVANCE" | "WALK_IN" = "ADVANCE") {
     setView({ name: "booking", slotId, slotNumber, type });
+  }
+
+  function showCheckoutAnimation(reservationId: string) {
+    if (checkoutAnimationsSeen.current.has(reservationId)) return;
+    checkoutAnimationsSeen.current.add(reservationId);
+    setCheckoutId(reservationId);
   }
 
   return (
@@ -183,6 +193,7 @@ function Shell() {
                 setTab("history");
               }}
               onUpdate={() => {}}
+              onCheckout={showCheckoutAnimation}
             />
           )}
         </AnimatePresence>
@@ -268,13 +279,27 @@ function Shell() {
             kind === "checkout" ? t("checkoutOk") : kind === "walkin" ? t("walkinOk") : t("checkinOk"),
             "success"
           );
-          if (resId) setView({ name: "ticket", reservationId: resId });
+          if (resId) {
+            setView({ name: "ticket", reservationId: resId });
+            if (kind === "checkout") showCheckoutAnimation(resId);
+          }
         }}
       />
 
       <NotifSheet open={notifOpen} onClose={() => setNotifOpen(false)} />
 
-      <BookingConfirmed reservationId={confirmedId} onClose={() => setConfirmedId(null)} />
+      <BookingConfirmed key={confirmedId ?? "no-confirmation"} reservationId={confirmedId} onClose={() => setConfirmedId(null)} />
+
+      {checkoutReservation && (
+        <ParkingExitAnimation
+          reservation={checkoutReservation}
+          lang={lang}
+          onClose={() => {
+            setCheckoutId(null);
+            setView({ name: "ticket", reservationId: checkoutReservation.id });
+          }}
+        />
+      )}
 
       <FeatureKnowledge
         open={guideOpen}

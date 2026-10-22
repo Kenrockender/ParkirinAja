@@ -53,10 +53,12 @@ export function TicketView({
   reservation,
   onBack,
   onUpdate,
+  onCheckout,
 }: {
   reservation: string;
   onBack: () => void;
   onUpdate: (r: import("@/lib/parking-data").Reservation) => void;
+  onCheckout: (reservationId: string) => void;
 }) {
   const lang = useParkir((s) => s.lang);
   const res = useParkir((s) => s.reservations.find((r) => r.id === reservation));
@@ -423,6 +425,16 @@ export function TicketView({
       {/* cancel dialog */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent className="rounded-3xl border-border bg-popover/95 backdrop-blur-xl">
+          <div aria-hidden className="-mt-5 mb-1 flex justify-center">
+            <motion.img
+              src="/mascot/processed/mascot-sad-cancellation.png"
+              alt=""
+              initial={{ opacity: 0, y: -8, rotate: -3, scale: 0.9 }}
+              animate={{ opacity: 1, y: [0, 4, 0], rotate: [-2, 1, -2], scale: 1 }}
+              transition={{ opacity: { duration: 0.2 }, scale: { duration: 0.25 }, y: { duration: 2.4, repeat: Infinity, ease: "easeInOut" }, rotate: { duration: 2.4, repeat: Infinity, ease: "easeInOut" } }}
+              className="h-28 w-24 object-contain drop-shadow-[0_12px_16px_rgba(0,0,0,0.24)]"
+            />
+          </div>
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display tracking-tight">
               {t("cancelConfirmTitle")}
@@ -507,6 +519,8 @@ export function TicketView({
                     : `${t("checkoutOk")} · ${t("onTimeFree")}`,
                   "success"
                 );
+                setCheckoutOpen(false);
+                onCheckout(res.id);
               }}
               className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
             >

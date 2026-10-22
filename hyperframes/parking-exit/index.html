@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="id">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>ParkirinAja — Parking Exit</title><link rel="stylesheet" href="./styles.css" /></head>
+  <body>
+    <main id="stage" data-composition-id="parkirinaja-parking-exit" data-start="0" data-duration="4.5" data-width="1080" data-height="1920">
+      <section id="barrier" aria-label="Palang keluar parkiran"><span class="barrier-base" aria-hidden="true"></span><span class="barrier-post" aria-hidden="true"><span class="barrier-panel"></span><span class="barrier-light"></span></span><span class="barrier-pivot" aria-hidden="true"></span><span id="barrier-arm" class="barrier-arm" aria-hidden="true"></span></section>
+      <figure id="car" class="car" aria-label="Maskot ParkirinAja keluar dari area parkir"><img id="car-image" src="./assets/car-side-wave-transparent.png" data-default-src="./assets/car-side-wave-transparent.png" alt="Maskot ParkirinAja di dalam mobil merah" /><span class="smoke" aria-hidden="true"><i></i><i></i><i></i></span></figure>
+      <section id="farewell" class="farewell" aria-live="polite"><div class="farewell-shadow" aria-hidden="true"></div><div id="farewell-decor" class="farewell-decor" aria-hidden="true"><span class="decor-badge decor-parking">P</span><span class="decor-badge decor-check">✓</span><span class="decor-dot dot-one"></span><span class="decor-dot dot-two"></span><span class="decor-dot dot-three"></span><span class="decor-orb orb-one"></span></div><div class="farewell-icon" aria-hidden="true">✓</div><p>Terima kasih sudah parkir!</p></section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <script>
+      window.PARKIRINAJA_ASSETS = window.PARKIRINAJA_ASSETS || {};
+      const compositionId = "parkirinaja-parking-exit";
+      const carImage = document.querySelector("#car-image");
+      carImage.src = window.PARKIRINAJA_ASSETS.car || carImage.dataset.defaultSrc;
+      gsap.set("#car, #barrier, #farewell, #farewell-decor", { autoAlpha: 0 });
+      gsap.set("#barrier-arm", { rotation: 0, transformOrigin: "right center" });
+      gsap.set(".smoke i", { autoAlpha: 0, x: 0, y: 0, scale: 0.35 });
+      const timeline = gsap.timeline({ paused: true });
+      timeline
+        .fromTo("#car", { autoAlpha: 0, y: 34, scale: 0.98 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.28, ease: "power2.out" }, 0)
+        .fromTo("#barrier", { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.24, ease: "power2.out" }, 0.05)
+        .to("#barrier-arm", { rotation: 74, duration: 0.48, ease: "power2.inOut" }, 0.32)
+        .to("#car", { x: 1210, y: -8, scale: 0.78, autoAlpha: 0, duration: 1.16, ease: "power2.in" }, 0.58)
+        .to(".smoke i", { autoAlpha: 0.72, x: -152, y: -34, scale: 1.22, duration: 0.5, stagger: 0.12, repeat: 2, repeatDelay: 0.04, ease: "power1.out" }, 0.66)
+        .to("#barrier", { autoAlpha: 0, duration: 0.2, ease: "power1.out" }, 1.46)
+        .fromTo("#farewell", { autoAlpha: 0, y: 16, scale: 0.96 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.34, ease: "power2.out" }, 1.42)
+        .fromTo("#farewell-decor", { autoAlpha: 0, scale: 0.8 }, { autoAlpha: 1, scale: 1, duration: 0.36, ease: "power2.out" }, 1.54)
+        .to(".decor-badge, .decor-orb", { y: -9, duration: 0.8, yoyo: true, repeat: 2, stagger: 0.12, ease: "sine.inOut" }, 1.78)
+        .to("#farewell", { autoAlpha: 0, y: -46, scale: 0.96, duration: 0.36, ease: "power2.in" }, 3.82);
+      window.__timelines = window.__timelines || {};
+      window.__timelines[compositionId] = timeline;
+    </script>
+  </body>
+</html>

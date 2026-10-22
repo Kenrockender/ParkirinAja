@@ -9,13 +9,14 @@
  * The `tag` field deduplicates repeat alerts for the same session.
  */
 
-const CACHE_NAME = "parkir-binus-v1";
-const STATIC_CACHE = "parkir-binus-static-v1";
-const DYNAMIC_CACHE = "parkir-binus-dynamic-v1";
+// Bump this whenever the app shell changes so existing installs discard stale UI.
+const CACHE_VERSION = "v2";
+const CACHE_NAME = `parkir-binus-${CACHE_VERSION}`;
+const STATIC_CACHE = `parkir-binus-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `parkir-binus-dynamic-${CACHE_VERSION}`;
 
 // Assets to cache on install
 const STATIC_ASSETS = [
-  "/",
   "/manifest.json",
   "/icon.svg",
   "/logo.svg",
@@ -75,6 +76,24 @@ self.addEventListener("fetch", (event) => {
         .catch(() => {
           return caches.match(request);
         })
+    );
+    return;
+  }
+
+  // HTML/app-shell requests must be network-first. Caching `/` here made users
+  // keep seeing an older React bundle after a new deployment; only fall back
+  // to the offline page when the network is genuinely unavailable.
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const responseClone = response.clone();
+            caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, responseClone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached ?? caches.match("/offline")))
     );
     return;
   }

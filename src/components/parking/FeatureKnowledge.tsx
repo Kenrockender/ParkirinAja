@@ -368,6 +368,26 @@ export function FeatureKnowledge({ open, onClose }: { open: boolean; onClose: ()
             className="glass absolute overflow-hidden rounded-2xl border border-primary/30 p-4 text-foreground shadow-2xl"
             aria-live="polite"
           >
+            {/* A compact guide badge stays in the corner, with the copy reserving it room. */}
+            <motion.img
+              aria-hidden
+              src="/mascot/processed/mascot-thumbs-up-transparent.png"
+              alt=""
+              initial={{ opacity: 0, y: 10, rotate: -8 }}
+              animate={{
+                opacity: 0.82,
+                y: [3, 0, 3],
+                rotate: [-4, 2, -4],
+              }}
+              transition={{
+                opacity: { duration: 0.2 },
+                y: { duration: 2.8, repeat: Infinity, ease: "easeInOut" },
+                rotate: { duration: 2.8, repeat: Infinity, ease: "easeInOut" },
+              }}
+              style={{ position: "absolute", top: 6, right: 34 }}
+              className="pointer-events-none z-0 h-16 w-16 object-contain drop-shadow-[0_8px_10px_rgba(0,0,0,0.28)]"
+            />
+            <div className="relative z-10">
             {/* text crossfades + slides in the direction of travel */}
             <AnimatePresence mode="wait" initial={false} custom={dir.current}>
             <motion.div
@@ -384,7 +404,7 @@ export function FeatureKnowledge({ open, onClose }: { open: boolean; onClose: ()
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
             <div className="flex items-start gap-2">
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 pr-14">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
                   {lang === "en" ? "Feature Knowledge" : "Pengetahuan Fitur"} · {i + 1}/{STEPS.length}
                 </p>
@@ -451,6 +471,7 @@ export function FeatureKnowledge({ open, onClose }: { open: boolean; onClose: ()
               >
                 {last ? (lang === "en" ? "Got it" : "Mengerti") : lang === "en" ? "Next" : "Lanjut"}
               </button>
+            </div>
             </div>
           </motion.div>
         </motion.div>

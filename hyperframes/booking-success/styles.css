@@ -1,0 +1,98 @@
+* { box-sizing: border-box; }
+
+html,
+body {
+  margin: 0;
+  background: transparent;
+}
+
+#stage {
+  position: relative;
+  width: 1080px;
+  height: 1920px;
+  overflow: hidden;
+  background: transparent;
+  color: #102a43;
+  font-family: Inter, Arial, sans-serif;
+}
+
+.car {
+  position: absolute;
+  top: 644px;
+  left: 70px;
+  width: 940px;
+  margin: 0;
+  transform-origin: center center;
+}
+
+.car img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.smoke { position: absolute; top: 66%; left: 2%; width: 1px; height: 1px; }
+.smoke-puff { position: absolute; width: 46px; height: 46px; border-radius: 50%; background: rgba(214, 222, 229, 0.82); filter: blur(6px); }
+.puff-two { left: 24px; top: 12px; width: 34px; height: 34px; }
+.puff-three { left: 52px; top: -8px; width: 28px; height: 28px; }
+
+.success {
+  position: absolute;
+  top: 720px;
+  left: 50%;
+  width: 1000px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  margin: 0;
+  transform: translateX(-50%);
+  transform-origin: center center;
+  isolation: isolate;
+  z-index: 0;
+  white-space: nowrap;
+}
+
+.success-shadow { position: absolute; z-index: 0; top: -104px; left: 50%; width: 840px; height: 340px; border-radius: 50%; background: rgba(16, 42, 67, 0.22); box-shadow: 0 18px 52px 24px rgba(16, 42, 67, 0.52); transform: translateX(-50%); }
+
+.success-icon {
+  display: grid;
+  position: relative;
+  z-index: 1;
+  width: 130px;
+  height: 130px;
+  place-items: center;
+  border-radius: 50%;
+  background: #168254;
+  color: #fff;
+  font-size: 78px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.success p {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: #fff;
+  font-size: 78px;
+  font-weight: 750;
+  letter-spacing: -1.8px;
+  line-height: 1.15;
+}
+
+.success-decor { position: absolute; z-index: 1; inset: 0; pointer-events: none; }
+.decor-badge { position: absolute; display: grid; width: 98px; height: 98px; place-items: center; border: 3px solid rgba(255, 255, 255, 0.5); border-radius: 30px; background: rgba(255, 255, 255, 0.9); color: #1571d8; font-size: 51px; font-weight: 800; }
+.decor-parking { top: -124px; right: 92px; }
+.decor-check { bottom: -126px; left: 78px; color: #168254; border-color: rgba(255, 255, 255, 0.5); }
+.decor-dot { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: #f0b429; box-shadow: 0 0 0 10px rgba(240, 180, 41, 0.16); }
+.dot-one { top: -34px; left: 56px; }
+.dot-two { right: 86px; bottom: -112px; width: 19px; height: 19px; background: #5bc6c8; box-shadow: 0 0 0 8px rgba(91, 198, 200, 0.15); }
+.dot-three { top: -114px; left: 48%; width: 16px; height: 16px; background: #5bc6c8; box-shadow: 0 0 0 7px rgba(91, 198, 200, 0.15); }
+.dot-four { top: 56px; right: 38px; width: 18px; height: 18px; background: #f0b429; box-shadow: 0 0 0 7px rgba(240, 180, 41, 0.14); }
+.dot-five { bottom: -68px; left: 36%; width: 15px; height: 15px; background: #fff; box-shadow: 0 0 0 7px rgba(255, 255, 255, 0.14); }
+.dot-six { top: 96px; left: 22%; width: 13px; height: 13px; background: #5bc6c8; box-shadow: 0 0 0 6px rgba(91, 198, 200, 0.15); }
+.decor-orb { position: absolute; width: 38px; height: 38px; border: 3px solid rgba(255, 255, 255, 0.7); border-radius: 50%; }
+.orb-one { top: -104px; left: 15%; }
+.orb-two { right: 15%; bottom: -92px; width: 30px; height: 30px; border-color: rgba(91, 198, 200, 0.9); }
+

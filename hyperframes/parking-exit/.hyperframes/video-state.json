@@ -1,0 +1,514 @@
+{
+  "version": 1,
+  "historyId": "5651a0a8-5dc6-47e3-8cfc-649b591729b1",
+  "currentRevision": "ca8e2e58-399b-4a77-86fd-5522a0e51123",
+  "pendingChanges": false,
+  "files": {
+    "README.md": {
+      "hash": "508ee2b9b72fb4a8c3f002fec368192a195f9c86ee0bcad9d824d11b8a29d0ab",
+      "content": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\50\\508ee2b9b72fb4a8c3f002fec368192a195f9c86ee0bcad9d824d11b8a29d0ab"
+    },
+    "index.html": {
+      "hash": "5ec56371ef066ef725541e23a9baff688d89a9ad20166de6b12c2f8390b04dbc",
+      "content": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\5e\\5ec56371ef066ef725541e23a9baff688d89a9ad20166de6b12c2f8390b04dbc"
+    },
+    "styles.css": {
+      "hash": "0ea0ca96dfaac8c3592aff47a00051e4aa9e055b5c4a0f657cc655cff2d97e60",
+      "content": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\0e\\0ea0ca96dfaac8c3592aff47a00051e4aa9e055b5c4a0f657cc655cff2d97e60"
+    },
+    "assets/car-side-wave-transparent.png": {
+      "hash": "d874607a097aab1df3a86d36a0d2f09a91bb248890cfc146dfefd44f1aafcdeb",
+      "content": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\d8\\d874607a097aab1df3a86d36a0d2f09a91bb248890cfc146dfefd44f1aafcdeb"
+    }
+  },
+  "revisions": {
+    "fa9317d4-9252-4445-8d1e-f2c56ae975b3": {
+      "actor": {
+        "kind": "outside",
+        "name": "Outside"
+      },
+      "label": "Changed outside the app",
+      "startedAt": 1792677213856,
+      "endedAt": 1792677213894,
+      "files": {
+        "index.html": {
+          "before": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\71\\71f6cc087c7c5e185de30d38fb47215e2dfbb23f330c1f77ddabfce5ded9048f",
+          "after": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\98\\9813bc171d0788c3f086d8bd04a532cc82a7d92f035319c548d1a47b773fc3ac"
+        },
+        "styles.css": {
+          "before": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\b2\\b20250aa33edd4ee5a447cbd62aa4064449d0d6f0d4564be5ffb9998d86f719f",
+          "after": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\ad\\ad9a82d2341451adbcf7d6d9ae5d462bab071cefb5ef5bb5cb2b850d02d4ffef"
+        }
+      }
+    },
+    "dabdcb70-2bb9-4787-bca9-4704c34ec35c": {
+      "actor": {
+        "kind": "outside",
+        "name": "Outside"
+      },
+      "label": "Changed outside the app",
+      "startedAt": 1792677518917,
+      "endedAt": 1792677518951,
+      "files": {
+        "index.html": {
+          "before": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\98\\9813bc171d0788c3f086d8bd04a532cc82a7d92f035319c548d1a47b773fc3ac",
+          "after": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\4c\\4cd05bdd7dc0a085ffc16a125a6eee18095a159d6c5eaa3f7010f7a8da80b0a5"
+        },
+        "styles.css": {
+          "before": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\ad\\ad9a82d2341451adbcf7d6d9ae5d462bab071cefb5ef5bb5cb2b850d02d4ffef",
+          "after": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\9b\\9b52735fab960cbd69269c6478e77bb9d595fe38a78926d67a3d611582c434ac"
+        }
+      }
+    },
+    "ca8e2e58-399b-4a77-86fd-5522a0e51123": {
+      "actor": {
+        "kind": "outside",
+        "name": "Outside"
+      },
+      "label": "Changed outside the app",
+      "startedAt": 1792677761907,
+      "endedAt": 1792677761933,
+      "files": {
+        "index.html": {
+          "before": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\4c\\4cd05bdd7dc0a085ffc16a125a6eee18095a159d6c5eaa3f7010f7a8da80b0a5",
+          "after": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\5e\\5ec56371ef066ef725541e23a9baff688d89a9ad20166de6b12c2f8390b04dbc"
+        },
+        "styles.css": {
+          "before": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\9b\\9b52735fab960cbd69269c6478e77bb9d595fe38a78926d67a3d611582c434ac",
+          "after": "C:\\Users\\62895\\.cache\\hyperframes\\history\\5651a0a8-5dc6-47e3-8cfc-649b591729b1\\blobs\\0e\\0ea0ca96dfaac8c3592aff47a00051e4aa9e055b5c4a0f657cc655cff2d97e60"
+        }
+      }
+    }
+  },
+  "checks": {
+    "latest": {
+      "revision": null,
+      "id": "92d0c87c-4ca1-4e98-b7f2-4b1198915c49"
+    },
+    "revisions": {},
+    "unversioned": [
+      {
+        "id": "92d0c87c-4ca1-4e98-b7f2-4b1198915c49",
+        "scope": "project",
+        "report": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\checks\\92d0c87c-4ca1-4e98-b7f2-4b1198915c49.json",
+        "metadata": {
+          "ok": true,
+          "browserSkipped": false,
+          "options": {
+            "samples": 9,
+            "atTransitions": false,
+            "maxIssues": 80,
+            "collapseStatic": true,
+            "tolerance": 2,
+            "timeout": 3000,
+            "contrast": true,
+            "strict": false,
+            "snapshots": false,
+            "browserGpuMode": "auto"
+          }
+        },
+        "createdAt": 1792676558100,
+        "contentHash": "8170b83a9e0665388983ab181bf771eb9c4743ec1024dfda9a2b66cce4758dd6",
+        "revision": null,
+        "inputFingerprint": "a50ebcd424fa8a611a3e6de9a54c422c594ec5419fb31190aa23542def905afa",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      }
+    ]
+  },
+  "snapshots": {
+    "latest": {
+      "revision": "ca8e2e58-399b-4a77-86fd-5522a0e51123",
+      "id": "2a8374c3-5372-423d-a6ed-0e42fbde1062-3"
+    },
+    "revisions": {
+      "fa9317d4-9252-4445-8d1e-f2c56ae975b3": [
+        {
+          "scope": "full",
+          "id": "295402f2-c31a-4d82-b0ff-b663bcb087da-0",
+          "time": 0.3,
+          "metadata": {
+            "width": 1080,
+            "height": 1920,
+            "zoomScale": 1,
+            "browserGpuMode": "auto",
+            "warnings": [],
+            "partial": false
+          },
+          "createdAt": 1792677231462,
+          "contentHash": "d34fb47b36ffaaf61d795172e2896c2ddaf62436ad9ed6de8a25a2729acc90bc",
+          "revision": "fa9317d4-9252-4445-8d1e-f2c56ae975b3",
+          "inputFingerprint": "4c440a5e268b299d8097c8e55d429428235c17859d66a17772508ad9d9359780",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision",
+          "status": "cleaned",
+          "cleanedAfterRender": "842b333a-def9-4fe1-9446-fae40071585a"
+        },
+        {
+          "scope": "full",
+          "id": "295402f2-c31a-4d82-b0ff-b663bcb087da-1",
+          "time": 0.6,
+          "metadata": {
+            "width": 1080,
+            "height": 1920,
+            "zoomScale": 1,
+            "browserGpuMode": "auto",
+            "warnings": [],
+            "partial": false
+          },
+          "createdAt": 1792677231467,
+          "contentHash": "9647a3d5385f04bc821990dbd23739c4ae2f782bd2d6187f61103f2c4b0a79dc",
+          "revision": "fa9317d4-9252-4445-8d1e-f2c56ae975b3",
+          "inputFingerprint": "4c440a5e268b299d8097c8e55d429428235c17859d66a17772508ad9d9359780",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision",
+          "status": "cleaned",
+          "cleanedAfterRender": "842b333a-def9-4fe1-9446-fae40071585a"
+        },
+        {
+          "scope": "full",
+          "id": "295402f2-c31a-4d82-b0ff-b663bcb087da-2",
+          "time": 1.15,
+          "metadata": {
+            "width": 1080,
+            "height": 1920,
+            "zoomScale": 1,
+            "browserGpuMode": "auto",
+            "warnings": [],
+            "partial": false
+          },
+          "createdAt": 1792677231468,
+          "contentHash": "e84db799f7c0092adab421561e7bd952e89d7342e5cd37edc11fc9a749affd3b",
+          "revision": "fa9317d4-9252-4445-8d1e-f2c56ae975b3",
+          "inputFingerprint": "4c440a5e268b299d8097c8e55d429428235c17859d66a17772508ad9d9359780",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision",
+          "status": "cleaned",
+          "cleanedAfterRender": "842b333a-def9-4fe1-9446-fae40071585a"
+        },
+        {
+          "scope": "full",
+          "id": "295402f2-c31a-4d82-b0ff-b663bcb087da-3",
+          "time": 1.65,
+          "metadata": {
+            "width": 1080,
+            "height": 1920,
+            "zoomScale": 1,
+            "browserGpuMode": "auto",
+            "warnings": [],
+            "partial": false
+          },
+          "createdAt": 1792677231470,
+          "contentHash": "670175a85870c088ea5bc5a029c2f5df6f6c6bea6650effcf86e1bbbde8a0fce",
+          "revision": "fa9317d4-9252-4445-8d1e-f2c56ae975b3",
+          "inputFingerprint": "4c440a5e268b299d8097c8e55d429428235c17859d66a17772508ad9d9359780",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision",
+          "status": "cleaned",
+          "cleanedAfterRender": "842b333a-def9-4fe1-9446-fae40071585a"
+        },
+        {
+          "scope": "full",
+          "id": "295402f2-c31a-4d82-b0ff-b663bcb087da-4",
+          "time": 4.5,
+          "metadata": {
+            "width": 1080,
+            "height": 1920,
+            "zoomScale": 1,
+            "browserGpuMode": "auto",
+            "warnings": [],
+            "partial": false
+          },
+          "createdAt": 1792677231474,
+          "contentHash": "b163a0aad98a71aa447db7a809f06266205b25369ace5f2f2146f5c3b1f8e66c",
+          "revision": "fa9317d4-9252-4445-8d1e-f2c56ae975b3",
+          "inputFingerprint": "4c440a5e268b299d8097c8e55d429428235c17859d66a17772508ad9d9359780",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision",
+          "status": "cleaned",
+          "cleanedAfterRender": "842b333a-def9-4fe1-9446-fae40071585a"
+        }
+      ],
+      "dabdcb70-2bb9-4787-bca9-4704c34ec35c": [
+        {
+          "scope": "full",
+          "id": "4daff855-3809-404a-a1af-c42b97653d07-0",
+          "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\e7403960-b5ea-43d8-973a-feb9bf168eb3\\frame-00-at-1.9s.png",
+          "time": 1.9,
+          "metadata": {
+            "width": 1080,
+            "height": 1920,
+            "zoomScale": 1,
+            "browserGpuMode": "auto",
+            "warnings": [],
+            "partial": false
+          },
+          "createdAt": 1792677524426,
+          "contentHash": "27310a6dc02d4da5f75a1a5142f87508f14fc607bad1c1d60b706c19a1250359",
+          "revision": "dabdcb70-2bb9-4787-bca9-4704c34ec35c",
+          "inputFingerprint": "c8cf08566841056452f1502f446651324de4218bba5dd1c8576544c57f8fe144",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision"
+        },
+        {
+          "scope": "full",
+          "id": "4daff855-3809-404a-a1af-c42b97653d07-1",
+          "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\e7403960-b5ea-43d8-973a-feb9bf168eb3\\frame-01-at-3.2s.png",
+          "time": 3.2,
+          "metadata": {
+            "width": 1080,
+            "height": 1920,
+            "zoomScale": 1,
+            "browserGpuMode": "auto",
+            "warnings": [],
+            "partial": false
+          },
+          "createdAt": 1792677524431,
+          "contentHash": "8e556cafff7ed915608ce4bf5e9f3d13e52e7bea2dd6b9aa2422b0bcd86745c6",
+          "revision": "dabdcb70-2bb9-4787-bca9-4704c34ec35c",
+          "inputFingerprint": "c8cf08566841056452f1502f446651324de4218bba5dd1c8576544c57f8fe144",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision"
+        },
+        {
+          "scope": "full",
+          "id": "4daff855-3809-404a-a1af-c42b97653d07-2",
+          "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\e7403960-b5ea-43d8-973a-feb9bf168eb3\\frame-02-at-4.5s.png",
+          "time": 4.5,
+          "metadata": {
+            "width": 1080,
+            "height": 1920,
+            "zoomScale": 1,
+            "browserGpuMode": "auto",
+            "warnings": [],
+            "partial": false
+          },
+          "createdAt": 1792677524434,
+          "contentHash": "b163a0aad98a71aa447db7a809f06266205b25369ace5f2f2146f5c3b1f8e66c",
+          "revision": "dabdcb70-2bb9-4787-bca9-4704c34ec35c",
+          "inputFingerprint": "c8cf08566841056452f1502f446651324de4218bba5dd1c8576544c57f8fe144",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision"
+        }
+      ],
+      "ca8e2e58-399b-4a77-86fd-5522a0e51123": [
+        {
+          "scope": "full",
+          "id": "2a8374c3-5372-423d-a6ed-0e42fbde1062-0",
+          "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\f1a06220-7c53-435c-b43e-62d15db64b49\\frame-00-at-0.3s.png",
+          "time": 0.3,
+          "metadata": {
+            "width": 1080,
+            "height": 1920,
+            "zoomScale": 1,
+            "browserGpuMode": "auto",
+            "warnings": [],
+            "partial": false
+          },
+          "createdAt": 1792677767859,
+          "contentHash": "c43b3adeb1fb68a7e7b85a0bb6dc694dae879b6937093adac19995ce95f2cb10",
+          "revision": "ca8e2e58-399b-4a77-86fd-5522a0e51123",
+          "inputFingerprint": "919882f5feb88909c23038833944a355bf05d24b8c6388cd9d69453dad956eda",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision"
+        },
+        {
+          "scope": "full",
+          "id": "2a8374c3-5372-423d-a6ed-0e42fbde1062-1",
+          "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\f1a06220-7c53-435c-b43e-62d15db64b49\\frame-01-at-0.6s.png",
+          "time": 0.6,
+          "metadata": {
+            "width": 1080,
+            "height": 1920,
+            "zoomScale": 1,
+            "browserGpuMode": "auto",
+            "warnings": [],
+            "partial": false
+          },
+          "createdAt": 1792677767863,
+          "contentHash": "f2926286167134c91bfa4157476d6e38e69b353381c41a6bb765e3156639cd2b",
+          "revision": "ca8e2e58-399b-4a77-86fd-5522a0e51123",
+          "inputFingerprint": "919882f5feb88909c23038833944a355bf05d24b8c6388cd9d69453dad956eda",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision"
+        },
+        {
+          "scope": "full",
+          "id": "2a8374c3-5372-423d-a6ed-0e42fbde1062-2",
+          "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\f1a06220-7c53-435c-b43e-62d15db64b49\\frame-02-at-1s.png",
+          "time": 1,
+          "metadata": {
+            "width": 1080,
+            "height": 1920,
+            "zoomScale": 1,
+            "browserGpuMode": "auto",
+            "warnings": [],
+            "partial": false
+          },
+          "createdAt": 1792677767868,
+          "contentHash": "f02a039b9c7e614f1fe286fd2b85c528068d477819cb8f22a10a3fdf75deb115",
+          "revision": "ca8e2e58-399b-4a77-86fd-5522a0e51123",
+          "inputFingerprint": "919882f5feb88909c23038833944a355bf05d24b8c6388cd9d69453dad956eda",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision"
+        },
+        {
+          "scope": "full",
+          "id": "2a8374c3-5372-423d-a6ed-0e42fbde1062-3",
+          "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\f1a06220-7c53-435c-b43e-62d15db64b49\\frame-03-at-4.365s.png",
+          "time": 4.365,
+          "metadata": {
+            "width": 1080,
+            "height": 1920,
+            "zoomScale": 1,
+            "browserGpuMode": "auto",
+            "warnings": [],
+            "partial": false
+          },
+          "createdAt": 1792677767872,
+          "contentHash": "b163a0aad98a71aa447db7a809f06266205b25369ace5f2f2146f5c3b1f8e66c",
+          "revision": "ca8e2e58-399b-4a77-86fd-5522a0e51123",
+          "inputFingerprint": "919882f5feb88909c23038833944a355bf05d24b8c6388cd9d69453dad956eda",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision"
+        }
+      ]
+    },
+    "unversioned": [
+      {
+        "scope": "full",
+        "id": "a80602d9-9564-4106-9555-eddf462bb448-0",
+        "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\9a706409-a281-4682-9064-074d8421ee4f\\frame-00-at-0.3s.png",
+        "time": 0.3,
+        "metadata": {
+          "width": 1080,
+          "height": 1920,
+          "zoomScale": 1,
+          "browserGpuMode": "auto",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1792676565752,
+        "contentHash": "9a48f8f565fda7c6e25d9eaaa785e110200f981d7a65ce041a87a4d360b3469e",
+        "revision": null,
+        "inputFingerprint": "a50ebcd424fa8a611a3e6de9a54c422c594ec5419fb31190aa23542def905afa",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      },
+      {
+        "scope": "full",
+        "id": "a80602d9-9564-4106-9555-eddf462bb448-1",
+        "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\9a706409-a281-4682-9064-074d8421ee4f\\frame-01-at-0.6s.png",
+        "time": 0.6,
+        "metadata": {
+          "width": 1080,
+          "height": 1920,
+          "zoomScale": 1,
+          "browserGpuMode": "auto",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1792676565752,
+        "contentHash": "3a16e4f47b0542300bf20857113bfda90f295e2701f65641d6fc96e33e5fef2c",
+        "revision": null,
+        "inputFingerprint": "a50ebcd424fa8a611a3e6de9a54c422c594ec5419fb31190aa23542def905afa",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      },
+      {
+        "scope": "full",
+        "id": "a80602d9-9564-4106-9555-eddf462bb448-2",
+        "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\9a706409-a281-4682-9064-074d8421ee4f\\frame-02-at-1.15s.png",
+        "time": 1.15,
+        "metadata": {
+          "width": 1080,
+          "height": 1920,
+          "zoomScale": 1,
+          "browserGpuMode": "auto",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1792676565752,
+        "contentHash": "59b9ca52de6cc41999a8edeb0318b7543a5d13d9afc835d265a32738b80fdbec",
+        "revision": null,
+        "inputFingerprint": "a50ebcd424fa8a611a3e6de9a54c422c594ec5419fb31190aa23542def905afa",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      },
+      {
+        "scope": "full",
+        "id": "a80602d9-9564-4106-9555-eddf462bb448-3",
+        "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\9a706409-a281-4682-9064-074d8421ee4f\\frame-03-at-1.65s.png",
+        "time": 1.65,
+        "metadata": {
+          "width": 1080,
+          "height": 1920,
+          "zoomScale": 1,
+          "browserGpuMode": "auto",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1792676565753,
+        "contentHash": "533e73351ac60cfd0661b99b4de58b22fea5c71b4b8ea1a5cc8ae6c38d1246d9",
+        "revision": null,
+        "inputFingerprint": "a50ebcd424fa8a611a3e6de9a54c422c594ec5419fb31190aa23542def905afa",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      },
+      {
+        "scope": "full",
+        "id": "a80602d9-9564-4106-9555-eddf462bb448-4",
+        "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\9a706409-a281-4682-9064-074d8421ee4f\\frame-04-at-3.2s.png",
+        "time": 3.2,
+        "metadata": {
+          "width": 1080,
+          "height": 1920,
+          "zoomScale": 1,
+          "browserGpuMode": "auto",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1792676565754,
+        "contentHash": "53ea9ee526c30727c57e4affee096ca01d46b483f22b74246cbd030f0a59ad25",
+        "revision": null,
+        "inputFingerprint": "a50ebcd424fa8a611a3e6de9a54c422c594ec5419fb31190aa23542def905afa",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      },
+      {
+        "scope": "full",
+        "id": "a80602d9-9564-4106-9555-eddf462bb448-5",
+        "image": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\.hyperframes\\artifacts\\snapshots\\9a706409-a281-4682-9064-074d8421ee4f\\frame-05-at-4.5s.png",
+        "time": 4.5,
+        "metadata": {
+          "width": 1080,
+          "height": 1920,
+          "zoomScale": 1,
+          "browserGpuMode": "auto",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1792676565755,
+        "contentHash": "f46142e037d990470150e04b2da9fce3ad4e3a3a2777c790ead34896fd598455",
+        "revision": null,
+        "inputFingerprint": "a50ebcd424fa8a611a3e6de9a54c422c594ec5419fb31190aa23542def905afa",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      }
+    ]
+  },
+  "renders": {
+    "latest": {
+      "id": "842b333a-def9-4fe1-9446-fae40071585a",
+      "completedAt": 1792677827935,
+      "output": "C:\\Users\\62895\\Documents\\Binus\\S5\\Venture Creation\\ParkirinAja\\hyperframes\\parking-exit\\renders\\parkirinaja-parking-exit-transparent.webm",
+      "status": "completed",
+      "revision": "ca8e2e58-399b-4a77-86fd-5522a0e51123"
+    },
+    "retainedRevisions": [
+      "ca8e2e58-399b-4a77-86fd-5522a0e51123",
+      "dabdcb70-2bb9-4787-bca9-4704c34ec35c"
+    ]
+  },
+  "pendingArtifactCleanup": []
+}

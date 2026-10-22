@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ParkirinAja — Reservation Success</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main data-hf-id="hf-6fg8" id="stage" data-composition-id="parkirinaja-booking-success" data-start="0" data-duration="4.5" data-width="1080" data-height="1920">
+      <figure data-hf-id="hf-1e1j" id="car" class="car" aria-label="Maskot ParkirinAja melambaikan tangan dari mobil">
+        <img data-hf-id="hf-6oyd" id="car-image" src="./assets/parkirinaja-car.png" data-default-src="./assets/parkirinaja-car.png" alt="Maskot ParkirinAja di dalam mobil merah">
+        <span data-hf-id="hf-xmsd" class="smoke" aria-hidden="true">
+          <i data-hf-id="hf-b8yl" class="smoke-puff puff-one"></i>
+          <i data-hf-id="hf-cmpf" class="smoke-puff puff-two"></i>
+          <i data-hf-id="hf-m2pt" class="smoke-puff puff-three"></i>
+        </span>
+      </figure>
+
+      <section data-hf-id="hf-i312" id="success" class="success" aria-live="polite">
+        <div class="success-shadow" aria-hidden="true"></div>
+        <div data-hf-id="hf-mw1p" id="success-decor" class="success-decor" aria-hidden="true">
+          <span data-hf-id="hf-svsm" class="decor-badge decor-parking">P</span>
+          <span data-hf-id="hf-uf73" class="decor-badge decor-check">✓</span>
+          <span data-hf-id="hf-qkj4" class="decor-dot dot-one"></span>
+          <span data-hf-id="hf-e2oa" class="decor-dot dot-two"></span>
+          <span class="decor-orb orb-one"></span>
+          <span class="decor-orb orb-two"></span>
+          <span class="decor-dot dot-three"></span>
+          <span class="decor-dot dot-four"></span>
+          <span class="decor-dot dot-five"></span>
+          <span class="decor-dot dot-six"></span>
+        </div>
+        <div data-hf-id="hf-9aad" class="success-icon" aria-hidden="true">✓</div>
+        <p data-hf-id="hf-4ln8">Reservasi Berhasil!</p>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <script>
+      // Override before loading this composition when the car asset lives elsewhere.
+      window.PARKIRINAJA_ASSETS = window.PARKIRINAJA_ASSETS || {};
+
+      const compositionId = "parkirinaja-booking-success";
+      const carImage = document.querySelector("#car-image");
+      const carSource = window.PARKIRINAJA_ASSETS.car || carImage.dataset.defaultSrc;
+      carImage.src = carSource;
+
+      // HyperFrames seeks this paused GSAP timeline one frame at a time during render.
+      gsap.set("#car, #success, #success-decor", { autoAlpha: 0 });
+      gsap.set(".smoke-puff", { autoAlpha: 0, x: 0, y: 0, scale: 0.35 });
+
+      const timeline = gsap.timeline({ paused: true });
+
+      timeline
+        // 0.00–0.30: original car enters without any deformation.
+        .fromTo(
+          "#car",
+          { autoAlpha: 0, y: 42, scale: 0.98 },
+          { autoAlpha: 1, y: 0, scale: 1, duration: 0.3, ease: "power2.out" },
+          0.09,
+        )
+        // 0.30–1.60: the complete flattened artwork leaves to the right.
+        .to(
+          "#car",
+          { x: 1190, y: -18, scale: 0.74, autoAlpha: 0, duration: 1.3, ease: "power2.in" },
+          0.39,
+        )
+        // Exhaust puffs appear behind the car as it pulls away.
+        .to(
+          ".smoke-puff",
+          { autoAlpha: 0.72, x: -150, y: -34, scale: 1.2, duration: 0.5, stagger: 0.12, repeat: 2, repeatDelay: 0.04, ease: "power1.out" },
+          0.44,
+        )
+        // Confirmation appears with restrained, app-like accent elements.
+        .fromTo(
+          "#success",
+          { autoAlpha: 0, y: 14, scale: 0.96 },
+          { autoAlpha: 1, y: 0, scale: 1, duration: 0.32, ease: "power2.out" },
+          1.3,
+        )
+        .fromTo(
+          "#success-decor",
+          { autoAlpha: 0, scale: 0.78 },
+          { autoAlpha: 1, scale: 1, duration: 0.38, ease: "power2.out" },
+          1.42,
+        )
+        .to(".decor-badge, .decor-orb", { y: -10, duration: 0.8, yoyo: true, repeat: 2, stagger: 0.12, ease: "sine.inOut" }, 1.7)
+        // Close cleanly back to the underlying app; the composition ends transparent.
+        .to("#success", { autoAlpha: 0, y: -46, scale: 0.96, duration: 0.36, ease: "power2.in" }, 3.82);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines[compositionId] = timeline;
+    </script>
+  </body>
+</html>

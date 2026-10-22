@@ -36,6 +36,7 @@ import {
   type ResType,
 } from "@/lib/parking-data";
 import { cn } from "@/lib/utils";
+import { BookingSuccessAnimation } from "./BookingSuccessAnimation";
 
 export function BookingView({
   slotId,
@@ -581,8 +582,14 @@ export function BookingConfirmed({
   const lang = useParkir((s) => s.lang);
   const res = useParkir((s) => s.reservations.find((r) => r.id === reservationId));
   const walletBalance = useParkir((s) => s.walletBalance);
+  const [showAnimation, setShowAnimation] = React.useState(true);
+
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
   if (!reservationId || !res) return null;
+
+  if (showAnimation) {
+    return <BookingSuccessAnimation reservation={res} lang={lang} onSkip={() => setShowAnimation(false)} />;
+  }
 
   const id = lang === "id";
   const durationH = (toMinutes(res.endTime) - toMinutes(res.startTime)) / 60;
@@ -622,7 +629,7 @@ export function BookingConfirmed({
         initial={{ opacity: 0, y: 40, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 320, damping: 30 }}
-        className="w-full max-w-[400px] rounded-3xl border border-border bg-card p-5 text-card-foreground shadow-xl"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-[400px] overflow-y-auto rounded-3xl border border-border bg-card p-5 text-card-foreground shadow-xl"
       >
         <div className="flex flex-col items-center text-center">
           <motion.span
@@ -663,9 +670,16 @@ export function BookingConfirmed({
         </ol>
 
         <button
+          type="button"
+          onClick={() => setShowAnimation(true)}
+          className="mt-5 h-10 w-full rounded-2xl border border-primary/30 text-xs font-bold text-primary transition hover:bg-primary/5 active:scale-[0.98]"
+        >
+          {id ? "Putar ulang animasi" : "Replay animation"}
+        </button>
+        <button
           onClick={onClose}
           autoFocus
-          className="mt-5 h-12 w-full rounded-2xl bg-primary text-sm font-bold text-primary-foreground transition active:scale-[0.98]"
+          className="mt-2 h-12 w-full rounded-2xl bg-primary text-sm font-bold text-primary-foreground transition active:scale-[0.98]"
         >
           {id ? "Lihat tiket" : "View ticket"}
         </button>

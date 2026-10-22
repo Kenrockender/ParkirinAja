@@ -1,0 +1,543 @@
+{
+  "ok": false,
+  "strict": false,
+  "browserSkipped": false,
+  "lint": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "filesScanned": 1
+  },
+  "runtime": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "layout": {
+    "ok": false,
+    "errorCount": 2,
+    "warningCount": 4,
+    "infoCount": 1,
+    "findings": [
+      {
+        "code": "text_occluded",
+        "severity": "error",
+        "time": 4.667,
+        "selector": "div.sparkles > i:nth-of-type(2)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 1395.55,
+          "top": 234.8,
+          "right": 1459.2,
+          "bottom": 329.8,
+          "width": 63.66,
+          "height": 95
+        },
+        "containerSelector": "div.garage-roof",
+        "text": "✦",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 0.33,
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 1395.55,
+          "y": 234.8,
+          "width": 63.66,
+          "height": 95
+        },
+        "firstSeen": 4.667,
+        "lastSeen": 11.333,
+        "occurrences": 6,
+        "heldMs": 0,
+        "times": [
+          4.667,
+          6,
+          7.333,
+          8.667,
+          10,
+          11.333
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "error",
+        "time": 8.667,
+        "selector": "#caption",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 726.11,
+          "top": 936.41,
+          "right": 1193.5,
+          "bottom": 980.41,
+          "width": 467.39,
+          "height": 44
+        },
+        "containerSelector": "#road",
+        "text": "Slot Parkirmu Sudah Siap!",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 726.11,
+          "y": 936.41,
+          "width": 467.39,
+          "height": 44
+        },
+        "firstSeen": 8.667,
+        "lastSeen": 11.333,
+        "occurrences": 3,
+        "heldMs": 0,
+        "times": [
+          8.667,
+          10,
+          11.333
+        ]
+      },
+      {
+        "code": "container_overflow",
+        "severity": "warning",
+        "time": 0.667,
+        "selector": "div.lane",
+        "message": "Element extends outside a clipping layout container.",
+        "rect": {
+          "left": -100,
+          "top": 911,
+          "right": 2020,
+          "bottom": 931,
+          "width": 2120,
+          "height": 20
+        },
+        "containerSelector": "#road",
+        "fixHint": "Resize/reposition the child or container, or mark intentional overflow with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 0,
+          "top": 710,
+          "right": 1920,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 370
+        },
+        "overflow": {
+          "left": 100,
+          "right": 100
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": -100,
+          "y": 911,
+          "width": 2120,
+          "height": 20
+        },
+        "firstSeen": 0.667,
+        "lastSeen": 11.333,
+        "occurrences": 9,
+        "heldMs": 0,
+        "times": [
+          0.667,
+          2,
+          3.333,
+          4.667,
+          6,
+          7.333,
+          8.667,
+          10,
+          11.333
+        ]
+      },
+      {
+        "code": "rotation_pivot_drift",
+        "severity": "warning",
+        "time": 11.333,
+        "selector": "span.wheel.rear",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 461,
+          "y": 731.69,
+          "width": 128,
+          "height": 128
+        },
+        "rect": {
+          "left": 461,
+          "top": 731.69,
+          "right": 589,
+          "bottom": 859.69,
+          "width": 128,
+          "height": 128
+        },
+        "message": "Rotating element's bounding-box center drifts 1419px across rotation — it is not spinning about its own center (check transformOrigin/svgOrigin).",
+        "fixHint": "The bounding-box center should stay fixed while the element spins; check its transformOrigin/svgOrigin so rotation pivots about the element's own center rather than a point in a coordinate space it was resized out of.",
+        "firstSeen": 11.333,
+        "lastSeen": 11.333,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          11.333
+        ]
+      },
+      {
+        "code": "rotation_pivot_drift",
+        "severity": "warning",
+        "time": 11.333,
+        "selector": "span.wheel.front",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 1079.75,
+          "y": 731.69,
+          "width": 128,
+          "height": 128
+        },
+        "rect": {
+          "left": 1079.75,
+          "top": 731.69,
+          "right": 1207.75,
+          "bottom": 859.69,
+          "width": 128,
+          "height": 128
+        },
+        "message": "Rotating element's bounding-box center drifts 1419px across rotation — it is not spinning about its own center (check transformOrigin/svgOrigin).",
+        "fixHint": "The bounding-box center should stay fixed while the element spins; check its transformOrigin/svgOrigin so rotation pivots about the element's own center rather than a point in a coordinate space it was resized out of.",
+        "firstSeen": 11.333,
+        "lastSeen": 11.333,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          11.333
+        ]
+      },
+      {
+        "code": "rotation_pivot_drift",
+        "severity": "warning",
+        "time": 11.333,
+        "selector": "span.barrier-arm",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 1367.9850000000001,
+          "y": 638.675,
+          "width": 119.33,
+          "height": 293.97
+        },
+        "rect": {
+          "left": 1367.9850000000001,
+          "top": 638.675,
+          "right": 1487.315,
+          "bottom": 932.645,
+          "width": 119.33,
+          "height": 293.97
+        },
+        "message": "Rotating element's bounding-box center drifts 176px across rotation — it is not spinning about its own center (check transformOrigin/svgOrigin).",
+        "fixHint": "The bounding-box center should stay fixed while the element spins; check its transformOrigin/svgOrigin so rotation pivots about the element's own center rather than a point in a coordinate space it was resized out of.",
+        "firstSeen": 11.333,
+        "lastSeen": 11.333,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          11.333
+        ]
+      },
+      {
+        "code": "panel_out_of_canvas",
+        "severity": "info",
+        "time": 0.667,
+        "selector": "div.lane",
+        "message": "Painted panel extends outside the composition canvas.",
+        "rect": {
+          "left": -100,
+          "top": 911,
+          "right": 2020,
+          "bottom": 931,
+          "width": 2120,
+          "height": 20
+        },
+        "containerSelector": "#stage",
+        "text": "",
+        "fixHint": "Move the panel inward, or mark intentional off-canvas animation with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 0,
+          "top": 0,
+          "right": 1920,
+          "bottom": 1080,
+          "width": 1920,
+          "height": 1080
+        },
+        "overflow": {
+          "left": 100,
+          "right": 100
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": -100,
+          "y": 911,
+          "width": 2120,
+          "height": 20
+        },
+        "firstSeen": 0.667,
+        "lastSeen": 11.333,
+        "occurrences": 9,
+        "heldMs": 0,
+        "times": [
+          0.667,
+          2,
+          3.333,
+          4.667,
+          6,
+          7.333,
+          8.667,
+          10,
+          11.333
+        ]
+      }
+    ],
+    "duration": 12,
+    "samples": [
+      0.667,
+      2,
+      3.333,
+      4.667,
+      6,
+      7.333,
+      8.667,
+      10,
+      11.333
+    ],
+    "transitionSamples": [],
+    "transitionSamplesDropped": 0,
+    "tolerance": 2,
+    "totalIssueCount": 7,
+    "truncated": false
+  },
+  "motion": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": false,
+    "samples": 0
+  },
+  "contrast": {
+    "ok": false,
+    "errorCount": 4,
+    "warningCount": 1,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "contrast_aa_failure",
+        "severity": "error",
+        "message": "Contrast is 1.4:1; WCAG AA requires 3:1.",
+        "text": "✦",
+        "fg": "rgb(251,191,36)",
+        "bg": "rgb(209,240,255)",
+        "ratio": 1.4,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(169,129,24)",
+        "large": true,
+        "selector": "main > div:nth-of-type(2) > i:nth-of-type(1)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 422.390625,
+          "y": 162,
+          "width": 63.65625,
+          "height": 104
+        },
+        "time": 0.667,
+        "times": [
+          0.667,
+          3.333,
+          6,
+          8.667,
+          11.333
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "error",
+        "message": "Contrast is 1.42:1; WCAG AA requires 3:1.",
+        "text": "✦",
+        "fg": "rgb(251,191,36)",
+        "bg": "rgb(214,241,255)",
+        "ratio": 1.42,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(171,130,25)",
+        "large": true,
+        "selector": "main > div:nth-of-type(2) > i:nth-of-type(2)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 1395.546875,
+          "y": 226.796875,
+          "width": 63.65625,
+          "height": 104
+        },
+        "time": 3.333,
+        "times": [
+          0.667,
+          3.333,
+          6,
+          8.667,
+          11.333
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "error",
+        "message": "Contrast is 1.37:1; WCAG AA requires 3:1.",
+        "text": "✦",
+        "fg": "rgb(251,191,36)",
+        "bg": "rgb(204,238,255)",
+        "ratio": 1.37,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(167,127,24)",
+        "large": true,
+        "selector": "main > div:nth-of-type(2) > i:nth-of-type(3)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 1181.1768798828125,
+          "y": 102.82600402832031,
+          "width": 69.989990234375,
+          "height": 114.34799194335938
+        },
+        "time": 0.667,
+        "times": [
+          0.667,
+          3.333,
+          6,
+          8.667,
+          11.333
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 2.56:1; WCAG AA requires 3:1.",
+        "text": "✓",
+        "fg": "rgb(255,255,255)",
+        "bg": "rgb(32,184,120)",
+        "ratio": 2.56,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(82,82,82)",
+        "large": true,
+        "selector": "main > section:nth-of-type(1) > div",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 894,
+          "y": 180,
+          "width": 132,
+          "height": 132
+        },
+        "time": 0.667,
+        "times": [
+          0.667
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "error",
+        "message": "Contrast is 1.18:1; WCAG AA requires 3:1.",
+        "text": "Slot Parkirmu Sudah Siap!",
+        "fg": "rgb(255,255,255)",
+        "bg": "rgb(233,237,241)",
+        "ratio": 1.18,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(136,136,136)",
+        "large": true,
+        "selector": "#caption",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 684.1096801757812,
+          "y": 916.405029296875,
+          "width": 551.3905639648438,
+          "height": 84
+        },
+        "time": 8.667,
+        "times": [
+          8.667,
+          11.333
+        ]
+      }
+    ],
+    "enabled": true,
+    "samples": [
+      0.667,
+      3.333,
+      6,
+      8.667,
+      11.333
+    ],
+    "checked": 27,
+    "passed": 9
+  },
+  "craft": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 1,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "text_below_floor",
+        "severity": "warning",
+        "message": "Type floor is 28 px (2.6% of the 1080 px short side, what a phone can read) and 2 text elements stay under it for 0.5 s or more, the smallest \"PARKIR\" at 18 px: set reading text to at least 28 px, or put data-layout-ignore on text that is texture rather than reading; see references/look.md.",
+        "text": "PARKIR",
+        "selector": "div.garage-sign",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 1258.74,
+          "y": 366.45,
+          "width": 84.96,
+          "height": 21.91
+        },
+        "time": 3.25,
+        "times": [
+          3.25,
+          8.125
+        ],
+        "fontPx": 18.1,
+        "floorPx": 28,
+        "seconds": 8.75,
+        "elements": [
+          {
+            "selector": "div.garage-sign",
+            "text": "PARKIR",
+            "fontPx": 18.1,
+            "time": 3.25,
+            "seconds": 8.75
+          },
+          {
+            "selector": "div.sign > strong:nth-of-type(1)",
+            "text": "SLOT A-12",
+            "fontPx": 27,
+            "time": 8.125,
+            "seconds": 3.875
+          }
+        ]
+      }
+    ],
+    "enabled": true,
+    "step": 0.125,
+    "samples": 96
+  },
+  "hdr": {
+    "autoPromotion": null,
+    "inspection": "available"
+  },
+  "snapshots": {
+    "enabled": false,
+    "files": [],
+    "times": [],
+    "findingFiles": []
+  }
+}
