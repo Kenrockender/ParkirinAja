@@ -473,9 +473,15 @@ export function ProfileView({
         </AlertDialogTrigger>
         <AlertDialogContent className="dialog-safe max-w-[calc(100%-2rem)] rounded-3xl border-border bg-card/95 p-6 backdrop-blur-xl sm:max-w-[360px]">
           <AlertDialogHeader className="items-center text-center sm:text-center">
-            <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-red-400/10">
-              <LogOut className="h-5 w-5 text-red-400" />
-            </span>
+            <motion.img
+              initial={{ opacity: 0, y: -6, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              src="/mascot/processed/mascot-sad-cancellation.png"
+              alt=""
+              aria-hidden="true"
+              className="-mb-1 h-24 w-24 object-contain"
+            />
             <AlertDialogTitle className="font-display text-lg font-bold tracking-tight">
               {lang === "id" ? "Yakin ingin keluar?" : "Are you sure to exit?"}
             </AlertDialogTitle>

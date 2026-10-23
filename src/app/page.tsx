@@ -102,6 +102,17 @@ function Shell() {
   const toast = useParkir((s) => s.toast);
   const checkoutReservation = useParkir((s) => s.reservations.find((r) => r.id === checkoutId));
 
+  // PWA home-screen shortcuts open the existing customer flows, then clear the
+  // query string so a manual refresh cannot trigger the action repeatedly.
+  React.useEffect(() => {
+    const action = new URLSearchParams(window.location.search).get("action");
+    if (action === "scan") setScanOpen(true);
+    if (action === "wallet") setTab("wallet");
+    if (action === "scan" || action === "wallet") {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
   // Live "session ending soon" / overtime alerts for the customer's own sessions.
   useSessionAlerts();
 
@@ -328,7 +339,7 @@ function OperatorShell() {
   return (
     <div className="ambient flex min-h-dvh flex-col">
       <header className="sticky top-0 z-30 border-b border-border/50 bg-background/70 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
-        <div className="mx-auto flex h-14 w-full max-w-[430px] items-center gap-2.5 px-4 md:max-w-[900px] lg:max-w-[1100px]">
+        <div className="mx-auto flex h-14 w-full max-w-[600px] items-center gap-2.5 px-4 md:max-w-[900px] md:px-6 lg:max-w-[1100px] lg:px-8 xl:max-w-[1280px] 2xl:max-w-[1440px]">
           <LogoMark size={34} />
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-[13.5px] font-bold leading-tight tracking-tight">
@@ -387,7 +398,7 @@ function OperatorShell() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[430px] flex-1 px-4 pb-10 pt-4 md:max-w-[900px] lg:max-w-[1100px]">
+      <main className="mx-auto w-full max-w-[600px] flex-1 px-4 pb-10 pt-4 md:max-w-[900px] md:px-6 lg:max-w-[1100px] lg:px-8 xl:max-w-[1280px] 2xl:max-w-[1440px]">
         <OperatorView />
       </main>
 

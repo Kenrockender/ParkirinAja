@@ -93,7 +93,7 @@ export function AuditView() {
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-12">
+    <div className="grid grid-cols-1 gap-4 [&>*]:min-w-0 md:grid-cols-12">
       {/* ── session context ── */}
       <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className={cn(CARD, "md:col-span-5")}>
         <div className="mb-3 flex items-center gap-1.5">

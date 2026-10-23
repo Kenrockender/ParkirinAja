@@ -64,6 +64,24 @@ import {
 
 const HEAT = buildHeatmap();
 
+/** Small transparent 3D landmarks make each campus recognizable at a glance. */
+const CAMPUS_ILLUSTRATIONS: Record<Campus["id"], string> = {
+  anggrek: "/campuses/kemanggisan-3d.png",
+  alamsutera: "/campuses/alam-sutera-3d.png",
+  bekasi: "/campuses/bekasi-3d.png",
+};
+
+function CampusBuildingArt({ campus, className }: { campus: Campus; className?: string }) {
+  return (
+    <img
+      src={CAMPUS_ILLUSTRATIONS[campus.id]}
+      alt=""
+      aria-hidden="true"
+      className={cn("object-contain", className)}
+    />
+  );
+}
+
 export function HomeView({
   onSlotPress,
   onOpenMap,
@@ -179,8 +197,8 @@ export function HomeView({
           aria-label={t("campusPick")}
           className="relative flex w-full items-center gap-2.5 text-left transition active:scale-[0.99]"
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <MapPin className="h-4 w-4" />
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center">
+            <CampusBuildingArt campus={campus} className="h-12 w-12 drop-shadow-[0_5px_8px_rgba(0,0,0,0.32)]" />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[12.5px] font-bold leading-tight">
@@ -477,15 +495,14 @@ function CampusPickerDialog({ open, onClose }: { open: boolean; onClose: () => v
                     : "border-border bg-card/40 hover:border-primary/25"
                 )}
               >
-                <span
-                  className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
-                    selected
-                      ? "border-primary/40 bg-primary/15 text-primary"
-                      : "border-border bg-white/[0.03] text-muted-foreground"
-                  )}
-                >
-                  <Building2 className="h-4.5 w-4.5" />
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center">
+                  <CampusBuildingArt
+                    campus={c}
+                    className={cn(
+                      "h-16 w-16 drop-shadow-[0_6px_10px_rgba(0,0,0,0.35)]",
+                      selected && "drop-shadow-[0_0_12px_rgba(59,130,246,0.55)]"
+                    )}
+                  />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-bold leading-tight">{c.name}</span>
@@ -651,7 +668,6 @@ function AdCarousel({ lang }: { lang: "id" | "en" }) {
               className="absolute inset-0 block cursor-grab touch-pan-y active:cursor-grabbing"
               aria-label={ADS[idx].title}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={ADS[idx].image}
                 alt={ADS[idx].title}
@@ -786,10 +802,6 @@ function HeatmapCard({ lang }: { lang: "id" | "en" }) {
  * occupancy for the currently selected booking window.
  * Memoized once per mount; re-evaluates when win.date or win.startTime changes.
  */
-const forecastCache = {
-  forecast: null as number[] | null,
-};
-
 function PredictionStrip({
   win,
   lang,
@@ -799,15 +811,12 @@ function PredictionStrip({
 }) {
   const t = (k: Parameters<typeof tr>[1]) => tr(lang, k);
 
-  // Build forecast once - deterministic, no need to recompute
+  // Build once per mounted Home view. This avoids module-level mutable cache
+  // while keeping the prediction calculation out of ordinary re-renders.
   const forecast = React.useMemo(() => {
-    if (!forecastCache.forecast) {
-      const world = buildAnalyticsWorld();
-      const series = hourlyOccupancySeries(world);
-      const hw = holtWintersForecast(series);
-      forecastCache.forecast = hw.forecast;
-    }
-    return forecastCache.forecast;
+    const world = buildAnalyticsWorld();
+    const series = hourlyOccupancySeries(world);
+    return holtWintersForecast(series).forecast;
   }, []);
 
   // Map the selected date + startTime → forecast hour index.

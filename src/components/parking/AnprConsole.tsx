@@ -197,7 +197,6 @@ export function AnprConsole({ className }: { className?: string }) {
                 {/* upload trigger or preview */}
                 {preview ? (
                   <div className="relative overflow-hidden rounded-xl border border-border">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={preview}
                       alt="Plate preview"
@@ -376,12 +375,12 @@ export function AnprConsole({ className }: { className?: string }) {
                       onChange={(e) => setManualInput(e.target.value.toUpperCase())}
                       onKeyDown={(e) => e.key === "Enter" && onManualSearch()}
                       placeholder={t("anprManualPh")}
-                      className="tnum h-10 flex-1 rounded-xl border border-border bg-card/50 px-3.5 text-[12px] font-bold tracking-wider placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none"
+                      className="tnum h-11 flex-1 rounded-xl border border-border bg-card/50 px-3.5 text-base font-bold tracking-wider placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none sm:h-10 sm:text-[12px]"
                     />
                     <button
                       onClick={onManualSearch}
                       disabled={!manualInput.trim()}
-                      className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3.5 text-xs font-black text-primary-foreground transition active:scale-95 disabled:opacity-40"
+                      className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3.5 text-xs font-black text-primary-foreground transition active:scale-95 disabled:opacity-40 sm:h-10"
                     >
                       <Search className="h-3.5 w-3.5" />
                       {t("anprManualBtn")}

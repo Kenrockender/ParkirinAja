@@ -75,14 +75,5 @@
       "url": "/?action=wallet",
       "icons": [{ "src": "/icons/wallet-shortcut.png", "sizes": "96x96" }]
     }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshots/home.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Home screen showing available parking slots"
-    }
   ]
 }

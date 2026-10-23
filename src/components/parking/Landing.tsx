@@ -63,7 +63,7 @@ export function Landing() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-14"
+          className="mx-auto mt-14 w-full max-w-[22rem] text-center"
         >
           <h2 className="font-display text-[2.6rem] font-bold leading-[1.04] tracking-tight">
             {lang === "id" ? (

@@ -9,6 +9,7 @@
  * v26: top-up records the payment channel; avatar upload; profile editing.
  */
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import {
   buildAlamSuteraSlots,
   buildBekasiSlots,
@@ -26,6 +27,7 @@ import {
   TARIFF,
   timeStr,
   toMinutes,
+  validateWindow,
   fromMinutes,
   uid,
   type AuditAction,
@@ -54,6 +56,14 @@ import {
 const HOUR = 3600_000;
 const MIN = 60_000;
 const DAY = 24 * HOUR;
+
+// Persist to localStorage in the browser, but keep server rendering and Bun
+// tests silent and deterministic where Web Storage does not exist.
+const noOpStorage = {
+  getItem: (_name: string) => null,
+  setItem: (_name: string, _value: string) => {},
+  removeItem: (_name: string) => {},
+};
 
 /** Max concurrent CHECKED_IN sessions per user ("sedang parkir"). */
 const MAX_ACTIVE_PARKING = 2;
@@ -955,7 +965,7 @@ function seedEvRequests(now: number): EvRequest[] {
   ];
 }
 
-export const useParkir = create<ParkirState>((set, get) => {
+export const useParkir = create<ParkirState>()(persist((set, get) => {
   /** Append-only audit - capped, never rewrites history. */
   const audit = (
     action: AuditAction,
@@ -1323,15 +1333,34 @@ export const useParkir = create<ParkirState>((set, get) => {
     },
 
     book: ({ slotId, slotNumber, type, date, startTime, endTime, vehiclePlate, vehicleName }) => {
-      const { walletBalance } = get();
+      const state = get();
+      const { walletBalance } = state;
+      const window = { date, startTime, endTime };
+      const slot = state.slots.find((x) => x.id === slotId);
+      const vehicle = state.vehicles.find((v) => v.licensePlate === vehiclePlate);
+
+      // The store is the final guard: UI state can be stale or a confirmation
+      // click can arrive twice. Never create a reservation from untrusted data.
+      if (
+        !slot ||
+        slot.slotNumber !== slotNumber ||
+        !vehicle ||
+        !validateWindow(window).ok ||
+        slotStatusForWindow(slot, state.reservations, window) !== "AVAILABLE"
+      ) {
+        return null;
+      }
+      const today = dateStr(new Date());
+      if ((type === "WALK_IN" && date !== today) || (!state.user.isBinusian && type === "ADVANCE")) {
+        return null;
+      }
       // EV Charger slots are reserved for operator-verified electric vehicles.
-      const evSlot = get().slots.find((x) => x.id === slotId)?.slotType === "EV";
+      const evSlot = slot.slotType === "EV";
       if (evSlot) {
-        const veh = get().vehicles.find((v) => v.licensePlate === vehiclePlate);
-        if (!veh || !isEvApproved(veh.id, get().evRequests)) return null;
+        if (!isEvApproved(vehicle.id, state.evRequests)) return null;
       }
       // Dynamic pricing - the service fee follows the live demand tier.
-      const demand = demandNow(get().slots, get().reservations);
+      const demand = demandNow(state.slots, state.reservations);
       const fee = type === "ADVANCE" ? DEMAND_TIERS[demand.tier].advanceFee : DEMAND_TIERS[demand.tier].walkInFee;
       if (walletBalance < fee) {
         return null;
@@ -1775,7 +1804,29 @@ export const useParkir = create<ParkirState>((set, get) => {
       set({ liveEvents: events.slice(0, 40), liveGuests: guests, liveLatency: latency });
     },
   };
-});
+}, {
+  // This is still a front-end demo store, but a browser refresh must not erase
+  // a customer's confirmed ticket, wallet balance, or reservation history.
+  name: "parkirinaja-preview-state-v1",
+  storage: createJSONStorage(() => (typeof window === "undefined" ? noOpStorage : window.localStorage)),
+  partialize: (state) => ({
+    lang: state.lang,
+    signedIn: state.signedIn,
+    user: state.user,
+    vehicles: state.vehicles,
+    slots: state.slots,
+    slotsByCampus: state.slotsByCampus,
+    evRequests: state.evRequests,
+    reservations: state.reservations,
+    transactions: state.transactions,
+    walletBalance: state.walletBalance,
+    notifications: state.notifications,
+    viewWindow: state.viewWindow,
+    campusId: state.campusId,
+    auditLog: state.auditLog,
+    pushEnabled: state.pushEnabled,
+  }),
+}));
 
 // ── e2e hook - expose the store on window for Playwright ──
 if (typeof window !== "undefined") {

@@ -728,10 +728,10 @@ export function OperatorView() {
   }
 
   const statCards = [
-    { label: t("inBuilding"), value: stats.OCCUPIED, cls: "border-red-400/25 bg-red-400/[0.06]", val: "text-red-300", icon: CarFront },
-    { label: t("reservedNow"), value: stats.RESERVED, cls: "border-amber-400/25 bg-amber-400/[0.06]", val: "text-amber-300", icon: Clock3 },
-    { label: t("available"), value: stats.AVAILABLE, cls: "border-green-400/25 bg-green-400/[0.06]", val: "text-green-300", icon: LogIn },
-    { label: t("inMaintenance"), value: stats.MAINTENANCE, cls: "border-slate-500/25 bg-slate-500/[0.08]", val: "text-slate-300", icon: Wrench },
+    { key: "OCCUPIED" as const, label: compactStatusLabel(lang, "OCCUPIED"), value: stats.OCCUPIED, cls: "border-red-400/25 bg-red-400/[0.06]", val: "text-red-300", icon: CarFront },
+    { key: "RESERVED" as const, label: compactStatusLabel(lang, "RESERVED"), value: stats.RESERVED, cls: "border-amber-400/25 bg-amber-400/[0.06]", val: "text-amber-300", icon: Clock3 },
+    { key: "AVAILABLE" as const, label: compactStatusLabel(lang, "AVAILABLE"), value: stats.AVAILABLE, cls: "border-green-400/25 bg-green-400/[0.06]", val: "text-green-300", icon: LogIn },
+    { key: "MAINTENANCE" as const, label: compactStatusLabel(lang, "MAINTENANCE"), value: stats.MAINTENANCE, cls: "border-slate-500/25 bg-slate-500/[0.08]", val: "text-slate-300", icon: Wrench },
   ];
 
   const tabs: { k: OpTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -757,17 +757,9 @@ export function OperatorView() {
       >
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-40"
-          style={{
-            backgroundImage: "radial-gradient(rgba(59,130,246,0.09) 1px, transparent 1px)",
-            backgroundSize: "22px 22px",
-          }}
-        />
-        <div
-          aria-hidden
           className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-binus-bright/15 blur-3xl"
         />
-        <div className="relative flex items-center gap-3.5">
+        <div className="relative flex flex-wrap items-center gap-3.5 sm:flex-nowrap">
           <div className="relative shrink-0">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-binus-blue to-binus-bright">
               <ShieldCheck className="h-5 w-5 text-white" />
@@ -785,22 +777,24 @@ export function OperatorView() {
             </div>
             <p className="truncate text-[11px] text-muted-foreground">{t("operatorShift")}</p>
           </div>
-          <LiveStatusPill
-            liveOn={liveOn}
-            liveStatus={liveStatus}
-            latency={liveLatency}
-            onToggle={liveToggle}
-          />
-          <LiveClock />
+          <div className="order-3 flex w-full items-center justify-between gap-3 border-t border-border/50 pt-3 sm:order-none sm:w-auto sm:border-0 sm:pt-0">
+            <LiveStatusPill
+              liveOn={liveOn}
+              liveStatus={liveStatus}
+              latency={liveLatency}
+              onToggle={liveToggle}
+            />
+            <LiveClock />
+          </div>
         </div>
 
         {/* stat chips */}
-        <div className="relative mt-4 grid grid-cols-4 gap-2">
+        <div className="relative mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {statCards.map((s) => (
-            <div key={s.label} className={cn("rounded-xl border p-2 text-center", s.cls)}>
-              <s.icon className={cn("mx-auto h-3.5 w-3.5", s.val)} />
-              <p className={cn("tnum mt-1 font-display text-lg font-bold leading-none", s.val)}>{s.value}</p>
-              <p className="mt-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div key={s.key} className={cn("rounded-2xl border p-3 text-center", s.cls)}>
+              <s.icon className={cn("mx-auto h-4 w-4", s.val)} />
+              <p className={cn("tnum mt-1.5 font-display text-xl font-bold leading-none", s.val)}>{s.value}</p>
+              <p className="mt-1.5 whitespace-nowrap text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {s.label}
               </p>
             </div>
@@ -811,7 +805,7 @@ export function OperatorView() {
         <div className="relative mt-2.5 flex items-center gap-3 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/[0.09] to-transparent px-3.5 py-2.5">
           <Banknote className="h-5 w-5 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <p className="whitespace-nowrap text-[8px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               {t("revenueToday")}
             </p>
             <p className="tnum font-display text-xl font-bold leading-tight text-gradient-gold">{rupiah(revenue)}</p>
@@ -826,14 +820,14 @@ export function OperatorView() {
       </motion.section>
 
       {/* ── segmented tabs (v23/v24: 8 tabs - vertical icon+label mobile, horizontal ≥sm) ── */}
-      <div className="glass grid grid-cols-5 gap-1 rounded-2xl p-1 sm:grid-cols-9">
+      <div className="glass grid grid-cols-3 gap-1.5 rounded-2xl p-1.5 min-[900px]:grid-cols-9 min-[900px]:gap-1 min-[900px]:p-1">
         {tabs.map(({ k, label, icon: Icon }) => (
           <button
             key={k}
             onClick={() => setTab(k)}
             aria-current={tab === k ? "page" : undefined}
             className={cn(
-              "relative flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition sm:h-10 sm:gap-1.5",
+              "relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold leading-tight transition min-[900px]:h-10 min-[900px]:min-h-0 min-[900px]:flex-row min-[900px]:gap-1.5 min-[900px]:px-0 min-[900px]:text-xs",
               tab === k ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -845,10 +839,10 @@ export function OperatorView() {
               />
             )}
             <Icon className="relative h-3.5 w-3.5 shrink-0" />
-            <span className="relative hidden sm:inline">{label}</span>
-            <span className="relative sm:hidden">{label.slice(0, 4)}</span>
+            <span className="relative min-[900px]:hidden">{label}</span>
+            <span className="relative hidden min-[900px]:inline">{label}</span>
             {k === "ev" && evPending > 0 && (
-              <span className="tnum absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white">
+              <span className="tnum absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white">
                 {evPending}
               </span>
             )}
@@ -865,7 +859,7 @@ export function OperatorView() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("opSearchPh")}
-              className="tnum min-w-0 flex-1 bg-transparent text-[13px] font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/60 focus:outline-none"
+              className="tnum min-w-0 flex-1 bg-transparent text-base font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/60 focus:outline-none sm:text-[13px]"
             />
             {query && (
               <button
@@ -924,7 +918,7 @@ export function OperatorView() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="grid gap-4 md:grid-cols-12"
+            className="grid grid-cols-1 gap-4 [&>*]:min-w-0 md:grid-cols-12"
           >
             <OccupancyCard className="md:col-span-5" lang={lang} stats={stats} total={slots.length + liveGuests.length} shift={shift} />
             <RevenueCard className="md:col-span-7" lang={lang} data={hourlyRevenue} total={revenue} />
@@ -959,7 +953,7 @@ export function OperatorView() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="grid gap-4 md:grid-cols-12"
+            className="grid grid-cols-1 gap-4 [&>*]:min-w-0 md:grid-cols-12"
           >
             <PricingCard className="md:col-span-12" lang={lang} demand={demand} />
             <LiveOpsCard
@@ -1041,7 +1035,7 @@ export function OperatorView() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="grid gap-4 md:grid-cols-12"
+            className="grid grid-cols-1 gap-4 [&>*]:min-w-0 md:grid-cols-12"
           >
             <RecapCard
               className="md:col-span-5"
@@ -1140,14 +1134,14 @@ export function OperatorView() {
 
       {/* ── slot detail dialog ── */}
       <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
-        <DialogContent className="max-w-[380px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
+        <DialogContent className="dialog-safe dialog-safe-h w-[calc(100%-2rem)] max-w-[380px] overflow-y-auto rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
           {detail && <SlotDetailDialog slot={detail} onClose={() => setDetail(null)} />}
         </DialogContent>
       </Dialog>
 
       {/* ── slot QR dialog ── */}
       <Dialog open={!!qrSlot} onOpenChange={(v) => !v && setQrSlot(null)}>
-        <DialogContent className="max-w-[380px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
+        <DialogContent className="dialog-safe dialog-safe-h w-[calc(100%-2rem)] max-w-[380px] overflow-y-auto rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
           {qrSlot && <QrSlotDetailDialog slot={qrSlot} onClose={() => setQrSlot(null)} />}
         </DialogContent>
       </Dialog>
@@ -1323,6 +1317,23 @@ const RING_COLORS: Record<Exclude<SlotStatus, never>, string> = {
   AVAILABLE: "#22c55e",
 };
 
+/** Short labels keep the status summary readable on compact operator screens. */
+function compactStatusLabel(lang: string, status: SlotStatus) {
+  const indonesian: Record<SlotStatus, string> = {
+    OCCUPIED: "Di dalam",
+    RESERVED: "Booking",
+    MAINTENANCE: "Servis",
+    AVAILABLE: "Kosong",
+  };
+  const english: Record<SlotStatus, string> = {
+    OCCUPIED: "Inside",
+    RESERVED: "Booked",
+    MAINTENANCE: "Service",
+    AVAILABLE: "Free",
+  };
+  return (lang === "id" ? indonesian : english)[status];
+}
+
 /** Donut occupancy ring + per-status legend + shift statistics. */
 function OccupancyCard({
   className,
@@ -1348,10 +1359,10 @@ function OccupancyCard({
     { key: "AVAILABLE", color: RING_COLORS.AVAILABLE },
   ];
   const legend: { key: SlotStatus; label: string; dot: string; text: string }[] = [
-    { key: "OCCUPIED", label: t("inBuilding"), dot: "bg-red-400", text: "text-red-300" },
-    { key: "RESERVED", label: t("reservedNow"), dot: "bg-amber-400", text: "text-amber-300" },
-    { key: "MAINTENANCE", label: t("inMaintenance"), dot: "bg-slate-500", text: "text-slate-400" },
-    { key: "AVAILABLE", label: t("available"), dot: "bg-green-400", text: "text-green-300" },
+    { key: "OCCUPIED", label: compactStatusLabel(lang, "OCCUPIED"), dot: "bg-red-400", text: "text-red-300" },
+    { key: "RESERVED", label: compactStatusLabel(lang, "RESERVED"), dot: "bg-amber-400", text: "text-amber-300" },
+    { key: "MAINTENANCE", label: compactStatusLabel(lang, "MAINTENANCE"), dot: "bg-slate-500", text: "text-slate-400" },
+    { key: "AVAILABLE", label: compactStatusLabel(lang, "AVAILABLE"), dot: "bg-green-400", text: "text-green-300" },
   ];
   let acc = 0;
 
@@ -1373,7 +1384,7 @@ function OccupancyCard({
         </span>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="grid grid-cols-[104px_minmax(0,1fr)] items-center gap-3">
         <div className="relative h-28 w-28 shrink-0">
           <svg viewBox="0 0 112 112" className="h-full w-full -rotate-90">
             <circle cx="56" cy="56" r={R} fill="none" stroke="currentColor" strokeWidth="12" className="text-white/[0.06]" />
@@ -1408,12 +1419,12 @@ function OccupancyCard({
           </div>
         </div>
 
-        <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-2">
+        <div className="grid min-w-0 grid-cols-2 gap-x-2 gap-y-2">
           {legend.map((l) => (
-            <div key={l.key} className="flex items-center gap-2">
+            <div key={l.key} className="flex min-w-0 items-center gap-1.5">
               <span className={cn("h-2 w-2 shrink-0 rounded-full", l.dot)} />
-              <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-muted-foreground">{l.label}</span>
-              <span className={cn("tnum text-[13px] font-bold", l.text)}>{stats[l.key]}</span>
+              <span className="min-w-0 flex-1 whitespace-nowrap text-[9px] font-semibold text-muted-foreground">{l.label}</span>
+              <span className={cn("tnum shrink-0 text-[12px] font-bold", l.text)}>{stats[l.key]}</span>
             </div>
           ))}
         </div>

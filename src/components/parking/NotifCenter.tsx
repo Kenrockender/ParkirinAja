@@ -210,7 +210,6 @@ export function NotifSheet({ open, onClose }: { open: boolean; onClose: () => vo
       window.removeEventListener("popstate", onPop);
       window.removeEventListener("keydown", onKey);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   /** In-app close: drop the history entry we pushed, otherwise just close. */

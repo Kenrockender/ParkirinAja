@@ -13,7 +13,7 @@ export function LogoMark({ size = 40, className }: { size?: number; className?: 
       aria-hidden
     >
       <img
-        src="/icons/icon-192x192.png"
+        src="/icons/icon-192x192.png?v=parkirinaja-p"
         alt="ParkirinAja Logo"
         width={size}
         height={size}

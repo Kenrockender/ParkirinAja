@@ -172,7 +172,12 @@ export function BookingView({
       if (res) {
         onDone(res.id);
       } else {
-        toast(t("insufficient"), "error");
+        toast(
+          lang === "id"
+            ? "Slot atau jadwal ini baru saja tidak tersedia. Pilih slot lain lalu coba lagi."
+            : "This slot or time is no longer available. Choose another slot and try again.",
+          "error"
+        );
       }
     }, 700);
   }

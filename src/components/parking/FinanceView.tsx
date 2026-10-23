@@ -186,7 +186,7 @@ export function FinanceView() {
       </div>
 
       {/* ── journal + trial balance ── */}
-      <div className="grid gap-4 md:grid-cols-12">
+      <div className="grid grid-cols-1 gap-4 [&>*]:min-w-0 md:grid-cols-12">
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className={cn(CARD, "md:col-span-7")}>
           <CardHead
             icon={Landmark}
@@ -261,7 +261,7 @@ export function FinanceView() {
       </div>
 
       {/* ── waterfall + BEP ── */}
-      <div className="grid gap-4 md:grid-cols-12">
+      <div className="grid grid-cols-1 gap-4 [&>*]:min-w-0 md:grid-cols-12">
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.1 }} className={cn(CARD, "md:col-span-7")}>
           <CardHead icon={BarChart3} title={t("finWaterfallTitle")} sub={t("finWaterfallSub")} />
           <div className="flex h-[170px] items-end justify-around gap-3 px-1">
@@ -361,7 +361,7 @@ export function FinanceView() {
       </div>
 
       {/* ── invoices + cashflow (v24) ── */}
-      <div className="grid gap-4 md:grid-cols-12">
+      <div className="grid grid-cols-1 gap-4 [&>*]:min-w-0 md:grid-cols-12">
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.2 }} className={cn(CARD, "md:col-span-7")}>
           <CardHead
             icon={FileText}
@@ -450,7 +450,7 @@ export function FinanceView() {
 
       {/* invoice document dialog */}
       <Dialog open={!!invOpen} onOpenChange={(v) => !v && setInvOpen(null)}>
-        <DialogContent className="max-w-[380px] rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
+        <DialogContent className="dialog-safe dialog-safe-h w-[calc(100%-2rem)] max-w-[380px] overflow-y-auto rounded-3xl border-border bg-card/95 p-5 backdrop-blur-xl">
           {invOpen && <InvoiceDoc invoice={invOpen} />}
         </DialogContent>
       </Dialog>

@@ -157,7 +157,7 @@ export function EvVerifyModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92dvh] max-w-[400px] overflow-y-auto rounded-3xl border-border bg-card p-5">
+      <DialogContent className="dialog-safe dialog-safe-h w-[calc(100%-2rem)] max-w-[400px] overflow-y-auto rounded-3xl border-border bg-card p-5">
         <DialogHeader className="space-y-1.5">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-green-500/15">
             <Zap className="h-5.5 w-5.5 text-green-600 dark:text-green-400" />
@@ -321,7 +321,6 @@ function DocPicker({
       <input ref={ref} type="file" accept={DOC_TYPES.join(",")} className="hidden" onChange={onFile} />
       {value ? (
         <div className="flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/[0.06] p-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={value.dataUrl} alt={title} className="h-14 w-20 shrink-0 rounded-lg object-cover" />
           <p className="min-w-0 flex-1 truncate text-[11px] font-semibold">{value.name}</p>
           <button
@@ -430,13 +429,12 @@ export function EvVerifyView() {
       </AnimatePresence>
 
       <Dialog open={!!preview} onOpenChange={(v) => !v && setPreview(null)}>
-        <DialogContent className="max-w-[640px] rounded-3xl border-border bg-card p-3">
+        <DialogContent className="dialog-safe dialog-safe-h w-[calc(100%-2rem)] max-w-[640px] overflow-y-auto rounded-3xl border-border bg-card p-3">
           <DialogHeader>
             <DialogTitle className="px-1 text-sm font-bold">{preview?.title}</DialogTitle>
             <DialogDescription className="sr-only">{preview?.title}</DialogDescription>
           </DialogHeader>
           {preview && (
-            // eslint-disable-next-line @next/next/no-img-element
             <img src={preview.src} alt={preview.title} className="w-full rounded-2xl object-contain" />
           )}
         </DialogContent>
@@ -534,7 +532,6 @@ function EvRequestCard({
             onClick={() => onPreview(doc.dataUrl, `${title} · ${req.plate}`)}
             className="group overflow-hidden rounded-2xl border border-border text-left transition hover:border-primary/40"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={doc.dataUrl} alt={title} className="aspect-[16/10] w-full object-cover" />
             <p className="px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground group-hover:text-primary">
               {title} · {L("ketuk untuk perbesar", "tap to enlarge")}
@@ -585,7 +582,7 @@ function EvRequestCard({
                 value={reasonText}
                 onChange={(e) => setReasonText(e.target.value)}
                 placeholder={L("Catatan tambahan (opsional)", "Extra note (optional)")}
-                className="h-10 w-full rounded-xl border border-border bg-transparent px-3 text-[12px] focus:border-primary/50 focus:outline-none"
+                className="h-11 w-full rounded-xl border border-border bg-transparent px-3 text-base focus:border-primary/50 focus:outline-none sm:h-10 sm:text-[12px]"
               />
             </div>
           )}

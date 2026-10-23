@@ -63,9 +63,13 @@ export function ScannerView({
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
   const decodeLoopRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cameraSessionRef = React.useRef(0);
+  const cameraActiveRef = React.useRef(false);
   const detectorRef = React.useRef<BarcodeDetectorI | null>(null);
   const zxingRef = React.useRef<import("@zxing/browser").BrowserQRCodeReader | null>(null);
   const lastScannedRef = React.useRef<string | null>(null); // debounce duplicate scans
+  const scheduleDecodeLoopRef = React.useRef<(session?: number) => void>(() => {});
+  const handleScanRef = React.useRef<(payload: string) => void>(() => {});
 
   /** Live dynamic walk-in rate */
   const demand = demandNow(slots, reservations);
@@ -76,7 +80,10 @@ export function ScannerView({
   // ── start / stop camera ─────────────────────────────────────────────────
 
   const stopCamera = React.useCallback(() => {
+    cameraActiveRef.current = false;
+    cameraSessionRef.current += 1;
     if (decodeLoopRef.current) clearTimeout(decodeLoopRef.current);
+    decodeLoopRef.current = null;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -84,12 +91,59 @@ export function ScannerView({
     if (videoRef.current) videoRef.current.srcObject = null;
   }, []);
 
+  const scheduleDecodeLoop = React.useCallback((session = cameraSessionRef.current) => {
+    if (!cameraActiveRef.current || session !== cameraSessionRef.current) return;
+    decodeLoopRef.current = setTimeout(async () => {
+      if (!cameraActiveRef.current || session !== cameraSessionRef.current) return;
+      const video = videoRef.current;
+      if (!video || !streamRef.current || video.readyState < 2) {
+        scheduleDecodeLoopRef.current(session);
+        return;
+      }
+      try {
+        let raw: string | null = null;
+        if (detectorRef.current) {
+          const results = await detectorRef.current.detect(video);
+          if (results.length > 0) raw = results[0].rawValue;
+        } else if (zxingRef.current) {
+          const result = await zxingRef.current
+            .decodeOnceFromVideoElement(video)
+            .catch(() => null);
+          if (result) raw = result.getText();
+        }
+        if (raw && raw !== lastScannedRef.current) {
+          lastScannedRef.current = raw;
+          handleScanRef.current(raw);
+          // reset debounce after 3s to allow re-scanning
+          setTimeout(() => { lastScannedRef.current = null; }, 3000);
+          return; // don't schedule next loop - flash will handle timing
+        }
+      } catch {
+        /* decode errors are expected on frames without a QR code */
+      }
+      scheduleDecodeLoopRef.current(session);
+    }, 250); // check every 250 ms
+  }, []);
+
+  React.useEffect(() => {
+    scheduleDecodeLoopRef.current = scheduleDecodeLoop;
+  }, [scheduleDecodeLoop]);
+
   const startCamera = React.useCallback(async () => {
+    // A retry may happen while a previous request is resolving. Invalidate it
+    // first, so a late getUserMedia result cannot leave the camera running.
+    stopCamera();
+    cameraActiveRef.current = true;
+    const session = cameraSessionRef.current;
     setCamState("requesting");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
       });
+      if (!cameraActiveRef.current || session !== cameraSessionRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       streamRef.current = stream;
 
       if (videoRef.current) {
@@ -111,9 +165,14 @@ export function ScannerView({
         zxingRef.current = new BrowserQRCodeReader();
       }
 
+      if (!cameraActiveRef.current || session !== cameraSessionRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       setCamState("active");
-      scheduleDecodeLoop();
+      scheduleDecodeLoop(session);
     } catch (err) {
+      if (!cameraActiveRef.current || session !== cameraSessionRef.current) return;
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("denied") || msg.includes("NotAllowed") || msg.includes("Permission")) {
         setCamState("denied");
@@ -121,39 +180,7 @@ export function ScannerView({
         setCamState("error");
       }
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const scheduleDecodeLoop = React.useCallback(() => {
-    decodeLoopRef.current = setTimeout(async () => {
-      const video = videoRef.current;
-      if (!video || !streamRef.current || video.readyState < 2) {
-        scheduleDecodeLoop();
-        return;
-      }
-      try {
-        let raw: string | null = null;
-        if (detectorRef.current) {
-          const results = await detectorRef.current.detect(video);
-          if (results.length > 0) raw = results[0].rawValue;
-        } else if (zxingRef.current) {
-          const result = await zxingRef.current
-            .decodeOnceFromVideoElement(video)
-            .catch(() => null);
-          if (result) raw = result.getText();
-        }
-        if (raw && raw !== lastScannedRef.current) {
-          lastScannedRef.current = raw;
-          handleScan(raw);
-          // reset debounce after 3s to allow re-scanning
-          setTimeout(() => { lastScannedRef.current = null; }, 3000);
-          return; // don't schedule next loop - flash will handle timing
-        }
-      } catch {
-        /* decode errors are expected on frames without a QR code */
-      }
-      scheduleDecodeLoop();
-    }, 250); // check every 250 ms
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scheduleDecodeLoop, stopCamera]);
 
   // ── toggle torch ─────────────────────────────────────────────────────────
 
@@ -191,10 +218,9 @@ export function ScannerView({
       setTimeout(() => setCamState("error"), 0);
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     startCamera();
     return () => stopCamera();
-  }, [open, campus.available]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, campus.available]);
 
   // ── business logic (unchanged from original) ─────────────────────────────
 
@@ -223,6 +249,10 @@ export function ScannerView({
       scheduleDecodeLoop();
     }
   }
+
+  React.useEffect(() => {
+    handleScanRef.current = handleScan;
+  });
 
   if (!open) return null;
 
